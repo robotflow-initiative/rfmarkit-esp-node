@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"print.colourScheme": "Atelier Dune",
+		"files.associations": {
+			"*.h": "c",
+			"__locale": "c",
+			"__string": "c",
+			"string": "c",
+			"string_view": "c"
+		}
+	}
+}
