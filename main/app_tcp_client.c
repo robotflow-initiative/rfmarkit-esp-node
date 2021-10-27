@@ -1,4 +1,5 @@
 #include "apps.h"
+#include <string.h>
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
@@ -35,7 +36,7 @@ void app_tcp_client(void* pvParameters) {
 
     while (1) {
         /** TCP connection is not established **/
-        xEventGroupClearBits(net_event_group, TCP_CONNECTED_BIT);
+        xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
 
         /** Create address struct **/
         struct sockaddr_in dest_addr;
@@ -57,6 +58,14 @@ void app_tcp_client(void* pvParameters) {
         /** Set socket options **/
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
 
+        /** Wait time sync **/
+        ESP_LOGI(TAG, "Waiting for time sync");
+        xEventGroupWaitBits(sys_event_group, 
+                            NTP_SYNCED_BIT, 
+                            pdFALSE,
+                            pdFALSE,
+                            portMAX_DELAY);
+
         /** Connect socket **/
         int err = connect(sock, (struct sockaddr*)&dest_addr, sizeof(struct sockaddr_in6));
         if (err != 0) {
@@ -65,14 +74,19 @@ void app_tcp_client(void* pvParameters) {
             goto socket_error;
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
-        xEventGroupSetBits(net_event_group, TCP_CONNECTED_BIT);
+        xEventGroupSetBits(sys_event_group, TCP_CONNECTED_BIT);
         n_tcp_retry = CONFIG_ESP_TCP_MAXIMUM_RETRY;
 
+        // PARAM: serial_queue, sock
+        // TMP: imu_reading, payload_buffer, payload_len
+        // GLOBAL: TAG, sys_event_group
         while (1) {
+            /** Receive and send **/
             if (xQueueReceive(serial_queue, &imu_reading, (TickType_t)0x4) != pdPASS) {
                 continue;
             }
             /** imu_reading is available **/
+#if CONFIG_SEND_PARSED
             ret = parse_imu_reading(&imu_reading, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
             payload_len = strlen(payload_buffer);
 
@@ -85,21 +99,24 @@ void app_tcp_client(void* pvParameters) {
                 /** Append '\n' at the end of payload **/
                 payload_buffer[payload_len++] = '\n';
             }
+#else
+            memcpy(payload_buffer, imu_reading.data, GY95_MSG_LEN);
+            payload_len = GY95_MSG_LEN;
+#endif
 
             err = send(sock, payload_buffer, payload_len, 0);
             if (err < 0) {
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                xEventGroupClearBits(net_event_group, TCP_CONNECTED_BIT);
+                xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
                 break;
             }
             taskYIELD();
-            // ESP_LOGI(TAG, "Message sent to %s:%s", HOST_IP_ADDR, HOST_PORT);
 
-            // vTaskDelay(2000 / portTICK_PERIOD_MS);
+            ESP_LOGD(TAG, "Message sent to %s:%s", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
         }
 
 socket_error:
-        xEventGroupClearBits(net_event_group, TCP_CONNECTED_BIT);
+        xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
         vTaskDelay(10); // TODO: Magic Delay
         if (sock != -1) {
             ESP_LOGE(TAG, "n_tcp_retry = %d, Shutting down socket and restarting...", n_tcp_retry);

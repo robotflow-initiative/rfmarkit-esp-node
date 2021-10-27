@@ -12,6 +12,7 @@
 #include "types.h"
 #include "gy95.h"
 #include "events.h"
+#include "main.h"
 
 
 /** pseudo data **/
@@ -61,15 +62,18 @@ void app_uart_monitor(void* pvParameters) {
         //                     pdTRUE,
         //                     portMAX_DELAY);
         while (1) {
-            EventBits_t bits = xEventGroupGetBits(net_event_group);
-            if ((bits & TCP_CONNECTED_BIT) && (bits & NTP_SYNCED_BIT)) {
+            EventBits_t bits = xEventGroupGetBits(sys_event_group);
+            if (bits & UART_BLOCK_BIT){
+                /** Intentionally block uart, do nothing but delay**/
+            }
+            else if ((bits & TCP_CONNECTED_BIT) && (bits & NTP_SYNCED_BIT)) {
                 if (!(bits & GY95_CALIBRATED_BIT)) {
                     ESP_LOGI(TAG, "Enabling gy95");
-                    gy95_enable();
+                    gy95_enable(&g_gy95_imu);
                     vTaskDelay(1);
                     ESP_LOGI(TAG, "Setting up gy95");
                     gy95_setup(&gy);
-                    xEventGroupSetBits(net_event_group, GY95_CALIBRATED_BIT);
+                    xEventGroupSetBits(sys_event_group, GY95_CALIBRATED_BIT);
                     ESP_LOGI(TAG, "Calibration finished");
                 }
                 break;

@@ -5,5 +5,6 @@ void app_udp_client(void *pvParameters);
 void app_tcp_client(void *pvParameters);
 void app_uart_monitor(void * pvParameters);
 void app_time_sync(void * pvParameters);
+void app_controller(void *pvParameters);
 
 #endif

@@ -1,19 +1,13 @@
 #include "funcs.h"
-#include "types.h"
-#include "freertos/FreeRTOS.h"
-#include "cJSON.h"
 #include <string.h>
+#include "freertos/FreeRTOS.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "cJSON.h"
+
+#include "types.h"
 
 static const char* TAG = "func_parse";
-/**
- * @brief Parse imu raw reading
- *
- * @param p_msg
- * @return char*
- * @warning This function dynamically allocates memory, remember to free them
- */
 
 static imu_msg_key_t default_key = {
     .accel_x = 4,
@@ -63,10 +57,18 @@ static imu_msg_multiplier_t default_multiplier = {
 //     .mag_z = 1,
 // };
 
-
-bool parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
+/**
+ * @brief Parse imu raw reading
+ *
+ * @param p_reading
+ * @param buffer
+ * @param len
+ * @return esp_err_t
+ * @warning This function dynamically allocates memory, remember to free them
+ */
+esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
     imu_msg_holder_t msg_holder = { 0 };
-    bool res;
+    esp_err_t res;
 
     /** memcopy **/
     msg_holder.accel_x= ((p_reading->data[default_key.accel_x] &0x00FF)<< 8) | ((p_reading->data[default_key.accel_x+1] & 0x00FF) );
@@ -111,7 +113,7 @@ bool parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
     cJSON_AddNumberToObject(pRoot, "mag_z", msg_holder.mag_z * default_multiplier.mag_z);
 
 
-    res = cJSON_PrintPreallocated(pRoot, buffer, len, 0);
+    res = cJSON_PrintPreallocated(pRoot, buffer, len, 0)?ESP_OK:ESP_FAIL;
     cJSON_Delete(pRoot);
 
     return res;

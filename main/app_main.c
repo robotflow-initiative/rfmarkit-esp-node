@@ -19,6 +19,7 @@
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_task_wdt.h"
+#include "esp_ota_ops.h"
 #include "nvs_flash.h"
 #include "soc/soc_caps.h"
 #include "soc/rtc.h"
@@ -35,19 +36,24 @@
 #include "funcs.h"
 #include "gy95.h"
 #include "events.h"
+#include "main.h"
 
 static const char* TAG = "app_main";
 static TaskHandle_t tcp_task = NULL;
 static TaskHandle_t uart_task = NULL;
 static TaskHandle_t time_sync_task = NULL;
+static TaskHandle_t controller_task = NULL;
 
+
+gy95_t g_gy95_imu = { 0 };
 
 RTC_DATA_ATTR static int boot_count = 0;
 
-void init() {
+static void init() {
     /* Print chip information */
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
+    ESP_LOGI("","\n\n\n\n\n\n# -------- Begin of app log -------- #");
     ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
              CONFIG_IDF_TARGET,
              chip_info.cores,
@@ -73,36 +79,51 @@ void init() {
     }
     ESP_ERROR_CHECK(ret);
     wifi_init_sta();
+
     /** Configure wifi tx power **/
     ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
 
-    /** Configure Timing **/
+    // /** Check Update **/
+    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", __FIRMWARE_VERSION__);
+    // ESP_LOGW(TAG, "Will try to update in 3 seconds");
+    // vTaskDelay(3000 / portTICK_PERIOD_MS);
+    // esp_do_ota();
 
     /** Create TCP event group **/
-    net_event_group = xEventGroupCreate();
+    sys_event_group = xEventGroupCreate();
 
     /** Enable gpio hold in deep sleep **/
     gpio_deep_sleep_hold_en();
 
+    /** Setup GY95 **/
     ESP_LOGI(TAG, "setting up gy95");
     uart_service_init(GY95_PORT, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS);
-    gy95_t gy;
-    gy95_init(&gy, GY95_PORT, GY95_CTRL_PIN, GY95_ADDR);
-    gy95_msp_init(&gy);
-    
-    gy95_enable();
+
+    /** Init global imu struct g_gy95_imu **/
+    /** @remark g_gy95_imu will not be used by app_uart_monitor (currently). It serves for cross function enable/disable and msp_init **/
+    gy95_init(&g_gy95_imu, GY95_PORT, GY95_CTRL_PIN, GY95_ADDR);
+    gy95_msp_init(&g_gy95_imu);
+
+    gy95_enable(&g_gy95_imu);
+
+    /** Configure Events **/
+    xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
+    xEventGroupClearBits(sys_event_group, NTP_SYNCED_BIT);
+    xEventGroupClearBits(sys_event_group, GY95_CALIBRATED_BIT);
+    xEventGroupClearBits(sys_event_group, UART_BLOCK_BIT);
 }
 
 void app_main(void) {
 
+    esp_ota_mark_app_valid_cancel_rollback();
     init();
 
-    QueueHandle_t serial_queue = xQueueCreate(128, sizeof(imu_msg_raw_t));
-    // ESP_LOGI(TAG, "\n[ Serial Queue Addr] %p\n", serial_queue);
+    QueueHandle_t serial_queue = xQueueCreate(CONFIG_MSG_QUEUE_LEN, sizeof(imu_msg_raw_t));
+    ESP_LOGD(TAG, "\nSerial Queue Addr %p\n", serial_queue);
+    
+    /** Launch time sync task **/
     ESP_LOGI(TAG, "launching time sync task");
-    xEventGroupClearBits(net_event_group, TCP_CONNECTED_BIT);
-    xEventGroupClearBits(net_event_group, NTP_SYNCED_BIT);
     xTaskCreate(app_time_sync,
                 "app_time_sync",
                 2560,
@@ -110,7 +131,7 @@ void app_main(void) {
                 2,
                 &time_sync_task);
     if (tcp_task == NULL) {
-        ESP_LOGI(TAG, "launching tcp client task");
+        ESP_LOGI(TAG, "Launching tcp client task");
 #if CONFIG_MULTI_CORE
         xTaskCreatePinnedToCore(app_tcp_client,
                                 "app_tcp_client",
@@ -127,16 +148,10 @@ void app_main(void) {
                     1,
                     &tcp_task);
 
-        // xTaskCreate(app_uart_monitor,
-        //             "app_uart_monitor",
-        //             2048,
-        //             (void*)serial_queue,
-        //             2,
-        //             &tcp_task);
 #endif
     }
     if (uart_task == NULL) {
-        ESP_LOGI(TAG, "launching uart monitor task");
+        ESP_LOGI(TAG, "Launching uart monitor task");
 #if CONFIG_MULTI_CORE
         xTaskCreatePinnedToCore(app_uart_monitor,
                                 "app_uart_monitor",
@@ -152,6 +167,26 @@ void app_main(void) {
                     (void*)serial_queue,
                     1,
                     &uart_task);
+#endif
+    }
+    
+    if (controller_task == NULL) {
+        ESP_LOGI(TAG, "Launching controller task");
+#if CONFIG_MULTI_CORE
+        xTaskCreatePinnedToCore(app_controller,
+                                "app_controller",
+                                4096,
+                                NULL,
+                                2,
+                                &controller_task,
+                                0x0);
+#else
+        xTaskCreate(app_controller,
+                    "app_controller",
+                    4096,
+                    NULL,
+                    2,
+                    &controller_task);
 #endif
     }
 

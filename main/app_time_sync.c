@@ -56,7 +56,7 @@ bool esp_wait_sync_time(const char* const posix_tz) {
 
 void app_time_sync(void* pvParameters) {
     ESP_LOGI(TAG, "app_time_sync started");
-    xEventGroupClearBits(net_event_group, NTP_SYNCED_BIT);
+    xEventGroupClearBits(sys_event_group, NTP_SYNCED_BIT);
 
     time_t now;
     struct tm timeinfo;
@@ -76,7 +76,7 @@ void app_time_sync(void* pvParameters) {
 
             /** Set event **/
             ESP_LOGI(TAG, "Setting NTP_SYNCED_BIT");
-            xEventGroupSetBits(net_event_group, NTP_SYNCED_BIT);
+            xEventGroupSetBits(sys_event_group, NTP_SYNCED_BIT);
             /** Sleep 300s **/
             vTaskDelay(300000 / portTICK_PERIOD_MS);
             n_retry = CONFIG_NTP_MAX_RETRY;

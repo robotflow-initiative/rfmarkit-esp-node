@@ -1,3 +1,4 @@
+#include "funcs.h"
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -14,9 +15,9 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "settings.h"
-#include "funcs.h"
 #include "events.h"
 #include "gy95.h"
+#include "main.h"
 
 /* FreeRTOS event group to signal when we are connected*/
 EventGroupHandle_t g_wifi_event_group;
@@ -25,10 +26,18 @@ EventGroupHandle_t g_wifi_event_group;
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
 
-static const char* TAG = "wifi station";
+static const char* TAG = "func_dev";
 
 static int s_retry_num = 0;
 
+/**
+ * @brief Default Wi-Fi event handler from esp-idf example
+ * 
+ * @param arg 
+ * @param event_base 
+ * @param event_id 
+ * @param event_data 
+ */
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -50,6 +59,10 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
+/**
+ * @brief Default Wi-Fi STA connect function from esp-idf example
+ * 
+ */
 void wifi_init_sta(void) {
     g_wifi_event_group = xEventGroupCreate();
 
@@ -115,6 +128,7 @@ void wifi_init_sta(void) {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
 
+    /** @remark Original example Disables wifi event group, we dont since we need it to reconnect after resumming from light sleep**/
     /* The event will not be processed after unregister */
     // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
     // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
@@ -141,13 +155,13 @@ void esp_enter_light_sleep() {
     ESP_ERROR_CHECK(esp_wifi_stop());
     ESP_LOGI(TAG, "Disabling GY95");
 
-    gy95_disable();
-    xEventGroupClearBits(net_event_group, GY95_CALIBRATED_BIT);
+    gy95_disable(&g_gy95_imu);
+    xEventGroupClearBits(sys_event_group, GY95_CALIBRATED_BIT);
     vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 
-
+    /** Begin sleep **/
     esp_light_sleep_start();
-
+    /** End sleep **/
 
     gettimeofday(&now, NULL);
     int sleep_time_ms = (now.tv_sec - sleep_enter_time.tv_sec) * 1000 + (now.tv_usec - sleep_enter_time.tv_usec) / 1000;
@@ -186,6 +200,10 @@ void esp_enter_light_sleep() {
 }
 
 char g_device_id[14] = { 0 };
+/**
+ * @brief Read esp mac address from chip to g_device_id
+ * 
+**/
 void esp_get_device_id() {
     uint8_t base_mac_addr[6];
     esp_efuse_mac_get_default(base_mac_addr);

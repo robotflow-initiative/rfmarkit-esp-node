@@ -35,7 +35,12 @@ void gy95_init(gy95_t* p_gy, int port, int ctrl_pin, int addr) {
     p_gy->flag = 0;
 }
 
-void gy95_reset(gy95_t* p_gy) {
+/**
+ * @brief Clean GY95 buffer
+ * 
+ * @param p_gy 
+ */
+void gy95_clean(gy95_t* p_gy) {
     memset(p_gy->buf, 0, GY95_MSG_LEN);
     p_gy->cursor = 0;
     p_gy->start_reg = 0;
@@ -43,7 +48,17 @@ void gy95_reset(gy95_t* p_gy) {
     p_gy->flag = 0;
 }
 
+/**
+ * @brief Send msg with chksum appended
+ * 
+ * @param p_gy 
+ * @param msg 
+ * @param len 
+ */
 void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
+// #if ! CONFIG_MULTI_CORE
+//     taskENTER_CRITICAL();
+// #endif
     if (len <= 0) {
         len = strlen((char*)msg);
     }
@@ -76,7 +91,7 @@ void gy95_setup(gy95_t* p_gy) {
     vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 
-void gy95_calibrate(gy95_t* p_gy) {
+void gy95_cali_acc(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
     // Intentially delay 7s
@@ -92,6 +107,24 @@ void gy95_calibrate(gy95_t* p_gy) {
 //     self.ser.write(append_chksum(bytearray([0xa4, 0x06, 0x05, 0x57])))  # Calibrate
 //     time.sleep(7)
 
+void gy95_cali_mag(gy95_t* p_gy) {
+    ESP_LOGI(TAG, "Mag calibrate");
+    /** Start calibration **/
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", 4);
+    ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
+
+    vTaskDelay(15000 / portTICK_PERIOD_MS); // TODO: Magic delay
+
+    /** Stop calibration **/
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", 4);
+
+    vTaskDelay(500 / portTICK_PERIOD_MS); // TODO: Magic delay
+    /** Save calibration result**/
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x5A", 4);
+    
+    vTaskDelay(500 / portTICK_PERIOD_MS); // TODO: Magic delay
+}
+
 bool gy95_chksum(gy95_t* p_gy) {
     long int sum = 0;
     for (int idx = 0; idx < p_gy->cursor; ++idx) {
@@ -102,7 +135,7 @@ bool gy95_chksum(gy95_t* p_gy) {
 
 
 void gy95_read(gy95_t* p_gy) {
-    gy95_reset(p_gy);
+    gy95_clean(p_gy);
     while (1) {
         uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xFF);
         ESP_LOGD(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->cursor], p_gy->cursor);
@@ -110,14 +143,14 @@ void gy95_read(gy95_t* p_gy) {
         switch (p_gy->cursor) {
         case 0:
             if (p_gy->buf[p_gy->cursor] != p_gy->addr) {
-                gy95_reset(p_gy);
+                gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
             break;
         case 1:
             if (p_gy->buf[p_gy->cursor] != GY95_READ_OP) {
-                gy95_reset(p_gy);
+                gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
@@ -126,7 +159,7 @@ void gy95_read(gy95_t* p_gy) {
             if (p_gy->buf[p_gy->cursor] < GY95_REG_THRESH) {
                 p_gy->start_reg = p_gy->buf[p_gy->cursor];
             } else {
-                gy95_reset(p_gy);
+                gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
@@ -135,7 +168,7 @@ void gy95_read(gy95_t* p_gy) {
             if (p_gy->start_reg + (p_gy->buf[p_gy->cursor]) < GY95_REG_THRESH) {
                 p_gy->length = p_gy->buf[p_gy->cursor];
             } else {
-                gy95_reset(p_gy);
+                gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
 
                 continue;
@@ -153,7 +186,7 @@ void gy95_read(gy95_t* p_gy) {
                 return;
             } else {
                 ESP_LOGD(TAG, "GYT95 reset buffer");
-                gy95_reset(p_gy);
+                gy95_clean(p_gy);
             }
         } else {
             ++p_gy->cursor;
@@ -162,12 +195,17 @@ void gy95_read(gy95_t* p_gy) {
     }
 }
 
-void gy95_enable() {
-    gpio_set_level(GY95_CTRL_PIN, 0);
+void gy95_enable(gy95_t* p_gy) {
+    gpio_set_level(p_gy->ctrl_pin, 0);
     vTaskDelay(100);
 }
 
-void gy95_disable() {
-    gpio_set_level(GY95_CTRL_PIN, 1);
+void gy95_disable(gy95_t* p_gy) {
+    gpio_set_level(p_gy->ctrl_pin, 1);
     vTaskDelay(100);
+}
+
+void gy95_cali_reset(gy95_t* p_gy) {
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
+    vTaskDelay(3000 /  portTICK_PERIOD_MS); // TODO: Magic delay
 }
