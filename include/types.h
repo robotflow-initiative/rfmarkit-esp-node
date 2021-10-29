@@ -59,5 +59,11 @@ typedef struct _imu_float_t {
     float mag_z;
 } imu_msg_multiplier_t, imu_msg_parsed_t;
 
+// #define MAX_DESC_LEN 32
+// typedef struct command_t {
+//     server_command_t cmd;
+//     char desc[MAX_DESC_LEN];
+//     esp_err_t (*pfunc)(void);
+// } command_t;
 
 #endif

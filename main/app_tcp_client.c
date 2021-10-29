@@ -30,13 +30,14 @@ void app_tcp_client(void* pvParameters) {
 
     QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
     struct timeval timeout = { 3,0 }; // TCP timeout 
+
     imu_msg_raw_t imu_reading = { 0 };
-    int ret;
     int payload_len;
+
 
     while (1) {
         /** TCP connection is not established **/
-        xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
+        xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
 
         /** Create address struct **/
         struct sockaddr_in dest_addr;
@@ -58,15 +59,15 @@ void app_tcp_client(void* pvParameters) {
         /** Set socket options **/
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
 
-        /** Wait time sync **/
+        /** Wait time sync **/ // TODO: Verify this part
         ESP_LOGI(TAG, "Waiting for time sync");
-        xEventGroupWaitBits(sys_event_group, 
-                            NTP_SYNCED_BIT, 
+        xEventGroupWaitBits(g_sys_event_group,
+                            NTP_SYNCED_BIT,
                             pdFALSE,
                             pdFALSE,
                             portMAX_DELAY);
 
-        /** Connect socket **/
+        /** Connect socket so the IP address of node is reported **/
         int err = connect(sock, (struct sockaddr*)&dest_addr, sizeof(struct sockaddr_in6));
         if (err != 0) {
             ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
@@ -74,23 +75,22 @@ void app_tcp_client(void* pvParameters) {
             goto socket_error;
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
-        xEventGroupSetBits(sys_event_group, TCP_CONNECTED_BIT);
+        xEventGroupSetBits(g_sys_event_group, TCP_CONNECTED_BIT);
         n_tcp_retry = CONFIG_ESP_TCP_MAXIMUM_RETRY;
 
-        // PARAM: serial_queue, sock
-        // TMP: imu_reading, payload_buffer, payload_len
-        // GLOBAL: TAG, sys_event_group
         while (1) {
-            /** Receive and send **/
+            ESP_LOGD(TAG, "tcp_client loop");
+            /** If the QueueIsEmpy, sleep for a while **/
             if (xQueueReceive(serial_queue, &imu_reading, (TickType_t)0x4) != pdPASS) {
+                taskYIELD();
                 continue;
             }
             /** imu_reading is available **/
 #if CONFIG_SEND_PARSED
-            ret = parse_imu_reading(&imu_reading, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
+            err = parse_imu_reading(&imu_reading, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
             payload_len = strlen(payload_buffer);
 
-            if (payload_len == 0 || !ret) {
+            if (payload_len == 0 || !err) {
                 esp_task_wdt_reset();
                 ESP_LOGW(TAG, "Failed to parse IMU reading");
                 continue;
@@ -107,7 +107,7 @@ void app_tcp_client(void* pvParameters) {
             err = send(sock, payload_buffer, payload_len, 0);
             if (err < 0) {
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
+                xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
                 break;
             }
             taskYIELD();
@@ -116,19 +116,21 @@ void app_tcp_client(void* pvParameters) {
         }
 
 socket_error:
-        xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
+
+        xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
         vTaskDelay(10); // TODO: Magic Delay
         if (sock != -1) {
-            ESP_LOGE(TAG, "n_tcp_retry = %d, Shutting down socket and restarting...", n_tcp_retry);
+            ESP_LOGE(TAG, "n_tcp_retry = %d, Shutting down socket...", n_tcp_retry);
             shutdown(sock, 0);
             vTaskDelay(10 / portTICK_PERIOD_MS);
             close(sock);
         }
-        --n_tcp_retry;
 
+        /** Sleep related **/
+        --n_tcp_retry;
         if (n_light_sleep_retry <= 0) {
             ESP_LOGI(TAG, "Entering deep sleep");
-            esp_deep_sleep_start();
+            esp_enter_deep_sleep();
         }
         if (n_tcp_retry <= 0) {
             esp_enter_light_sleep();

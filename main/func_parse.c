@@ -113,7 +113,8 @@ esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
     cJSON_AddNumberToObject(pRoot, "mag_z", msg_holder.mag_z * default_multiplier.mag_z);
 
 
-    res = cJSON_PrintPreallocated(pRoot, buffer, len, 0)?ESP_OK:ESP_FAIL;
+    res = (cJSON_PrintPreallocated(pRoot, buffer, len, 0)==0)?ESP_OK:ESP_FAIL;
+    ESP_LOGD(TAG, "JSON String: %s\nRes:%d\n", buffer, res);
     cJSON_Delete(pRoot);
 
     return res;

@@ -1,3 +1,3 @@
 #include "events.h"
 
-EventGroupHandle_t sys_event_group = NULL;
+EventGroupHandle_t g_sys_event_group = NULL;

@@ -17,8 +17,9 @@
         "future": "c",
         "*.inc": "c",
         "chrono": "c",
-        "*.tcc": "c"
+        "*.tcc": "c",
+        "type_traits": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled",
-    "todo-tree.tree.scanMode": "current file",
+    "todo-tree.tree.scanMode": "workspace only",
 }

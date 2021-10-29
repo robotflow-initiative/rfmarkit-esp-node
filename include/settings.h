@@ -3,34 +3,42 @@
 
 #include "driver/gpio.h"
 
-#define DEBUG 0
+#define USE_PSEUDO_VALUE 0
 
 #define CONFIG_MAX_TX_POWER (8)
 #define CONFIG_MULTI_CORE 0
-#define CONFIG_MSG_QUEUE_LEN 512
+#define CONFIG_MSG_QUEUE_LEN 256
 
 /** LAB and Non LAB environment has different network **/
-#define LAB 1
-#if LAB
+#define ENV 3
+#if ENV == 0
 #define CONFIG_ESP_WIFI_SSID "yz_ri"
 #define CONFIG_ESP_WIFI_PASSWORD "yzri@1220"
 #define CONFIG_HOST_IP_ADDR "10.52.21.125"
 #define CONFIG_HOST_PORT 18888
 #define CONFIG_LOCAL_PORT 18888
-#else
+#elif ENV == 1
 #define CONFIG_ESP_WIFI_SSID "SPEIT-105_IoT"
 #define CONFIG_ESP_WIFI_PASSWORD "IoTIoTIoT"
 #define CONFIG_HOST_IP_ADDR "192.168.1.91"
 #define CONFIG_HOST_PORT 18888
 #define CONFIG_LOCAL_PORT 18888
+#elif ENV == 2
+#define CONFIG_ESP_WIFI_SSID "Yutong-LI-Phone4"
+#define CONFIG_ESP_WIFI_PASSWORD "88888888"
+#define CONFIG_HOST_IP_ADDR "172.20.10.10"
+#define CONFIG_HOST_PORT 18888
+#define CONFIG_LOCAL_PORT 18888
+#elif ENV == 3
+#define CONFIG_ESP_WIFI_SSID "yz_sensor"
+#define CONFIG_ESP_WIFI_PASSWORD "yzri@1220"
+#define CONFIG_HOST_IP_ADDR "10.52.21.125"
+#define CONFIG_HOST_PORT 18888
+#define CONFIG_LOCAL_PORT 18888
 #endif
 
 /** OTA debugging is not different in debug mode and non debug mode **/
-#if DEBUG
-#define CONFIG_OTA_PORT "5139"
-#else
 #define CONFIG_OTA_PORT "5138"
-#endif
 
 #define CONFIG_OTA_APIHOST "http://"CONFIG_HOST_IP_ADDR":"CONFIG_OTA_PORT"/firmware.bin" // TODO: Upgrading via HTTP is not safe
 #define CONFIG_OTA_MAXIMUM_RETRY 1
@@ -54,14 +62,14 @@
 #define GY95_REG_THRESH 0x2c
 #define GY95_DEFAULT_START_REG 0x14
 #define GY95_PORT (1) // UART_NUM_X
-#define GY95_RX (6)
-#define GY95_TX (7)
-#define GY95_RTS (4)
-#define GY95_CTS (5)
+#define GY95_RX GPIO_NUM_6
+#define GY95_TX GPIO_NUM_7
+#define GY95_RTS GPIO_NUM_4
+#define GY95_CTS GPIO_NUM_8
 #define GY95_N_TICK 10
 
 /** NTP settings **/
-#define CONFIG_NTP_SERVER_ADDR "ntp.ntsc.ac.cn"
+#define CONFIG_NTP_SERVER_ADDR CONFIG_HOST_IP_ADDR
 #define CONFIG_NTP_MAX_RETRY 2
 
 #endif

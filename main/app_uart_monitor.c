@@ -16,8 +16,6 @@
 
 
 /** pseudo data **/
-
-char test_data[40] = "Hello,world ";
 char pseudo_data1[40] = { 0xA4, 0x03, 0x08, 0x12, 0x00, 0x07,
                           0xFF, 0xFE, 0x08, 0x0A, 0xFF, 0xFE,
                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -51,7 +49,7 @@ void app_uart_monitor(void* pvParameters) {
     // TickType_t last_update = 0;
 
     while (1) {
-        
+        EventBits_t bits;
         /** Wait until tcp connection is established **/
 
         // TODO: figure out why xEventGroupWaitBits won't work
@@ -62,34 +60,34 @@ void app_uart_monitor(void* pvParameters) {
         //                     pdTRUE,
         //                     portMAX_DELAY);
         while (1) {
-            EventBits_t bits = xEventGroupGetBits(sys_event_group);
-            if (bits & UART_BLOCK_BIT){
-                /** Intentionally block uart, do nothing but delay**/
-            }
-            else if ((bits & TCP_CONNECTED_BIT) && (bits & NTP_SYNCED_BIT)) {
-                if (!(bits & GY95_CALIBRATED_BIT)) {
+            bits = xEventGroupGetBits(g_sys_event_group);
+            ESP_LOGD(TAG, "Bits: %x", bits);
+            if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
+                vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+                continue;
+            } else {
+                if (bits & GY95_CALIBRATED_BIT) {
+                    break;
+                } else {
                     ESP_LOGI(TAG, "Enabling gy95");
                     gy95_enable(&g_gy95_imu);
                     vTaskDelay(1);
                     ESP_LOGI(TAG, "Setting up gy95");
                     gy95_setup(&gy);
-                    xEventGroupSetBits(sys_event_group, GY95_CALIBRATED_BIT);
+                    xEventGroupSetBits(g_sys_event_group, GY95_CALIBRATED_BIT);
                     ESP_LOGI(TAG, "Calibration finished");
-                }
-                break;
-            } else {
-                xQueueReset(serial_queue);
+                    break;
+                }   
             }
-            vTaskDelay(100 / portTICK_PERIOD_MS); // TODO: Magic Delay
         }
 
         /** Get data **/
-#if DEBUG
+#if USE_PSEUDO_VALUE
         // memset(imu_data.data, 0, GY95_MSG_LEN);
         // memcpy(imu_data.data, test_data, GY95_MSG_LEN);
         // snprintf((char*)&imu_data.data[strlen((const char*)imu_data.data)], GY95_MSG_LEN - strlen((const char*)imu_data.data), "%d\n", cnt++);
         memset(imu_data.data, 0, GY95_MSG_LEN);
-        memcpy(imu_data.data, pseudo_data2, GY95_MSG_LEN);
+        memcpy(imu_data.data, pseudo_data1, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);
         imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -98,13 +96,12 @@ void app_uart_monitor(void* pvParameters) {
         memcpy(imu_data.data, gy.buf, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);
         imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
-
 #endif
 
-        /** If queue is full **/
+        /** If queue is full, clear queue **/
         while (uxQueueSpacesAvailable(serial_queue) <= 0) {
             xQueueReceive(serial_queue, (void*)&imu_data_trash, (TickType_t)0xF);
-            ESP_LOGW(TAG, "Buffer full\n");
+            ESP_LOGE(TAG, "Buffer full\n");
         }
 
         ret = xQueueSend(serial_queue, (void*)&imu_data, (TickType_t)0xF);

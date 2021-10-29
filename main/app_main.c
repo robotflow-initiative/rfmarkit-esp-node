@@ -71,14 +71,30 @@ static void init() {
     esp_get_device_id();
     ESP_LOGI(TAG, "Device ID: %s", g_device_id);
 
+    /** Setup GY95 **/
+    ESP_LOGI(TAG, "setting up gy95");
+    uart_service_init(GY95_PORT, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS);
+
+    /** Init global imu struct g_gy95_imu **/
+    /** @remark g_gy95_imu will not be used by app_uart_monitor (currently). It serves for cross function enable/disable and msp_init **/
+    gy95_init(&g_gy95_imu, GY95_PORT, GY95_CTRL_PIN, GY95_ADDR);
+    gy95_msp_init(&g_gy95_imu);
+    gy95_enable(&g_gy95_imu);
+
     /** Initialize NVS **/
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
+
+    
     ESP_ERROR_CHECK(ret);
-    wifi_init_sta();
+    ret = wifi_init_sta();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Cannot connect to AP, entering deep sleep");
+        esp_enter_deep_sleep();
+    }
 
     /** Configure wifi tx power **/
     ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
@@ -91,27 +107,18 @@ static void init() {
     // esp_do_ota();
 
     /** Create TCP event group **/
-    sys_event_group = xEventGroupCreate();
+    g_sys_event_group = xEventGroupCreate();
 
     /** Enable gpio hold in deep sleep **/
     gpio_deep_sleep_hold_en();
 
-    /** Setup GY95 **/
-    ESP_LOGI(TAG, "setting up gy95");
-    uart_service_init(GY95_PORT, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS);
-
-    /** Init global imu struct g_gy95_imu **/
-    /** @remark g_gy95_imu will not be used by app_uart_monitor (currently). It serves for cross function enable/disable and msp_init **/
-    gy95_init(&g_gy95_imu, GY95_PORT, GY95_CTRL_PIN, GY95_ADDR);
-    gy95_msp_init(&g_gy95_imu);
-
-    gy95_enable(&g_gy95_imu);
 
     /** Configure Events **/
-    xEventGroupClearBits(sys_event_group, TCP_CONNECTED_BIT);
-    xEventGroupClearBits(sys_event_group, NTP_SYNCED_BIT);
-    xEventGroupClearBits(sys_event_group, GY95_CALIBRATED_BIT);
-    xEventGroupClearBits(sys_event_group, UART_BLOCK_BIT);
+    xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
+    xEventGroupClearBits(g_sys_event_group, NTP_SYNCED_BIT);
+    xEventGroupClearBits(g_sys_event_group, GY95_CALIBRATED_BIT);
+    xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
+
 }
 
 void app_main(void) {
@@ -192,5 +199,13 @@ void app_main(void) {
 
     // app_blink("\xF1\x01\xFF\x0F", 3);
     // while (1) {esp_task_wdt_feed();}
-    while (1) { vTaskDelay(1000); }
+    while (1) { 
+        vTaskDelay(10000 / portTICK_PERIOD_MS); 
+        /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
+        EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group, WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+        if (bits & WIFI_FAIL_BIT) {
+            ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
+            esp_enter_deep_sleep();
+        }
+    }
 }

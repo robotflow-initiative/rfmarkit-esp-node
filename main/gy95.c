@@ -13,12 +13,14 @@ static const char* TAG = "GY95";
 // static portMUX_TYPE gy95_mmux = portMUX_INITIALIZER_UNLOCKED;
 
 void gy95_msp_init(gy95_t* p_gy) {
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << p_gy->ctrl_pin);
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 1;
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_PIN_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
+        .pull_down_en = 0,
+        .pull_up_en = 1,
+    };
+    
     gpio_config(&io_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
 }
@@ -79,7 +81,7 @@ void gy95_setup(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Set rate to 100hz");
     // gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4);
 
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x01", 4);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Set update policy to auto");

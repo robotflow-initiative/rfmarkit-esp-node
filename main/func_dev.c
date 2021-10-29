@@ -11,6 +11,7 @@
 #include "esp_err.h"
 #include "nvs_flash.h"
 #include "driver/uart.h"
+#include "driver/gpio.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -28,7 +29,7 @@ EventGroupHandle_t g_wifi_event_group;
 
 static const char* TAG = "func_dev";
 
-static int s_retry_num = 0;
+static int s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
 
 /**
  * @brief Default Wi-Fi event handler from esp-idf example
@@ -43,9 +44,9 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < CONFIG_ESP_MAXIMUM_RETRY) {
+        if (s_retry_num > 0) {
             esp_wifi_connect();
-            s_retry_num++;
+            s_retry_num--;
             ESP_LOGI(TAG, "retry to connect to the AP");
         } else {
             xEventGroupSetBits(g_wifi_event_group, WIFI_FAIL_BIT);
@@ -54,7 +55,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-        s_retry_num = 0;
+        s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
         xEventGroupSetBits(g_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
@@ -63,7 +64,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
  * @brief Default Wi-Fi STA connect function from esp-idf example
  * 
  */
-void wifi_init_sta(void) {
+esp_err_t wifi_init_sta(void) {
     g_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -121,11 +122,14 @@ void wifi_init_sta(void) {
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
                  CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
+        return ESP_OK;
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
                  CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
+        return ESP_FAIL;
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
+        return ESP_FAIL;
     }
 
     /** @remark Original example Disables wifi event group, we dont since we need it to reconnect after resumming from light sleep**/
@@ -156,7 +160,7 @@ void esp_enter_light_sleep() {
     ESP_LOGI(TAG, "Disabling GY95");
 
     gy95_disable(&g_gy95_imu);
-    xEventGroupClearBits(sys_event_group, GY95_CALIBRATED_BIT);
+    xEventGroupClearBits(g_sys_event_group, GY95_CALIBRATED_BIT);
     vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 
     /** Begin sleep **/
@@ -198,6 +202,28 @@ void esp_enter_light_sleep() {
     }
     /* Execution continues here after wakeup */
 }
+void esp_enter_deep_sleep() {
+
+    // esp_sleep_enable_gpio_wakeup();
+    /* Enter sleep mode */
+    ESP_LOGI(TAG, " Going to deep sleep (shutdown)");
+
+    ESP_LOGI(TAG, "Disabling GY95");
+    gy95_disable(&g_gy95_imu);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_gy95_imu.ctrl_pin));
+
+    gpio_hold_en(g_gy95_imu.ctrl_pin);
+    ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_gy95_imu.ctrl_pin);
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+
+    /** Begin deep sleep **/
+    esp_deep_sleep_start();
+    /** ESP shutdown **/
+
+    
+}
 
 char g_device_id[14] = { 0 };
 /**
@@ -218,7 +244,7 @@ void esp_get_device_id() {
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = 115200, // TODO: Magic baud_rate
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -230,6 +256,6 @@ void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     ESP_LOGI(TAG, "Initiate uart service at port %d, rx:%d, tx:%d", port, rx, tx);
     ESP_ERROR_CHECK(uart_driver_install(port, 512, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(port, &uart_config));
-    // TODO: After PCB update, change UART port **/
+
     ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, rts, cts));
 }

@@ -28,11 +28,11 @@ cd $DIR
 
 fi
 
-cp -i $BUILD_DIR/$PROJECT_NAME.bin ./firmware.bin
+cp $BUILD_DIR/$PROJECT_NAME.bin ./firmware.bin
 
 # Update version
 
-cp -i $ROOT_DIR/version.txt ./version.txt
+cp $ROOT_DIR/version.txt ./version.txt
 
 # python -c "f=open('version.txt', 'a+');f.seek(0);content=f.readline();ver=int(content.split('./')[0])+1 if content != '' else 1;f.truncate(0);f.write(str(ver)+'\n');f.close();"
 
