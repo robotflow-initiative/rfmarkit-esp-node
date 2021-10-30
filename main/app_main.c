@@ -28,7 +28,6 @@
 
 
 #include "lwip/sockets.h"
-#include "coap/coap.h"
 
 #include "apps.h"
 #include "types.h"
