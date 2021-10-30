@@ -45,6 +45,8 @@ static TaskHandle_t controller_task = NULL;
 
 
 gy95_t g_gy95_imu = { 0 };
+int debug_sock = -1;
+char debug_buffer[128] = {0};
 
 RTC_DATA_ATTR static int boot_count = 0;
 

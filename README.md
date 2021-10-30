@@ -97,3 +97,6 @@ static void tcp_server_task(void *pvParameters)
         ESP_LOGI(TAG, "Socket listening");
 ```
 
+## NTP 时间
+
+模块可能无法获取NTP时间，因此会愚弄服务器
