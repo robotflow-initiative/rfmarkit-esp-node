@@ -86,13 +86,15 @@ void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
 void gy95_setup(gy95_t* p_gy) {
 
     ESP_LOGI(TAG, "Set rate to 100hz");
-    // gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4);
-
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Set update policy to auto");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x03\x00", 4);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x73", 4);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Set mount to horizontal");
@@ -107,6 +109,8 @@ void gy95_cali_acc(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
     // Intentially delay 7s
     vTaskDelay(7000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+    /** Save module configuration **/
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
 }
 // if self.ser.writable():
 //     self.ser.write(append_chksum(bytearray([0xa4, 0x06, 0x02, 0x02])))  # Rate 100Hz
@@ -129,11 +133,17 @@ void gy95_cali_mag(gy95_t* p_gy) {
     /** Stop calibration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", 4);
 
-    vTaskDelay(500 / portTICK_PERIOD_MS); // TODO: Magic delay
+    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
     /** Save calibration result**/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x5A", 4);
     
-    vTaskDelay(500 / portTICK_PERIOD_MS); // TODO: Magic delay
+    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
+    
+    /** Save module configuration **/
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
+
+    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
+
 }
 
 bool gy95_chksum(gy95_t* p_gy) {
@@ -196,7 +206,7 @@ void gy95_read(gy95_t* p_gy) {
             if (gy95_chksum(p_gy)) {
                 return;
             } else {
-                ESP_LOGD(TAG, "GYT95 reset buffer");
+                ESP_LOGI(TAG, "GYT95 reset buffer");
                 gy95_clean(p_gy);
             }
         } else {
