@@ -22,7 +22,6 @@
 static const char* TAG = "app_tcp_client";
 static char payload_buffer[CONFIG_PAYLOAD_BUFFER_LEN];
 
-#define ESP_LOGSOCKET(...) // Disable TCP debug in this module
 void app_tcp_client(void* pvParameters) {
     ESP_LOGI(TAG, "app_tcp_client started");
     int addr_family = 0;
@@ -76,19 +75,21 @@ void app_tcp_client(void* pvParameters) {
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             goto socket_error;
         }
-        ESP_LOGSOCKET(sock, TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
+        ESP_LOGSOCKET(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
-        debug_sock = sock;
+
+        SET_DEBUG_SOCK(sock);
+
         xEventGroupSetBits(g_sys_event_group, TCP_CONNECTED_BIT);
         n_tcp_retry = CONFIG_ESP_TCP_MAXIMUM_RETRY;
 
         while (1) {
             ESP_LOGD(TAG, "tcp_client loop");
-            ESP_LOGSOCKET(sock, TAG, "tcp_client loop");
+            ESP_LOGSOCKET(TAG, "tcp_client loop");
             /** If the QueueIsEmpy, sleep for a while **/
             if (xQueueReceive(serial_queue, &imu_reading, (TickType_t)0x4) != pdPASS) {
                 taskYIELD();
-                ESP_LOGSOCKET(sock, TAG, "No item in queue");
+                ESP_LOGSOCKET(TAG, "No item in queue");
                 continue;
             }
             /** imu_reading is available **/

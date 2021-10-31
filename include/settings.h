@@ -4,6 +4,7 @@
 #include "driver/gpio.h"
 
 #define USE_PSEUDO_VALUE 0
+#define CONFIG_EN_DEBUG_OVER_TCP 0
 
 #define CONFIG_MAX_TX_POWER (8)
 #define CONFIG_MULTI_CORE 0
