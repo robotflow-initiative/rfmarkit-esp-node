@@ -75,7 +75,7 @@ void app_uart_monitor(void* pvParameters) {
                     ESP_LOGI(TAG, "Setting up gy95");
                     gy95_setup(&gy);
                     xEventGroupSetBits(g_sys_event_group, GY95_CALIBRATED_BIT);
-                    ESP_LOGI(TAG, "Calibration finished");
+                    ESP_LOGI(TAG, "Setup finished");
                     break;
                 }   
             }
@@ -92,7 +92,7 @@ void app_uart_monitor(void* pvParameters) {
         imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
-        ESP_LOGSOCKET(TAG, "Try to read gy");
+        ESP_LOGI(TAG, "Try to read gy");
         gy95_read(&gy);
         memcpy(imu_data.data, gy.buf, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);

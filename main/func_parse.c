@@ -37,8 +37,8 @@ static imu_msg_multiplier_t default_multiplier = {
     .yaw = 0.01,
     .temp = 0.01,
     .mag_x = 0.00006103515625, // 4 / 65536
-    .mag_y = 0.00006103515625,
-    .mag_z = 0.00006103515625,
+    .mag_y = 0.00006103515625, // 4 / 65536
+    .mag_z = 0.00006103515625, // 4 / 65536
 };
 
 // static imu_msg_multiplier_t default_multiplier = {

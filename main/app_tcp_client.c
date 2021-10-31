@@ -89,7 +89,7 @@ void app_tcp_client(void* pvParameters) {
             /** If the QueueIsEmpy, sleep for a while **/
             if (xQueueReceive(serial_queue, &imu_reading, (TickType_t)0x4) != pdPASS) {
                 taskYIELD();
-                ESP_LOGSOCKET(TAG, "No item in queue");
+                ESP_LOGD(TAG, "No item in queue");
                 continue;
             }
             /** imu_reading is available **/
