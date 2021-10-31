@@ -19,66 +19,103 @@
 #include "main.h"
 
 #define RX_BUFFER_LEN 64 
-#define TX_BUFFER_LEN 64
+#define TX_BUFFER_LEN 256
 static const char* TAG = "app_controller";
 
-esp_err_t command_func_restart(void) {
+esp_err_t command_func_restart(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_RESTART");
     esp_restart();
     return ESP_OK;
 }
 
-esp_err_t command_func_ping(void) {
+esp_err_t command_func_ping(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_PING");
     return ESP_OK;
 }
 
-esp_err_t command_func_sleep(void) {
+esp_err_t command_func_sleep(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_SLEEP");
     esp_enter_light_sleep();
     return ESP_OK;
 }
 
-esp_err_t command_func_shutdown(void) {
+esp_err_t command_func_shutdown(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
     esp_enter_deep_sleep();
     return ESP_OK;
 }
 
-esp_err_t command_func_update(void) {
+esp_err_t command_func_update(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
     esp_err_t ret = esp_do_ota();
     return ret;
 }
 
-esp_err_t command_func_cali_reset(void) {
+esp_err_t command_func_cali_reset(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_RESET");
     gy95_cali_reset(&g_gy95_imu);
     return ESP_OK;
 }
 
-esp_err_t command_func_cali_acc(void) {
+esp_err_t command_func_cali_acc(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_ACC");
     gy95_cali_acc(&g_gy95_imu);
     return ESP_OK;
 }
 
-esp_err_t command_func_cali_mag(void) {
+esp_err_t command_func_cali_mag(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     gy95_cali_mag(&g_gy95_imu);
     return ESP_OK;
 }
 
-esp_err_t command_func_start(void) {
+esp_err_t command_func_start(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
     xEventGroupClearBits(g_sys_event_group, UART_BLOCK_BIT);
     return ESP_OK;
 }
 
-esp_err_t command_func_stop(void) {
+esp_err_t command_func_stop(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_STOP");
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
+    return ESP_OK;
+}
+
+esp_err_t command_func_gy_enable(char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
+    gy95_enable(&g_gy95_imu);
+    return ESP_OK;
+}
+
+esp_err_t command_func_gy_disable(char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
+    gy95_disable(&g_gy95_imu);
+    return ESP_OK;
+}
+
+/** FIXME: The status of  gy is output via serial debug port **/
+esp_err_t command_func_gy_status(char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
+
+    int ret = gpio_get_level(g_gy95_imu.ctrl_pin);
+    ESP_LOGI(TAG, "GY95 control pin %s\n\n", ret ? "HIGH" : "LOW");
+    snprintf(tx_buffer, tx_len, "GY95 control pin %s", ret ? "HIGH" : "LOW");
+    return ESP_OK;
+}
+
+esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
+    imu_msg_raw_t imu_data;
+    gy95_read(&g_gy95_imu);
+    memcpy(imu_data.data, g_gy95_imu.buf, GY95_MSG_LEN);
+    int offset = 0;
+    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+        snprintf(tx_buffer + offset, tx_len - offset, "%02x, ", imu_data.data[idx]);
+        offset = strlen(tx_buffer);
+    };
+    snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
+
     return ESP_OK;
 }
 
@@ -93,11 +130,15 @@ typedef enum server_command_t {
     IMU_CALI_MAG = 7,
     IMU_START = 8,
     IMU_STOP = 9,
+    IMU_GY_ENABLE = 10,
+    IMU_GY_DISABLE = 11,
+    IMU_GY_STATUS = 12,
+    IMU_GY_IMM = 13,
     IMU_ERROR,
 } server_command_t;
 
 
-esp_err_t(*command_funcs[])(void) = {
+esp_err_t(*command_funcs[])(char*, int) = {
     command_func_restart,
     command_func_ping,
     command_func_sleep,
@@ -108,6 +149,10 @@ esp_err_t(*command_funcs[])(void) = {
     command_func_cali_mag,
     command_func_start,
     command_func_stop,
+    command_func_gy_enable,
+    command_func_gy_disable,
+    command_func_gy_status,
+    command_func_gy_imm,
 };
 
 #define MATCH_CMD(x, cmd) (strncmp(x, cmd, strlen(cmd)) == 0)
@@ -134,6 +179,14 @@ server_command_t parse_command(char* command, int len) {
         return IMU_START;
     } else if (MATCH_CMD(command, "stop") | MATCH_CMD(command, "pause")) {
         return IMU_STOP;
+    } else if (MATCH_CMD(command, "gy_enable")) {
+        return IMU_GY_ENABLE;
+    } else if (MATCH_CMD(command, "gy_disable")) {
+        return IMU_GY_DISABLE;
+    } else if (MATCH_CMD(command, "gy_status")) {
+        return IMU_GY_STATUS;
+    } else if (MATCH_CMD(command, "gy_imm")) {
+        return IMU_GY_IMM;
     } else {
         return IMU_ERROR;
     }
@@ -141,7 +194,7 @@ server_command_t parse_command(char* command, int len) {
 
 esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_t tx_len) {
     server_command_t cmd = parse_command(rx_buffer, rx_len);
-    esp_err_t ret;
+    esp_err_t ret = ESP_FAIL;
     if (cmd == IMU_ERROR) {
         /** Output error **/
         ESP_LOGE(TAG, "Got invalid command : %s", rx_buffer);
@@ -155,11 +208,15 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
     } else {
         /** Output info **/
 
-        ret = command_funcs[cmd]();
-
-        /** Fill tx_buffer with 'OK\n' or 'ERROR\n' **/
+        /** Fill tx_buffer with '\0' **/
         memset(tx_buffer, 0, sizeof(char) * tx_len);
-        snprintf(tx_buffer, tx_len, "%s", (ret == ESP_OK) ? "OK\n\n" : "ERROR\n\n");
+        /** Fill tx buffer with command related context **/
+        ret = command_funcs[cmd](tx_buffer, tx_len);
+
+        /** Command did not modify the buffer **/
+        if (strlen(tx_buffer) == 0) {
+            snprintf(tx_buffer, tx_len, "%s", (ret == ESP_OK) ? "OK\n\n" : "ERROR\n\n");
+        }
 
         /** Return False **/
         return ret;

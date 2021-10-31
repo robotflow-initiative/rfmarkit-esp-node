@@ -77,8 +77,8 @@ void app_time_sync(void* pvParameters) {
             /** Set event **/
             ESP_LOGI(TAG, "Setting NTP_SYNCED_BIT");
             xEventGroupSetBits(g_sys_event_group, NTP_SYNCED_BIT);
-            /** Sleep 300s **/
-            vTaskDelay(300000 / portTICK_PERIOD_MS);
+            /** Sleep **/
+            vTaskDelay(CONFIG_NTP_UPDATE_INTERVAL_MS / portTICK_PERIOD_MS);
             n_retry = CONFIG_NTP_MAX_RETRY;
         } else {
             ESP_LOGW(TAG, "Previous time sync failed");

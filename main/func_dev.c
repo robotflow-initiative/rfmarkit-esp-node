@@ -210,11 +210,14 @@ void esp_enter_deep_sleep() {
 
     ESP_LOGI(TAG, "Disabling GY95");
     gy95_disable(&g_gy95_imu);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_gy95_imu.ctrl_pin));
 
     gpio_hold_en(g_gy95_imu.ctrl_pin);
     ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_gy95_imu.ctrl_pin);
+
+    /** If we donote disable wakeup source, then deep sleep will be waken **/
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
 
     vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 
@@ -222,7 +225,6 @@ void esp_enter_deep_sleep() {
     esp_deep_sleep_start();
     /** ESP shutdown **/
 
-    
 }
 
 char g_device_id[14] = { 0 };

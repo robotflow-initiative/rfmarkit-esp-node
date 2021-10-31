@@ -1,42 +1,11 @@
 # ESP32-imu-node
 
-## Supported command
+## 发布OTA前检查清单：
 
-### Connect as station
-
-```plain
-sta <ssid> <psk>
-```
-
-### Disconnect
-
-```plain
-sta - - 
-```
-
-### Set TCP partner
-
-```plain
-tcp select <address> <port>
-```
-
-### Set UDP partner
-
-```plain
-udp select <address> <port>
-```
-
-### Set mode
-
-```plain
-mode {tcp|udp}
-```
-
-### TCP Start/stop
-
-```plain
-{tcp|udp} {start|stop}
-```
+- 新的OTA固件版本是否正确设置？
+- 新的OTA固件联网是否正确？
+- 新的OTA固件中，更新服务器是否可达？（能否再次OTA）
+- 新的OTA固件能否相应OTA指令？
 
 ## 坑
 

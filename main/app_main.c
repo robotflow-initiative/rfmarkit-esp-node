@@ -73,8 +73,14 @@ static void init() {
     ESP_LOGI(TAG, "Device ID: %s", g_device_id);
 
     /** Setup GY95 **/
+    // TODO: Decide if we should join uart_service_init to gy95_msp_init
     ESP_LOGI(TAG, "setting up gy95");
     uart_service_init(GY95_PORT, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS);
+
+    /** Cancel GPIO hold **/ 
+    //TODO: Verify this will not cause trouble
+    gpio_hold_dis(GY95_CTRL_PIN);
+    gpio_deep_sleep_hold_dis();
 
     /** Init global imu struct g_gy95_imu **/
     /** @remark g_gy95_imu will not be used by app_uart_monitor (currently). It serves for cross function enable/disable and msp_init **/

@@ -3,6 +3,7 @@
 #include "freertos/queue.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include <string.h>
 #include "settings.h"
 #include "types.h"
@@ -15,14 +16,20 @@ static const char* TAG = "GY95";
 void gy95_msp_init(gy95_t* p_gy) {
     gpio_config_t io_conf = {
         .intr_type = GPIO_PIN_INTR_DISABLE,
-        .mode = GPIO_MODE_OUTPUT,
+        .mode = GPIO_MODE_INPUT_OUTPUT,
         .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
         .pull_down_en = 0,
-        .pull_up_en = 1,
+        .pull_up_en = 0,
     };
     
     gpio_config(&io_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
+    bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin);
+    if (ret) {
+        ESP_LOGI(TAG, "GPIO: %d is valid rtc gpio", p_gy->ctrl_pin);
+    } else {
+        ESP_LOGW(TAG, "GPIO: %d is not valid rtc gpio", p_gy->ctrl_pin);
+    }
 }
 
 void gy95_init(gy95_t* p_gy, int port, int ctrl_pin, int addr) {
@@ -91,6 +98,8 @@ void gy95_setup(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Set mount to horizontal");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4);
     vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    vTaskDelay(3000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 }
 
 void gy95_cali_acc(gy95_t* p_gy) {
@@ -115,7 +124,7 @@ void gy95_cali_mag(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", 4);
     ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
 
-    vTaskDelay(15000 / portTICK_PERIOD_MS); // TODO: Magic delay
+    vTaskDelay(30000 / portTICK_PERIOD_MS); // TODO: Magic delay
 
     /** Stop calibration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", 4);
@@ -199,12 +208,16 @@ void gy95_read(gy95_t* p_gy) {
 
 void gy95_enable(gy95_t* p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 0);
-    vTaskDelay(100);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+    int ret = gpio_get_level(p_gy->ctrl_pin);
+    ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
 void gy95_disable(gy95_t* p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 1);
-    vTaskDelay(100);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+    int ret = gpio_get_level(p_gy->ctrl_pin);
+    ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
 void gy95_cali_reset(gy95_t* p_gy) {
