@@ -20,7 +20,7 @@
 #include "main.h"
 
 static const char* TAG = "app_tcp_client";
-static char payload_buffer[CONFIG_PAYLOAD_BUFFER_LEN];
+static uint8_t payload_buffer[CONFIG_PAYLOAD_BUFFER_LEN];
 
 void app_tcp_client(void* pvParameters) {
     ESP_LOGI(TAG, "app_tcp_client started");
@@ -107,8 +107,8 @@ void app_tcp_client(void* pvParameters) {
                 payload_buffer[payload_len++] = '\n';
             }
 #else
-            memcpy(payload_buffer, imu_reading.data, GY95_MSG_LEN);
-            payload_len = GY95_MSG_LEN;
+            bzero(payload_buffer, sizeof(payload_buffer));
+            payload_len = tag_imu_reading(&imu_reading, payload_buffer, sizeof(payload_buffer));
 #endif
 
             err = send(sock, payload_buffer, payload_len, 0);

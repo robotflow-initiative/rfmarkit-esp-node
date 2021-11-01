@@ -15,6 +15,7 @@ void esp_enter_deep_sleep(void);
 
 void esp_get_device_id(void);
 esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char * buffer, int len);
+esp_err_t tag_imu_reading(imu_msg_raw_t* p_reading, uint8_t* payload, int len);
 void uart_service_init(int port, int rx, int tx, int rts, int cts);
 esp_err_t esp_do_ota();
 #endif

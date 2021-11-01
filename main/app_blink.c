@@ -32,7 +32,6 @@ void blink_timeout () {
 
 void app_blink(char * seq, int length) {
     blink_idx = 0;
-    // memset(blink_seq, 0, 24);
     memcpy(blink_seq, seq, length);
 
     // Init GPIO

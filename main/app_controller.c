@@ -111,7 +111,7 @@ esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
     memcpy(imu_data.data, g_gy95_imu.buf, GY95_MSG_LEN);
     int offset = 0;
     for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
-        snprintf(tx_buffer + offset, tx_len - offset, "%02x, ", imu_data.data[idx]);
+        snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
         offset = strlen(tx_buffer);
     };
     snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
@@ -210,7 +210,7 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         ESP_LOGE(TAG, "Got invalid command : %s", rx_buffer);
 
         /** Fill tx_buffer with 'ERROR\n' **/
-        memset(tx_buffer, 0, sizeof(char) * tx_len);
+        bzero(tx_buffer, sizeof(char) * tx_len);
         strcpy(tx_buffer, "ERROR\n\n");
 
         /** Return False **/
@@ -219,7 +219,7 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         /** Output info **/
 
         /** Fill tx_buffer with '\0' **/
-        memset(tx_buffer, 0, sizeof(char) * tx_len);
+        bzero(tx_buffer, sizeof(char) * tx_len);
         /** Fill tx buffer with command related context **/
         ret = command_funcs[cmd](tx_buffer, tx_len);
 

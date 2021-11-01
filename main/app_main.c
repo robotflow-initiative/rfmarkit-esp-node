@@ -66,7 +66,7 @@ static void init() {
     ESP_LOGI(TAG, "%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
              (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-    ESP_LOGI(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
+    ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
     ++boot_count;
     ESP_LOGI(TAG, "Boot count %d", boot_count);
     esp_get_device_id();
@@ -206,6 +206,7 @@ void app_main(void) {
 
     // app_blink("\xF1\x01\xFF\x0F", 3);
     // while (1) {esp_task_wdt_feed();}
+    ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
     while (1) { 
         vTaskDelay(10000 / portTICK_PERIOD_MS); 
         /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/

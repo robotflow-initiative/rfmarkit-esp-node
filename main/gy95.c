@@ -36,7 +36,7 @@ void gy95_init(gy95_t* p_gy, int port, int ctrl_pin, int addr) {
     p_gy->port = port;
     p_gy->ctrl_pin = ctrl_pin;
 
-    memset(p_gy->buf, 0, GY95_MSG_LEN);
+    bzero(p_gy->buf, GY95_MSG_LEN);
     p_gy->cursor = 0;
     p_gy->addr = addr;
     p_gy->start_reg = 0;
@@ -50,14 +50,14 @@ void gy95_init(gy95_t* p_gy, int port, int ctrl_pin, int addr) {
  * @param p_gy
  */
 void gy95_clean(gy95_t* p_gy) {
-    memset(p_gy->buf, 0, GY95_MSG_LEN);
+    bzero(p_gy->buf, GY95_MSG_LEN);
     p_gy->cursor = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
     p_gy->flag = 0;
 }
 
-#define CONFIG_GY95_MAX_CHECK_LEN 0xFFF
+#define CONFIG_GY95_MAX_CHECK_LEN 1024
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     gy95_clean(p_gy);
     int cnt = CONFIG_GY95_MAX_CHECK_LEN;
@@ -129,14 +129,17 @@ void gy95_setup(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    vTaskDelay(3000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 }
 
 void gy95_cali_acc(gy95_t* p_gy) {
+    ESP_LOGI(TAG, "Re-run setup");
+    gy95_setup(p_gy);
+
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
     // Intentially delay 7s
-    vTaskDelay(7000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+    vTaskDelay(5000 / portTICK_PERIOD_MS); // TODO: Magic Delay
     /** Save module configuration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
 }

@@ -83,16 +83,13 @@ void app_uart_monitor(void* pvParameters) {
 
         /** Get data **/
 #if USE_PSEUDO_VALUE
-        // memset(imu_data.data, 0, GY95_MSG_LEN);
-        // memcpy(imu_data.data, test_data, GY95_MSG_LEN);
-        // snprintf((char*)&imu_data.data[strlen((const char*)imu_data.data)], GY95_MSG_LEN - strlen((const char*)imu_data.data), "%d\n", cnt++);
-        memset(imu_data.data, 0, GY95_MSG_LEN);
+        bzero(imu_data.data, GY95_MSG_LEN);
         memcpy(imu_data.data, pseudo_data1, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);
         imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
-        ESP_LOGI(TAG, "Try to read gy");
+        // ESP_LOGI(TAG, "Try to read gy");
         gy95_read(&gy);
         memcpy(imu_data.data, gy.buf, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);

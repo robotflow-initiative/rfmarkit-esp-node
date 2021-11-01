@@ -2,23 +2,22 @@
 #define _TYPES_H
 #include <esp_system.h>
 
-#define GY95_MSG_LEN 40
+#include "settings.h"
 
 typedef struct imu_msg_holder_t {
-    int16_t accel_x;
-    int16_t accel_y;
-    int16_t accel_z;
-    int16_t gyro_x;
-    int16_t gyro_y;
-    int16_t gyro_z;
-    int16_t roll;
-    int16_t pitch;
-    int16_t yaw;
-    uint8_t level;
-    int16_t temp;
-    int16_t mag_x;
-    int16_t mag_y;
-    int16_t mag_z;
+    int32_t accel_x;
+    int32_t accel_y;
+    int32_t accel_z;
+    int32_t gyro_x;
+    int32_t gyro_y;
+    int32_t gyro_z;
+    int32_t roll;
+    int32_t pitch;
+    int32_t yaw;
+    int32_t temp;
+    int32_t mag_x;
+    int32_t mag_y;
+    int32_t mag_z;
 } imu_msg_holder_t;
 
 typedef struct imu_msg_raw_t {
@@ -65,5 +64,4 @@ typedef struct _imu_float_t {
 //     char desc[MAX_DESC_LEN];
 //     esp_err_t (*pfunc)(void);
 // } command_t;
-
 #endif
