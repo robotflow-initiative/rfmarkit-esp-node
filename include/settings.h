@@ -5,6 +5,7 @@
 
 #define USE_PSEUDO_VALUE 0
 #define CONFIG_EN_DEBUG_OVER_TCP 0
+#define CONFIG_EN_PARSER_DEBUG 0
 
 #define CONFIG_MAX_TX_POWER (8)
 #define CONFIG_MULTI_CORE 0
@@ -51,11 +52,11 @@
 #define CONFIG_DISCONNECT_SLEEP_NUS 30000000
 
 /** Send parsed json **/
-#define CONFIG_SEND_PARSED 1
+#define CONFIG_SEND_PARSED 0
 #define CONFIG_PAYLOAD_BUFFER_LEN 512
 
 /** GY95 related settings **/
-#define GY95_MSG_LEN 40
+#define GY95_MSG_LEN 32
 #define GY95_CTRL_PIN GPIO_NUM_5
 #define GY95_CTRL_PIN_MASK (1ULL << GY95_CTRL_PIN)
 #define GY95_ADDR 0xa4

@@ -6,6 +6,7 @@
 #include "cJSON.h"
 
 #include "types.h"
+#include "settings.h"
 
 static const char* TAG = "func_parse";
 
@@ -70,27 +71,42 @@ esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
     imu_msg_holder_t msg_holder = { 0 };
     esp_err_t res;
 
+#if CONFIG_EN_PARSER_DEBUG
+    ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
+    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+        printf("0x%02x, ", p_reading->data[idx]);
+    };
+    ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
+#endif
+
     /** memcopy **/
-    msg_holder.accel_x= ((p_reading->data[default_key.accel_x] &0x00FF)<< 8) | ((p_reading->data[default_key.accel_x+1] & 0x00FF) );
-    msg_holder.accel_y= ((p_reading->data[default_key.accel_y] &0x00FF)<< 8) | ((p_reading->data[default_key.accel_y+1] & 0x00FF) );
-    msg_holder.accel_z= ((p_reading->data[default_key.accel_z] &0x00FF)<< 8) | ((p_reading->data[default_key.accel_z+1] & 0x00FF) );
-    msg_holder.gyro_x = ((p_reading->data[default_key.gyro_x]  &0x00FF)<< 8) | ((p_reading->data[default_key.gyro_x+1]  & 0x00FF) );
-    msg_holder.gyro_y = ((p_reading->data[default_key.gyro_y]  &0x00FF)<< 8) | ((p_reading->data[default_key.gyro_y+1]  & 0x00FF) );
-    msg_holder.gyro_z = ((p_reading->data[default_key.gyro_z]  &0x00FF)<< 8) | ((p_reading->data[default_key.gyro_z+1]  & 0x00FF) );
-    msg_holder.roll   = ((p_reading->data[default_key.roll]    &0x00FF)<< 8) | ((p_reading->data[default_key.roll+1]    & 0x00FF) );
-    msg_holder.pitch  = ((p_reading->data[default_key.pitch]   &0x00FF)<< 8) | ((p_reading->data[default_key.pitch+1]   & 0x00FF) );
-    msg_holder.yaw    = ((p_reading->data[default_key.yaw]     &0x00FF)<< 8) | ((p_reading->data[default_key.yaw+1]     & 0x00FF) );
-    msg_holder.temp   = ((p_reading->data[default_key.temp]    &0x00FF)<< 8) | ((p_reading->data[default_key.temp+1]    & 0x00FF) );
-    msg_holder.mag_x  = ((p_reading->data[default_key.mag_x]   &0x00FF)<< 8) | ((p_reading->data[default_key.mag_x+1]   & 0x00FF) );
-    msg_holder.mag_y  = ((p_reading->data[default_key.mag_y]   &0x00FF)<< 8) | ((p_reading->data[default_key.mag_y+1]   & 0x00FF) );
-    msg_holder.mag_z  = ((p_reading->data[default_key.mag_z]   &0x00FF)<< 8) | ((p_reading->data[default_key.mag_z+1]   & 0x00FF) );
-    // memcpy(&msg_holder, &p_reading->data[4], 27); & 0x00FF)
-    // ESP_LOGI(TAG, "p_reading->data[5]=%d", p_reading->data[5]);
-    // ESP_LOGI(TAG, "msg.accel_x=%d", msg_holder.accel_x);
-    // ESP_LOGI(TAG, "msg.accel_y=%d", msg_holder.accel_y);
-    // ESP_LOGI(TAG, "default_multiplier.accel_x=%f", default_multiplier.accel_x);
-    // ESP_LOGI(TAG, "accel_y=%f", msg_holder.accel_x * default_multiplier.accel_x);
-    
+    msg_holder.accel_x = (p_reading->data[default_key.accel_x] + (p_reading->data[default_key.accel_x + 1] << 8));
+    msg_holder.accel_y = (p_reading->data[default_key.accel_y] + (p_reading->data[default_key.accel_y + 1] << 8));
+    msg_holder.accel_z = (p_reading->data[default_key.accel_z] + (p_reading->data[default_key.accel_z + 1] << 8));
+    msg_holder.gyro_x = (p_reading->data[default_key.gyro_x] + (p_reading->data[default_key.gyro_x + 1] << 8));
+    msg_holder.gyro_y = (p_reading->data[default_key.gyro_y] + (p_reading->data[default_key.gyro_y + 1] << 8));
+    msg_holder.gyro_z = (p_reading->data[default_key.gyro_z] + (p_reading->data[default_key.gyro_z + 1] << 8));
+    msg_holder.roll = (p_reading->data[default_key.roll] + (p_reading->data[default_key.roll + 1] << 8));
+    msg_holder.pitch = (p_reading->data[default_key.pitch] + (p_reading->data[default_key.pitch + 1] << 8));
+    msg_holder.yaw = (p_reading->data[default_key.yaw] + (p_reading->data[default_key.yaw + 1] << 8));
+    msg_holder.temp = (p_reading->data[default_key.temp] + (p_reading->data[default_key.temp + 1] << 8));
+    msg_holder.mag_x = (p_reading->data[default_key.mag_x] + (p_reading->data[default_key.mag_x + 1] << 8));
+    msg_holder.mag_y = (p_reading->data[default_key.mag_y] + (p_reading->data[default_key.mag_y + 1] << 8));
+    msg_holder.mag_z = (p_reading->data[default_key.mag_z] + (p_reading->data[default_key.mag_z + 1] << 8));
+
+    msg_holder.accel_x = (msg_holder.accel_x >= 32768) ? (-(65536 - msg_holder.accel_x)) : msg_holder.accel_x;
+    msg_holder.accel_y = (msg_holder.accel_y >= 32768) ? (-(65536 - msg_holder.accel_y)) : msg_holder.accel_y;
+    msg_holder.accel_z = (msg_holder.accel_z >= 32768) ? (-(65536 - msg_holder.accel_z)) : msg_holder.accel_z;
+    msg_holder.gyro_x = (msg_holder.gyro_x >= 32768) ? (-(65536 - msg_holder.gyro_x)) : msg_holder.gyro_x;
+    msg_holder.gyro_y = (msg_holder.gyro_y >= 32768) ? (-(65536 - msg_holder.gyro_y)) : msg_holder.gyro_y;
+    msg_holder.gyro_z = (msg_holder.gyro_z >= 32768) ? (-(65536 - msg_holder.gyro_z)) : msg_holder.gyro_z;
+    msg_holder.roll = (msg_holder.roll >= 32768) ? (-(65536 - msg_holder.roll)) : msg_holder.roll;
+    msg_holder.pitch = (msg_holder.pitch >= 32768) ? (-(65536 - msg_holder.pitch)) : msg_holder.pitch;
+    msg_holder.yaw = (msg_holder.yaw >= 32768) ? (-(65536 - msg_holder.yaw)) : msg_holder.yaw;
+    msg_holder.temp = (msg_holder.temp >= 32768) ? (-(65536 - msg_holder.temp)) : msg_holder.temp;
+    msg_holder.mag_x = (msg_holder.mag_x >= 32768) ? (-(65536 - msg_holder.mag_x)) : msg_holder.mag_x;
+    msg_holder.mag_y = (msg_holder.mag_y >= 32768) ? (-(65536 - msg_holder.mag_y)) : msg_holder.mag_y;
+    msg_holder.mag_z = (msg_holder.mag_z >= 32768) ? (-(65536 - msg_holder.mag_z)) : msg_holder.mag_z;
 
     /** apply multiplier **/
 
@@ -113,9 +129,52 @@ esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
     cJSON_AddNumberToObject(pRoot, "mag_z", msg_holder.mag_z * default_multiplier.mag_z);
 
 
-    res = (cJSON_PrintPreallocated(pRoot, buffer, len, 0)==0)?ESP_OK:ESP_FAIL;
-    ESP_LOGD(TAG, "JSON String: %s\nRes:%d\n", buffer, res);
-    cJSON_Delete(pRoot);
+    res = (cJSON_PrintPreallocated(pRoot, buffer, len, 0) == 0) ? ESP_OK : ESP_FAIL;
 
+#if CONFIG_EN_PARSER_DEBUG
+    ESP_LOGI(TAG, "JSON String: %s\nRes:%d\n", buffer, res);
+    cJSON_Delete(pRoot);
+#endif
     return res;
+}
+
+/** Tag imu_reading with device id **/
+int tag_imu_reading(imu_msg_raw_t* p_reading, uint8_t* payload_buffer, int len) {
+    int offset = 0;
+
+#if CONFIG_EN_PARSER_DEBUG
+    ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
+    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+        printf("0x%02x, ", p_reading->data[idx]);
+    };
+    ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
+#endif
+
+    if ((offset + GY95_MSG_LEN + sizeof(p_reading->time_us) + 12) > len) {
+        return -1;
+    }
+    memcpy(payload_buffer + offset, p_reading->data, GY95_MSG_LEN);
+    offset += GY95_MSG_LEN;
+
+    memcpy(payload_buffer + offset, &p_reading->time_us, sizeof(p_reading->time_us));
+    offset += sizeof(p_reading->time_us);
+
+    memcpy(payload_buffer + offset, g_device_id, 12);
+    offset += 12;
+
+    uint32_t sum = 0;
+    for (int idx = 0; idx < offset; ++idx) {
+        sum += payload_buffer[idx];
+    }
+    payload_buffer[offset++] = sum % 0x100;
+
+#if CONFIG_EN_PARSER_DEBUG
+    ESP_LOGW(TAG, "\n# ---- Begin of payload ---- #\n");
+    for (int idx = 0; idx < offset; ++idx) {
+        printf("0x%02x, ", payload_buffer[idx]);
+    };
+    ESP_LOGW(TAG, "\n# ----- End of payload ----- #\n");
+#endif
+
+    return offset;
 }
