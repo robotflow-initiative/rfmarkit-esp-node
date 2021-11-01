@@ -119,6 +119,12 @@ esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
     return ESP_OK;
 }
 
+esp_err_t command_func_gy_id(char* tx_buffer, int tx_len){
+    ESP_LOGI(TAG, "Executing command : IMU_GY_ID");
+    snprintf(tx_buffer, tx_len, "%s\n\n", g_device_id);
+    return ESP_OK;
+}
+
 typedef enum server_command_t {
     IMU_RESTART = 0,
     IMU_PING = 1,
@@ -134,6 +140,7 @@ typedef enum server_command_t {
     IMU_GY_DISABLE = 11,
     IMU_GY_STATUS = 12,
     IMU_GY_IMM = 13,
+    IMU_ID = 14,
     IMU_ERROR,
 } server_command_t;
 
@@ -153,6 +160,7 @@ esp_err_t(*command_funcs[])(char*, int) = {
     command_func_gy_disable,
     command_func_gy_status,
     command_func_gy_imm,
+    command_func_gy_id,
 };
 
 #define MATCH_CMD(x, cmd) (strncmp(x, cmd, strlen(cmd)) == 0)
@@ -187,6 +195,8 @@ server_command_t parse_command(char* command, int len) {
         return IMU_GY_STATUS;
     } else if (MATCH_CMD(command, "gy_imm")) {
         return IMU_GY_IMM;
+    } else if (MATCH_CMD(command, "id")) {
+        return IMU_ID;
     } else {
         return IMU_ERROR;
     }

@@ -4,7 +4,7 @@
 #include "settings.h"
 
 #include "gy95.h"
-#define __FIRMWARE_VERSION__ "1.1.8"
+#define __FIRMWARE_VERSION__ "1.1.9"
 
 extern gy95_t g_gy95_imu;
 
