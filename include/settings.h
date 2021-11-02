@@ -1,9 +1,11 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
+#define CONFIG_FIRMWARE_VERSION "2.0.0"
+
 #include "driver/gpio.h"
 
-#define USE_PSEUDO_VALUE 0
+#define CONFIG_USE_PSEUDO_VALUE 0
 #define CONFIG_EN_DEBUG_OVER_TCP 0
 #define CONFIG_EN_PARSER_DEBUG 0
 
@@ -69,6 +71,8 @@
 #define GY95_RTS GPIO_NUM_4
 #define GY95_CTS GPIO_NUM_8
 #define GY95_N_TICK 10
+#define CONFIG_GY95_MAX_CHECK_TICKS 10240
+
 
 /** NTP settings **/
 #define CONFIG_NTP_SERVER_ADDR CONFIG_HOST_IP_ADDR

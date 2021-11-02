@@ -34,21 +34,14 @@
 #include "settings.h"
 #include "funcs.h"
 #include "gy95.h"
-#include "events.h"
-#include "main.h"
+#include "globals.h"
 
 static const char* TAG = "app_main";
+
 static TaskHandle_t tcp_task = NULL;
 static TaskHandle_t uart_task = NULL;
 static TaskHandle_t time_sync_task = NULL;
 static TaskHandle_t controller_task = NULL;
-
-
-gy95_t g_gy95_imu = { 0 };
-int g_debug_sock = -1;
-char debug_buffer[128] = {0};
-
-RTC_DATA_ATTR static int boot_count = 0;
 
 static void init() {
     /* Print chip information */
@@ -108,7 +101,7 @@ static void init() {
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
 
     // /** Check Update **/
-    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", __FIRMWARE_VERSION__);
+    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
     // ESP_LOGW(TAG, "Will try to update in 3 seconds");
     // vTaskDelay(3000 / portTICK_PERIOD_MS);
     // esp_do_ota();

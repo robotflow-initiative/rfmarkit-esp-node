@@ -11,11 +11,11 @@
 #include "settings.h"
 #include "types.h"
 #include "gy95.h"
-#include "events.h"
-#include "main.h"
+#include "globals.h"
 
 
 /** pseudo data **/
+#if CONFIG_USE_PSEUDO_VALUE
 char pseudo_data1[40] = { 0xA4, 0x03, 0x08, 0x12, 0x00, 0x07,
                           0xFF, 0xFE, 0x08, 0x0A, 0xFF, 0xFE,
                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -29,6 +29,7 @@ char pseudo_data2[40] = { 0xA4, 0x03, 0x08, 0x27, 0xFC, 0xFF,
                           0xFB, 0xFF, 0x18, 0x17, 0xED, 0xEC,
                           0x0C, 0xe0, 0x04 ,0x03, 0x02, 0x0F,
                           0xFB, 0xBE };
+#endif
  
 static const char* TAG =  "app_uart_monitor";
 
@@ -82,7 +83,7 @@ void app_uart_monitor(void* pvParameters) {
         }
 
         /** Get data **/
-#if USE_PSEUDO_VALUE
+#if CONFIG_USE_PSEUDO_VALUE
         bzero(imu_data.data, GY95_MSG_LEN);
         memcpy(imu_data.data, pseudo_data1, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);
@@ -110,9 +111,6 @@ void app_uart_monitor(void* pvParameters) {
             ESP_LOGD(TAG, "Enqueue message\n");
         }
         // esp_task_wdt_reset();
-        /** Somehow vTaskDelayUntil will cause hard fault **/
-        // vTaskDelayUntil(last_update, GY95_N_TICK);
-        // vTaskDelay(100);
     }
     vTaskDelete(NULL);
 }

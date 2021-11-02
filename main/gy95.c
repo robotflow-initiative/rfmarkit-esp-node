@@ -57,15 +57,15 @@ void gy95_clean(gy95_t* p_gy) {
     p_gy->flag = 0;
 }
 
-#define CONFIG_GY95_MAX_CHECK_LEN 1024
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     gy95_clean(p_gy);
-    int cnt = CONFIG_GY95_MAX_CHECK_LEN;
-    while (cnt > 0) {
+    TickType_t start_tick = xTaskGetTickCount();
+    while ((xTaskGetTickCount() - start_tick) < CONFIG_GY95_MAX_CHECK_TICKS) {
         uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xFF);
         if (p_gy->buf[p_gy->cursor] != msg[p_gy->cursor]) {
             gy95_clean(p_gy);
-            ESP_LOGD(TAG, "GYT95 reset buffer");
+            ESP_LOGD(TAG, "GYT95 reset echo buffer");
+            vTaskDelay(10); // TODO: Magic Delay
             continue;
         } else {
             ++p_gy->cursor;
@@ -73,7 +73,6 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
         if (p_gy->cursor >= len) {
             return ESP_OK;
         }
-        --cnt;
     }
     return ESP_FAIL;
 }
