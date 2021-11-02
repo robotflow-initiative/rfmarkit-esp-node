@@ -1,5 +1,9 @@
 #ifndef _GY95_H
 #define _GY95_H
+
+#include "esp_system.h"
+#include "settings.h"
+
 typedef struct gy95_t {
     int port;
     int ctrl_pin;

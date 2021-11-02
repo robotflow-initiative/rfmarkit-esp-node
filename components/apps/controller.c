@@ -14,7 +14,7 @@
 
 #include "settings.h"
 #include "types.h"
-#include "funcs.h"
+#include "functions.h"
 
 #define RX_BUFFER_LEN 64 
 #define TX_BUFFER_LEN 256

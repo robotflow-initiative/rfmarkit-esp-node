@@ -1,4 +1,4 @@
-#include "funcs.h"
+#include "functions.h"
 #include "esp_https_ota.h"
 #include "esp_log.h"
 #include "settings.h"
