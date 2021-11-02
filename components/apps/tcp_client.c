@@ -15,9 +15,8 @@
 
 #include "settings.h"
 #include "types.h"
-#include "events.h"
-#include "funcs.h"
-#include "main.h"
+#include "globals.h"
+#include "functions.h"
 
 static const char* TAG = "app_tcp_client";
 static uint8_t payload_buffer[CONFIG_PAYLOAD_BUFFER_LEN];

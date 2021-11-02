@@ -32,7 +32,7 @@
 #include "apps.h"
 #include "types.h"
 #include "settings.h"
-#include "funcs.h"
+#include "functions.h"
 #include "gy95.h"
 #include "events.h"
 #include "main.h"

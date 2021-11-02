@@ -1,4 +1,7 @@
-FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/main/*.c)
+FILE(GLOB_RECURSE main_sources ${CMAKE_SOURCE_DIR}/main/*.c)
+FILE(GLOB_RECURSE apps_sources ${CMAKE_SOURCE_DIR}/components/apps/*.c)
+FILE(GLOB_RECURSE functions_sources ${CMAKE_SOURCE_DIR}/components/functions/*.c)
+FILE(GLOB_RECURSE gy95_sources ${CMAKE_SOURCE_DIR}/components/gy95/*.c)
 
-idf_component_register(SRCS ${app_sources}
+idf_component_register(SRCS ${main_sources} ${apps_sources} ${functions_sources} ${gy95_sources}
                        INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)

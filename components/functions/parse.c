@@ -1,4 +1,4 @@
-#include "funcs.h"
+#include "functions.h"
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"
