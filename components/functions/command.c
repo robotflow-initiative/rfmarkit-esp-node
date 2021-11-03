@@ -92,7 +92,11 @@ esp_err_t command_func_gy_status(char* tx_buffer, int tx_len) {
 esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
     imu_msg_raw_t imu_data;
-    uart_flush(g_gy95_imu.port);
+    // uart_flush_input(g_gy95_imu.port);
+    uint8_t trash[1];
+    for (int idx=0; idx < 512; ++idx) {
+        uart_read_bytes(g_gy95_imu.port, trash, 1, 0);
+    }
     gy95_read(&g_gy95_imu);
     memcpy(imu_data.data, g_gy95_imu.buf, GY95_MSG_LEN);
     int offset = 0;
