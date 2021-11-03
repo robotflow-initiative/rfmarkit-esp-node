@@ -30,8 +30,8 @@ esp_err_t command_func_start(char* tx_buffer, int tx_len);
 esp_err_t command_func_stop(char* tx_buffer, int tx_len);
 esp_err_t command_func_gy_enable(char* tx_buffer, int tx_len);
 esp_err_t command_func_gy_disable(char* tx_buffer, int tx_len);
-/** FIXME: The status of  gy is output via serial debug port **/
 esp_err_t command_func_gy_status(char* tx_buffer, int tx_len);
 esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len);
-esp_err_t command_func_gy_id(char* tx_buffer, int tx_len);
+esp_err_t command_func_id(char* tx_buffer, int tx_len);
+esp_err_t command_func_ver(char* tx_buffer, int tx_len);
 #endif

@@ -12,7 +12,14 @@
 			"__string": "c",
 			"string": "c",
 			"string_view": "c",
-			"*.inc": "c"
+			"*.inc": "c",
+			"thread": "c",
+			"random": "c",
+			"*.ipp": "c",
+			"functional": "c",
+			"istream": "c",
+			"ostream": "c",
+			"utility": "c"
 		}
 	}
 }

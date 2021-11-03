@@ -133,16 +133,19 @@ socket_error:
         }
 
         /** Sleep related **/
-        --n_tcp_retry;
-        if (n_light_sleep_retry <= 0) {
-            ESP_LOGI(TAG, "Entering deep sleep");
-            esp_enter_deep_sleep();
-        }
-        if (n_tcp_retry <= 0) {
-            esp_enter_light_sleep();
-            ESP_LOGI(TAG, "Light sleep retry: %d", n_light_sleep_retry);
-            --n_light_sleep_retry;
-            n_tcp_retry += 2;
+        ESP_LOGW(TAG, "0x%x", xEventGroupGetBits(g_sys_event_group));
+        if ((xEventGroupGetBits(g_sys_event_group) & UART_BLOCK_BIT)){
+            --n_tcp_retry;
+            if (n_light_sleep_retry <= 0) {
+                ESP_LOGI(TAG, "Entering deep sleep");
+                esp_enter_deep_sleep();
+            }
+            if (n_tcp_retry <= 0) {
+                esp_enter_light_sleep();
+                ESP_LOGI(TAG, "Light sleep retry: %d", n_light_sleep_retry);
+                --n_light_sleep_retry;
+                n_tcp_retry += 2;
+            }
         }
 
     }
