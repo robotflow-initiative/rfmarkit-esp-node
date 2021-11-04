@@ -2,6 +2,7 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
+#include "driver/uart.h"
 #include "globals.h"
 
 static const char * TAG = "func_command";
@@ -34,7 +35,7 @@ esp_err_t command_func_update(char* tx_buffer, int tx_len) {
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
     esp_err_t ret = esp_do_ota();
     return ret;
-}·
+}
 
 esp_err_t command_func_cali_reset(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_RESET");
@@ -91,20 +92,35 @@ esp_err_t command_func_gy_status(char* tx_buffer, int tx_len) {
 esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
     imu_msg_raw_t imu_data;
+    // uart_flush_input(g_gy95_imu.port);
+    uint8_t trash[1];
+    for (int idx=0; idx < 512; ++idx) {
+        uart_read_bytes(g_gy95_imu.port, trash, 1, 0);
+    }
     gy95_read(&g_gy95_imu);
     memcpy(imu_data.data, g_gy95_imu.buf, GY95_MSG_LEN);
     int offset = 0;
-    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
-        snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
-        offset = strlen(tx_buffer);
-    };
+
+    parse_imu_reading(&imu_data, tx_buffer, tx_len);
+    offset = strlen(tx_buffer);
     snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
+    // for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+    //     snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
+    //     offset = strlen(tx_buffer);
+    // };
+    // snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
 
     return ESP_OK;
 }
 
-esp_err_t command_func_gy_id(char* tx_buffer, int tx_len){
+esp_err_t command_func_id(char* tx_buffer, int tx_len){
     ESP_LOGI(TAG, "Executing command : IMU_GY_ID");
     snprintf(tx_buffer, tx_len, "%s\n\n", g_device_id);
+    return ESP_OK;
+}
+
+esp_err_t command_func_ver(char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_ver");
+    snprintf(tx_buffer, tx_len, "%s\n\n", CONFIG_FIRMWARE_VERSION);
     return ESP_OK;
 }

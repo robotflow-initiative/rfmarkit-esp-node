@@ -8,6 +8,7 @@
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
+#include "lwip/inet.h"
 #include "lwip/netdb.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -17,105 +18,13 @@
 #include "functions.h"
 
 #define RX_BUFFER_LEN 64 
-#define TX_BUFFER_LEN 256
+#define TX_BUFFER_LEN 512
+
 static const char* TAG = "app_controller";
 
-esp_err_t command_func_restart(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_RESTART");
-    esp_restart();
-    return ESP_OK;
-}
-
-esp_err_t command_func_ping(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_PING");
-    return ESP_OK;
-}
-
-esp_err_t command_func_sleep(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_SLEEP");
-    esp_enter_light_sleep();
-    return ESP_OK;
-}
-
-esp_err_t command_func_shutdown(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
-    esp_enter_deep_sleep();
-    return ESP_OK;
-}
-
-esp_err_t command_func_update(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
-    xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
-    esp_err_t ret = esp_do_ota();
-    return ret;
-}
-
-esp_err_t command_func_cali_reset(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_RESET");
-    gy95_cali_reset(&g_gy95_imu);
-    return ESP_OK;
-}
-
-esp_err_t command_func_cali_acc(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_ACC");
-    gy95_cali_acc(&g_gy95_imu);
-    return ESP_OK;
-}
-
-esp_err_t command_func_cali_mag(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-    gy95_cali_mag(&g_gy95_imu);
-    return ESP_OK;
-}
-
-esp_err_t command_func_start(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_START");
-    xEventGroupClearBits(g_sys_event_group, UART_BLOCK_BIT);
-    return ESP_OK;
-}
-
-esp_err_t command_func_stop(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_STOP");
-    xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
-    return ESP_OK;
-}
-
-esp_err_t command_func_gy_enable(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
-    gy95_enable(&g_gy95_imu);
-    return ESP_OK;
-}
-
-esp_err_t command_func_gy_disable(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
-    gy95_disable(&g_gy95_imu);
-    return ESP_OK;
-}
-
-/** FIXME: The status of  gy is output via serial debug port **/
-esp_err_t command_func_gy_status(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
-
-    int ret = gpio_get_level(g_gy95_imu.ctrl_pin);
-    ESP_LOGI(TAG, "GY95 control pin %s\n\n", ret ? "HIGH" : "LOW");
-    snprintf(tx_buffer, tx_len, "GY95 control pin %s", ret ? "HIGH" : "LOW");
-    return ESP_OK;
-}
-
-esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
-    imu_msg_raw_t imu_data;
-    gy95_read(&g_gy95_imu);
-    memcpy(imu_data.data, g_gy95_imu.buf, GY95_MSG_LEN);
-    int offset = 0;
-    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
-        snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
-        offset = strlen(tx_buffer);
-    };
-    snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
-
-    return ESP_OK;
-}
+static char s_addr_str[128];
+static char s_rx_buffer[RX_BUFFER_LEN];
+static char s_tx_buffer[TX_BUFFER_LEN];
 
 typedef enum server_command_t {
     IMU_RESTART = 0,
@@ -132,6 +41,8 @@ typedef enum server_command_t {
     IMU_GY_DISABLE = 11,
     IMU_GY_STATUS = 12,
     IMU_GY_IMM = 13,
+    IMU_ID = 14,
+    IMU_VER = 15,
     IMU_ERROR,
 } server_command_t;
 
@@ -151,9 +62,11 @@ esp_err_t(*command_funcs[])(char*, int) = {
     command_func_gy_disable,
     command_func_gy_status,
     command_func_gy_imm,
+    command_func_id,
+    command_func_ver
 };
 
-#define MATCH_CMD(x, cmd) (strncmp(x, cmd, strlen(cmd)) == 0)
+#define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)
 
 server_command_t parse_command(char* command, int len) {
     ESP_LOGI(TAG, "Got command %s from controller", command);
@@ -185,6 +98,10 @@ server_command_t parse_command(char* command, int len) {
         return IMU_GY_STATUS;
     } else if (MATCH_CMD(command, "gy_imm")) {
         return IMU_GY_IMM;
+    } else if (MATCH_CMD(command, "id")) {
+        return IMU_ID;
+    } else if (MATCH_CMD(command, "ver")) {
+        return IMU_VER;
     } else {
         return IMU_ERROR;
     }
@@ -222,15 +139,45 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
     return true;
 };
 
+static void interact(const int sock)
+{
+    int len;
+    ESP_LOGI(TAG, "Interacting");
+    do {
+        len = recv(sock, s_rx_buffer, sizeof(s_rx_buffer) - 1, 0);
+        if (len < 0) {
+            ESP_LOGE(TAG, "Error occurred during receiving: errno %d", errno);
+        } else if (len == 0) {
+            ESP_LOGW(TAG, "Connection closed");
+        } else {
+            s_rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
+            ESP_LOGI(TAG, "Received %d bytes: %s", len, s_rx_buffer);
+
+            execute_command(s_rx_buffer, s_tx_buffer, RX_BUFFER_LEN, TX_BUFFER_LEN);
+            int to_write = strlen(s_tx_buffer);
+            while (to_write > 0) {
+                int written = send(sock, s_tx_buffer, to_write, 0);
+                if (written < 0) {
+                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+                    break;
+                }
+                to_write -= written;
+            }
+        }
+    } while (len > 0);
+}
+
 void app_controller(void* pvParameters) {
     ESP_LOGI(TAG, "app_controller started");
 
-    char rx_buffer[RX_BUFFER_LEN];
-    char tx_buffer[TX_BUFFER_LEN];
-
-    // char addr_str[128];
+    // char s_addr_str[128];
     int addr_family = 0;
     int ip_protocol = 0;
+
+    int KEEP_ALIVE = 1;
+    int KEEP_IDLE = 5;
+    int KEEP_COUNT = 3;
+    int KEEP_INTERVAL = 5;
 
     struct timeval timeout = { 0, 0 }; // UDP timeout
 
@@ -244,71 +191,71 @@ void app_controller(void* pvParameters) {
         addr_family = AF_INET;
         ip_protocol = IPPROTO_IP;
 
-        /** Create DGRAM socket **/
-        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
-        if (sock < 0) {
+        /** Create STREAM socket **/
+        int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
+        if (listen_sock < 0) {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             goto socket_error;
         }
 
         /** Bind socket **/
-        int err = bind(sock, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+        int err = bind(listen_sock, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
         if (err < 0) {
             ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
             goto socket_error;
         }
-
         ESP_LOGI(TAG, "Socket bound, port %d", CONFIG_LOCAL_PORT);
 
+        /** Start listenning **/
+        err = listen(listen_sock, 1);
+        if (err != 0) {
+            ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
+            goto socket_error;
+        }
+
         /** Set socket options **/
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+        int opt = 1;
+        setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        setsockopt(listen_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
 
         struct sockaddr_storage source_addr;
         socklen_t socklen = sizeof(source_addr);
 
         while (1) {
+            ESP_LOGI(TAG, "Socket listening");
 
-            ESP_LOGD(TAG, "Waiting for data");
-
-            /** Receiving **/
-            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr*)&source_addr, &socklen);
-
-
-            if (len < 0) {
-                /** Receive nothing **/
-                ESP_LOGD(TAG, "Recvfrom failed: errno %d", errno);
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
+            int sock = accept(listen_sock, (struct sockaddr*)&source_addr, &socklen);
+            if (sock < 0) {
+                ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
+                break;
             }
-            /** Data received **/
-            else {
-                // /** Get the sender's ip address as string **/
-                // inet_ntoa_r(((struct sockaddr_in*)&source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);
 
-                /** Process with command from controller **/
-                rx_buffer[len] = 0; // Null-terminate
-                ESP_LOGI(TAG, "Received %d bytes", len);
-                ESP_LOGI(TAG, "%s", rx_buffer);
+            /** Set tcp keepalive option **/
+            setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &KEEP_ALIVE, sizeof(int));
+            setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &KEEP_IDLE, sizeof(int));
+            setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &KEEP_INTERVAL, sizeof(int));
+            setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &KEEP_COUNT, sizeof(int));
 
-                execute_command(rx_buffer, tx_buffer, RX_BUFFER_LEN, TX_BUFFER_LEN);
-
-
-                /** Reply the controller **/
-                int err = sendto(sock, tx_buffer, strlen(tx_buffer), 0, (struct sockaddr*)&source_addr, sizeof(source_addr));
-                if (err < 0) {
-                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                    goto socket_error;
-                }
+            /** Convert ip address to string **/
+            if (source_addr.ss_family == PF_INET) {
+                inet_ntoa_r(((struct sockaddr_in*)&source_addr)->sin_addr, s_addr_str, sizeof(s_addr_str) - 1);
             }
+            ESP_LOGI(TAG, "Socket accepted ip address: %s", s_addr_str);
+
+            interact(sock);
+
+            shutdown(sock, 0);
+            close(sock);
         }
 
 socket_error:
         vTaskDelay(10); // TODO: Magic Delay
-        if (sock != -1) {
+        if (listen_sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
-            shutdown(sock, 0);
+            shutdown(listen_sock, 0);
             vTaskDelay(10 / portTICK_PERIOD_MS); // TODO: Magic Delay
-            close(sock);
+            close(listen_sock);
         }
     }
 

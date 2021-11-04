@@ -7,6 +7,7 @@
 
 #include "types.h"
 #include "settings.h"
+#include "globals.h"
 
 static const char* TAG = "func_parse";
 
@@ -142,6 +143,7 @@ esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
 int tag_imu_reading(imu_msg_raw_t* p_reading, uint8_t* payload_buffer, int len) {
     int offset = 0;
 
+    ESP_LOGD(TAG, "Tagging imu readings");
 #if CONFIG_EN_PARSER_DEBUG
     ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
     for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {

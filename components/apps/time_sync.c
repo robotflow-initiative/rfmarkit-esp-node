@@ -13,7 +13,7 @@
 #include "esp_attr.h"
 #include "esp_sntp.h"
 
-#include "events.h"
+#include "globals.h"
 #include "settings.h"
 
 static const char* TAG = "app_time_sync";

@@ -11,7 +11,15 @@
 			"__locale": "c",
 			"__string": "c",
 			"string": "c",
-			"string_view": "c"
+			"string_view": "c",
+			"*.inc": "c",
+			"thread": "c",
+			"random": "c",
+			"*.ipp": "c",
+			"functional": "c",
+			"istream": "c",
+			"ostream": "c",
+			"utility": "c"
 		}
 	}
 }
