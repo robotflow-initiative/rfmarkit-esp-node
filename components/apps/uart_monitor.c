@@ -39,8 +39,6 @@ void app_uart_monitor(void* pvParameters) {
     QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
     ESP_LOGD(TAG, "\n[ Address ] %p\n", serial_queue);
 
-    gy95_t gy;
-    gy95_init(&gy, GY95_PORT, GY95_CTRL_PIN,  GY95_ADDR);
     struct timeval tv_now = { 0 };
 
     imu_msg_raw_t imu_data = { 0 };
@@ -71,10 +69,10 @@ void app_uart_monitor(void* pvParameters) {
                     break;
                 } else {
                     ESP_LOGI(TAG, "Enabling gy95");
-                    gy95_enable(&g_gy95_imu);
+                    gy95_enable(&g_imu);
                     vTaskDelay(1);
                     ESP_LOGI(TAG, "Setting up gy95");
-                    gy95_setup(&gy);
+                    gy95_setup(&g_imu);
                     xEventGroupSetBits(g_sys_event_group, GY95_CALIBRATED_BIT);
                     ESP_LOGI(TAG, "Setup finished");
                     break;
@@ -91,8 +89,8 @@ void app_uart_monitor(void* pvParameters) {
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
         // ESP_LOGI(TAG, "Try to read gy");
-        gy95_read(&gy);
-        memcpy(imu_data.data, gy.buf, GY95_MSG_LEN);
+        gy95_read(&g_imu);
+        memcpy(imu_data.data, g_imu.buf, GY95_MSG_LEN);
         gettimeofday(&tv_now, NULL);
         imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
 #endif

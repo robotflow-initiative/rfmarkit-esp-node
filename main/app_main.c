@@ -47,7 +47,7 @@ static void init() {
     /* Print chip information */
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
-    ESP_LOGI("","\n\n\n\n\n\n# -------- Begin of app log -------- #");
+    ESP_LOGI("", "\n\n\n\n\n\n# -------- Begin of app log -------- #");
     ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
              CONFIG_IDF_TARGET,
              chip_info.cores,
@@ -66,20 +66,17 @@ static void init() {
     ESP_LOGI(TAG, "Device ID: %s", g_device_id);
 
     /** Setup GY95 **/
-    // TODO: Decide if we should join uart_service_init to gy95_msp_init
     ESP_LOGI(TAG, "setting up gy95");
-    uart_service_init(GY95_PORT, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS);
 
-    /** Cancel GPIO hold **/ 
+    /** Cancel GPIO hold **/
     //TODO: Verify this will not cause trouble
     gpio_hold_dis(GY95_CTRL_PIN);
     gpio_deep_sleep_hold_dis();
 
-    /** Init global imu struct g_gy95_imu **/
-    /** @remark g_gy95_imu will not be used by app_uart_monitor (currently). It serves for cross function enable/disable and msp_init **/
-    gy95_init(&g_gy95_imu, GY95_PORT, GY95_CTRL_PIN, GY95_ADDR);
-    gy95_msp_init(&g_gy95_imu);
-    gy95_enable(&g_gy95_imu);
+    /** Init global imu struct g_imu **/
+    gy95_init(&g_imu, GY95_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
+    gy95_msp_init(&g_imu);
+    gy95_enable(&g_imu);
 
     /** Initialize NVS **/
     esp_err_t ret = nvs_flash_init();
@@ -88,7 +85,7 @@ static void init() {
         ret = nvs_flash_init();
     }
 
-    
+
     ESP_ERROR_CHECK(ret);
     ret = wifi_init_sta();
     if (ret != ESP_OK) {
@@ -128,7 +125,7 @@ void app_main(void) {
 
     QueueHandle_t serial_queue = xQueueCreate(CONFIG_MSG_QUEUE_LEN, sizeof(imu_msg_raw_t));
     ESP_LOGD(TAG, "\nSerial Queue Addr %p\n", serial_queue);
-    
+
     /** Launch time sync task **/
     ESP_LOGI(TAG, "launching time sync task");
     xTaskCreate(app_time_sync,
@@ -176,7 +173,7 @@ void app_main(void) {
                     &uart_task);
 #endif
     }
-    
+
     if (controller_task == NULL) {
         ESP_LOGI(TAG, "Launching controller task");
 #if CONFIG_MULTI_CORE
@@ -200,8 +197,8 @@ void app_main(void) {
     // app_blink("\xF1\x01\xFF\x0F", 3);
     // while (1) {esp_task_wdt_feed();}
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
-    while (1) { 
-        vTaskDelay(10000 / portTICK_PERIOD_MS); 
+    while (1) {
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
         /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
         EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group, WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
         if (bits & WIFI_FAIL_BIT) {

@@ -41,13 +41,14 @@ typedef enum server_command_t {
     IMU_GY_DISABLE = 11,
     IMU_GY_STATUS = 12,
     IMU_GY_IMM = 13,
-    IMU_ID = 14,
-    IMU_VER = 15,
+    IMU_GY_SETUP = 14,
+    IMU_ID = 15,
+    IMU_VER = 16,
     IMU_ERROR,
 } server_command_t;
 
 
-esp_err_t(*command_funcs[])(char*, int) = {
+esp_err_t(*command_funcs[])(char*, int, char*, int) = {
     command_func_restart,
     command_func_ping,
     command_func_sleep,
@@ -62,6 +63,7 @@ esp_err_t(*command_funcs[])(char*, int) = {
     command_func_gy_disable,
     command_func_gy_status,
     command_func_gy_imm,
+    command_func_gy_setup,
     command_func_id,
     command_func_ver
 };
@@ -98,7 +100,9 @@ server_command_t parse_command(char* command, int len) {
         return IMU_GY_STATUS;
     } else if (MATCH_CMD(command, "gy_imm")) {
         return IMU_GY_IMM;
-    } else if (MATCH_CMD(command, "id")) {
+    } else if (MATCH_CMD(command, "gy_setup")) {
+        return IMU_GY_SETUP;
+    }else if (MATCH_CMD(command, "id")) {
         return IMU_ID;
     } else if (MATCH_CMD(command, "ver")) {
         return IMU_VER;
@@ -126,7 +130,7 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         /** Fill tx_buffer with '\0' **/
         bzero(tx_buffer, sizeof(char) * tx_len);
         /** Fill tx buffer with command related context **/
-        ret = command_funcs[cmd](tx_buffer, tx_len);
+        ret = command_funcs[cmd](rx_buffer, rx_len, tx_buffer, tx_len);
 
         /** Command did not modify the buffer **/
         if (strlen(tx_buffer) == 0) {
