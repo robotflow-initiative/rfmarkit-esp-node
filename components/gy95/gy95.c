@@ -5,23 +5,49 @@
 #include "driver/gpio.h"
 #include "driver/rtc_io.h"
 #include <string.h>
+
 #include "settings.h"
 #include "types.h"
 #include "esp_log.h"
 #include "gy95.h"
+#include "functions.h"
 
 static const char* TAG = "GY95";
-static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
+// static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
 
-#define ENTER_CONFIGURATION(port)    \
-    uart_write_bytes((port), (uint8_t*) "\xa4\x06\x03\x01\xae", 5);\
+#define ENTER_CONFIGURATION(p_gy)    \
+    xSemaphoreTake(p_gy->mux, portMAX_DELAY);\
+    uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x03\x01\xae", 5);\
     vTaskDelay(200 / portTICK_PERIOD_MS)
 
-#define EXIT_CONFIGURATION(port)    \
-    uart_write_bytes((port), (uint8_t*) "\xa4\x06\x03\x00\xad", 5);\
+#define EXIT_CONFIGURATION(p_gy)    \
+    xSemaphoreGive(p_gy->mux);\
+    uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x03\x00\xad", 5);\
     vTaskDelay(50 / portTICK_PERIOD_MS)
 
+
+void uart_service_init(int port, int rx, int tx, int rts, int cts) {
+    uart_config_t uart_config = {
+        .baud_rate = 115200, // TODO: Magic baud_rate
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 0,
+
+    };
+    int intr_alloc_flags = 0;
+    ESP_LOGI(TAG, "Initiate uart service at port %d, rx:%d, tx:%d", port, rx, tx);
+    ESP_ERROR_CHECK(uart_driver_install(port, 512, 0, 0, NULL, intr_alloc_flags)); // TODO: Magic rx buffer len
+    ESP_ERROR_CHECK(uart_param_config(port, &uart_config));
+
+    ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, rts, cts));
+}
+
+
 void gy95_msp_init(gy95_t* p_gy) {
+    uart_service_init(p_gy->port, p_gy->rx_pin, p_gy->tx_pin, p_gy->rts_pin, p_gy->cts_pin);
+
     gpio_config_t io_conf = {
         .intr_type = GPIO_PIN_INTR_DISABLE,
         .mode = GPIO_MODE_INPUT_OUTPUT,
@@ -40,16 +66,36 @@ void gy95_msp_init(gy95_t* p_gy) {
     }
 }
 
-void gy95_init(gy95_t* p_gy, int port, int ctrl_pin, int addr) {
+void gy95_init(gy95_t* p_gy,
+               int port,
+               int ctrl_pin,
+               int rx_pin,
+               int tx_pin,
+               int rts_pin,
+               int cts_pin,
+               int addr
+) {
     p_gy->port = port;
     p_gy->ctrl_pin = ctrl_pin;
+    p_gy->rx_pin = rx_pin;
+    p_gy->tx_pin = tx_pin;
+    p_gy->rts_pin = rts_pin;
+    p_gy->cts_pin = cts_pin;
 
-    bzero(p_gy->buf, GY95_MSG_LEN);
-    p_gy->cursor = 0;
     p_gy->addr = addr;
+    p_gy->cursor = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
     p_gy->flag = 0;
+
+    p_gy->mux = xSemaphoreCreateMutex();
+    if (p_gy->mux == NULL) {
+        ESP_LOGE(TAG, "Failed to create mutex");
+        esp_restart();
+    }
+
+    bzero(p_gy->buf, GY95_MSG_LEN);
+
 }
 
 /**
@@ -66,8 +112,9 @@ void gy95_clean(gy95_t* p_gy) {
 }
 
 #define CONFIG_GY95_MAX_CHECK_LEN 1024
-#define CONFIG_GY95_MAX_CHECK_TIMEOUT 512
+#define CONFIG_GY95_MAX_CHECK_TIMEOUT 3072
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
+    /** Clean old message **/
     gy95_clean(p_gy);
     int cnt = CONFIG_GY95_MAX_CHECK_LEN;
     TickType_t start_tick = xTaskGetTickCount();
@@ -101,13 +148,13 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  * @param msg
  * @param len
  */
-void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
+esp_err_t gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
     // #if ! CONFIG_MULTI_CORE
     //     taskENTER_CRITICAL(&s_gy95_mux);
     // #endif
 
     // taskENTER_CRITICAL(&s_gy95_mux);
-    ENTER_CONFIGURATION(p_gy->port);
+    ENTER_CONFIGURATION(p_gy);
 
     if (len <= 0) {
         len = strlen((char*)msg);
@@ -130,38 +177,40 @@ void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
         ESP_LOGE(TAG, "GY95 Echo Failed");
     }
 
-    EXIT_CONFIGURATION(p_gy->port);
+    EXIT_CONFIGURATION(p_gy);
+
+    return err;
 }
 
-void gy95_setup(gy95_t* p_gy) {
+esp_err_t gy95_setup(gy95_t* p_gy) {
+
+    esp_err_t err = ESP_OK;
 
     ESP_LOGI(TAG, "Set rate to 100hz");
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
-
+    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
 
     ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x73", 4);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x73", 4));
 
     ESP_LOGI(TAG, "Set mount to horizontal");
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
 
+    return err;
 }
 
-void gy95_cali_acc(gy95_t* p_gy) {
+esp_err_t gy95_cali_acc(gy95_t* p_gy) {
+
     ESP_LOGI(TAG, "Re-run setup");
-    gy95_setup(p_gy);
+    esp_err_t err = gy95_setup(p_gy);
 
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
-    // Intentially delay 2s
-    vTaskDelay(2000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+
+    ESP_LOGI(TAG, "Save module configuration");
     /** Save module configuration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
 
-
+    return err;
 }
 // if self.ser.writable():
 //     self.ser.write(append_chksum(bytearray([0xa4, 0x06, 0x02, 0x02])))  # Rate 100Hz
@@ -197,6 +246,13 @@ void gy95_cali_mag(gy95_t* p_gy) {
 
 }
 
+esp_err_t gy95_cali_reset(gy95_t* p_gy) {
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
+    esp_err_t err = gy95_setup(p_gy);
+    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
+    return err;
+}
+
 bool gy95_chksum(gy95_t* p_gy) {
     long int sum = 0;
     for (int idx = 0; idx < p_gy->cursor; ++idx) {
@@ -207,6 +263,9 @@ bool gy95_chksum(gy95_t* p_gy) {
 
 #define CONFIG_GY95_MAXFAILED_BYTES 1924
 void gy95_read(gy95_t* p_gy) {
+    /** Acqurie lock **/
+    xSemaphoreTake(p_gy->mux, portMAX_DELAY);
+
     gy95_clean(p_gy);
     int failed_bytes = 0;
     while (failed_bytes < CONFIG_GY95_MAXFAILED_BYTES) {
@@ -259,7 +318,7 @@ void gy95_read(gy95_t* p_gy) {
         if (p_gy->flag) {
             p_gy->flag = false;
             if (gy95_chksum(p_gy)) {
-                return;
+                break;
             } else {
                 ESP_LOGI(TAG, "GYT95 reset buffer");
                 failed_bytes += p_gy->cursor;
@@ -270,8 +329,13 @@ void gy95_read(gy95_t* p_gy) {
         }
 
     }
+
+    if (failed_bytes >= CONFIG_GY95_MAXFAILED_BYTES) {
+        gy95_clean(p_gy);
+    }
+
+    xSemaphoreGive(p_gy->mux);
     /** Failed to read gy95 **/
-    gy95_clean(p_gy);
 }
 
 void gy95_enable(gy95_t* p_gy) {
@@ -286,11 +350,4 @@ void gy95_disable(gy95_t* p_gy) {
     vTaskDelay(200 / portTICK_PERIOD_MS);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
-}
-
-void gy95_cali_reset(gy95_t* p_gy) {
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
-    gy95_setup(p_gy);
-    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
-
 }

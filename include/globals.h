@@ -25,7 +25,7 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 
 /** @brief GY95 related **/
 #include "gy95.h"
-extern gy95_t g_gy95_imu;
+extern gy95_t g_imu;
 
 
 

@@ -158,7 +158,7 @@ void esp_enter_light_sleep() {
     ESP_ERROR_CHECK(esp_wifi_stop());
     ESP_LOGI(TAG, "Disabling GY95");
 
-    gy95_disable(&g_gy95_imu);
+    gy95_disable(&g_imu);
     xEventGroupClearBits(g_sys_event_group, GY95_CALIBRATED_BIT);
     vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 
@@ -208,12 +208,12 @@ void esp_enter_deep_sleep() {
     ESP_LOGI(TAG, " Going to deep sleep (shutdown)");
 
     ESP_LOGI(TAG, "Disabling GY95");
-    gy95_disable(&g_gy95_imu);
+    gy95_disable(&g_imu);
     vTaskDelay(200 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_gy95_imu.ctrl_pin));
+    ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
 
-    gpio_hold_en(g_gy95_imu.ctrl_pin);
-    ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_gy95_imu.ctrl_pin);
+    gpio_hold_en(g_imu.ctrl_pin);
+    ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_imu.ctrl_pin);
 
     /** If we donote disable wakeup source, then deep sleep will be waken **/
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
@@ -241,22 +241,4 @@ void esp_get_device_id() {
              base_mac_addr[3],
              base_mac_addr[4],
              base_mac_addr[5]);
-}
-
-void uart_service_init(int port, int rx, int tx, int rts, int cts) {
-    uart_config_t uart_config = {
-        .baud_rate = 115200, // TODO: Magic baud_rate
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 0,
-
-    };
-    int intr_alloc_flags = 0;
-    ESP_LOGI(TAG, "Initiate uart service at port %d, rx:%d, tx:%d", port, rx, tx);
-    ESP_ERROR_CHECK(uart_driver_install(port, 512, 0, 0, NULL, intr_alloc_flags));
-    ESP_ERROR_CHECK(uart_param_config(port, &uart_config));
-
-    ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, rts, cts));
 }

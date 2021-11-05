@@ -1,14 +1,14 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
-#define CONFIG_FIRMWARE_VERSION "2.1.0"
+#define CONFIG_FIRMWARE_VERSION "2.2.0"
 
 #include "driver/gpio.h"
 
 #define CONFIG_USE_PSEUDO_VALUE 0
 #define CONFIG_EN_DEBUG_OVER_TCP 0
 #define CONFIG_EN_PARSER_DEBUG 0
-#define CONFIG_EN_GY95_DEBUG 1
+#define CONFIG_EN_GY95_DEBUG 0
 
 
 #define CONFIG_MAX_TX_POWER (68)

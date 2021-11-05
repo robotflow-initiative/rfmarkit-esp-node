@@ -48,7 +48,7 @@ typedef enum server_command_t {
 } server_command_t;
 
 
-esp_err_t(*command_funcs[])(char*, int) = {
+esp_err_t(*command_funcs[])(char*, int, char*, int) = {
     command_func_restart,
     command_func_ping,
     command_func_sleep,
@@ -130,7 +130,7 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         /** Fill tx_buffer with '\0' **/
         bzero(tx_buffer, sizeof(char) * tx_len);
         /** Fill tx buffer with command related context **/
-        ret = command_funcs[cmd](tx_buffer, tx_len);
+        ret = command_funcs[cmd](rx_buffer, rx_len, tx_buffer, tx_len);
 
         /** Command did not modify the buffer **/
         if (strlen(tx_buffer) == 0) {
