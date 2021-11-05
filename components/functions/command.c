@@ -113,6 +113,12 @@ esp_err_t command_func_gy_imm(char* tx_buffer, int tx_len) {
     return ESP_OK;
 }
 
+esp_err_t command_func_gy_setup(char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_SETUP");
+    gy95_setup(&g_gy95_imu);
+    return ESP_OK;
+}
+
 esp_err_t command_func_id(char* tx_buffer, int tx_len){
     ESP_LOGI(TAG, "Executing command : IMU_GY_ID");
     snprintf(tx_buffer, tx_len, "%s\n\n", g_device_id);

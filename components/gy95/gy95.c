@@ -11,7 +11,15 @@
 #include "gy95.h"
 
 static const char* TAG = "GY95";
-// static portMUX_TYPE gy95_mmux = portMUX_INITIALIZER_UNLOCKED;
+static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
+
+#define ENTER_CONFIGURATION(port)    \
+    uart_write_bytes((port), (uint8_t*) "\xa4\x06\x03\x01\xae", 5);\
+    vTaskDelay(200 / portTICK_PERIOD_MS)
+
+#define EXIT_CONFIGURATION(port)    \
+    uart_write_bytes((port), (uint8_t*) "\xa4\x06\x03\x00\xad", 5);\
+    vTaskDelay(50 / portTICK_PERIOD_MS)
 
 void gy95_msp_init(gy95_t* p_gy) {
     gpio_config_t io_conf = {
@@ -57,28 +65,32 @@ void gy95_clean(gy95_t* p_gy) {
     p_gy->flag = 0;
 }
 
+#define CONFIG_GY95_MAX_CHECK_LEN 1024
+#define CONFIG_GY95_MAX_CHECK_TIMEOUT 512
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     gy95_clean(p_gy);
+    int cnt = CONFIG_GY95_MAX_CHECK_LEN;
     TickType_t start_tick = xTaskGetTickCount();
-    while ((xTaskGetTickCount() - start_tick) < CONFIG_GY95_MAX_CHECK_TICKS) {
+    while (cnt > 0) {
+        if (xTaskGetTickCount() - start_tick > CONFIG_GY95_MAX_CHECK_TIMEOUT) {
+            break;
+        }
         uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xFF);
 #if CONFIG_EN_GY95_DEBUG
         printf("0x%x.", p_gy->buf[p_gy->cursor]);
 #endif
         if (p_gy->buf[p_gy->cursor] != msg[p_gy->cursor]) {
             gy95_clean(p_gy);
-            ESP_LOGD(TAG, "GYT95 reset echo buffer");
-            vTaskDelay(10); // TODO: Magic Delay
+            ESP_LOGD(TAG, "GYT95 reset buffer");
             continue;
         } else {
             ++p_gy->cursor;
         }
         if (p_gy->cursor >= len) {
-            gy95_clean(p_gy);
             return ESP_OK;
         }
+        --cnt;
     }
-    gy95_clean(p_gy);
     return ESP_FAIL;
 }
 
@@ -91,8 +103,12 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  */
 void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
     // #if ! CONFIG_MULTI_CORE
-    //     taskENTER_CRITICAL();
+    //     taskENTER_CRITICAL(&s_gy95_mux);
     // #endif
+
+    // taskENTER_CRITICAL(&s_gy95_mux);
+    ENTER_CONFIGURATION(p_gy->port);
+
     if (len <= 0) {
         len = strlen((char*)msg);
     }
@@ -102,7 +118,8 @@ void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
         sum += msg[idx];
     }
     chksum = sum % 0x100;
-    // taskENTER_CRITICAL(&gy95_mmux);
+    // taskEXIT_CRITICAL(&s_gy95_mux);
+
     uart_write_bytes(p_gy->port, msg, len);
     uart_write_bytes(p_gy->port, &chksum, 1);
 
@@ -112,28 +129,25 @@ void gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
     } else {
         ESP_LOGE(TAG, "GY95 Echo Failed");
     }
-    // taskEXIT_CRITICAL(&gy95_mmux);
+
+    EXIT_CONFIGURATION(p_gy->port);
 }
 
 void gy95_setup(gy95_t* p_gy) {
 
     ESP_LOGI(TAG, "Set rate to 100hz");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Set update policy to auto");
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x03\x00", 4);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x73", 4);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Set mount to horizontal");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 }
 
 void gy95_cali_acc(gy95_t* p_gy) {
@@ -142,10 +156,12 @@ void gy95_cali_acc(gy95_t* p_gy) {
 
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
-    // Intentially delay 7s
-    vTaskDelay(5000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+    // Intentially delay 2s
+    vTaskDelay(2000 / portTICK_PERIOD_MS); // TODO: Magic Delay
     /** Save module configuration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
+
+
 }
 // if self.ser.writable():
 //     self.ser.write(append_chksum(bytearray([0xa4, 0x06, 0x02, 0x02])))  # Rate 100Hz
@@ -275,5 +291,6 @@ void gy95_disable(gy95_t* p_gy) {
 void gy95_cali_reset(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
     gy95_setup(p_gy);
-    vTaskDelay(3000 / portTICK_PERIOD_MS); // TODO: Magic delay
+    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
+
 }
