@@ -77,6 +77,7 @@ static void init() {
     gy95_init(&g_imu, GY95_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
     gy95_msp_init(&g_imu);
     gy95_enable(&g_imu);
+    gy95_setup(&g_imu);
 
     /** Initialize NVS **/
     esp_err_t ret = nvs_flash_init();

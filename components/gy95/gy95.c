@@ -210,6 +210,10 @@ esp_err_t gy95_cali_acc(gy95_t* p_gy) {
     /** Save module configuration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
 
+    gy95_disable(p_gy);
+    vTaskDelay(10); // TODO: Magic Delay
+    gy95_enable(p_gy);
+
     return err;
 }
 // if self.ser.writable():
@@ -244,12 +248,20 @@ void gy95_cali_mag(gy95_t* p_gy) {
 
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
 
+    gy95_disable(p_gy);
+    vTaskDelay(10); // TODO: Magic Delay
+    gy95_enable(p_gy);
+
 }
 
 esp_err_t gy95_cali_reset(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
     esp_err_t err = gy95_setup(p_gy);
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
+       
+    gy95_disable(p_gy);
+    vTaskDelay(10); // TODO: Magic Delay
+    gy95_enable(p_gy);
     return err;
 }
 
@@ -261,21 +273,24 @@ bool gy95_chksum(gy95_t* p_gy) {
     return (sum % 0x100 == p_gy->buf[p_gy->cursor]) ? true : false;
 }
 
-#define CONFIG_GY95_MAXFAILED_BYTES 1924
+#define CONFIG_GY95_MAXFAILED_BYTES 48
 void gy95_read(gy95_t* p_gy) {
     /** Acqurie lock **/
+    // ESP_LOGI(TAG, "Acquiring Lock");
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);
+    // ESP_LOGI(TAG, "Lock Acquired");
+
 
     gy95_clean(p_gy);
     int failed_bytes = 0;
     while (failed_bytes < CONFIG_GY95_MAXFAILED_BYTES) {
         uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xFF);
-        ESP_LOGD(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->cursor], p_gy->cursor);
+        ESP_LOGI(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->cursor], p_gy->cursor);
 
         switch (p_gy->cursor) {
         case 0:
             if (p_gy->buf[p_gy->cursor] != p_gy->addr) {
-                failed_bytes += p_gy->cursor;
+                failed_bytes += p_gy->cursor + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
@@ -283,7 +298,7 @@ void gy95_read(gy95_t* p_gy) {
             break;
         case 1:
             if (p_gy->buf[p_gy->cursor] != GY95_READ_OP) {
-                failed_bytes += p_gy->cursor;
+                failed_bytes += p_gy->cursor + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
@@ -293,7 +308,7 @@ void gy95_read(gy95_t* p_gy) {
             if (p_gy->buf[p_gy->cursor] < GY95_REG_THRESH) {
                 p_gy->start_reg = p_gy->buf[p_gy->cursor];
             } else {
-                failed_bytes += p_gy->cursor;
+                failed_bytes += p_gy->cursor + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
@@ -303,7 +318,7 @@ void gy95_read(gy95_t* p_gy) {
             if (p_gy->start_reg + (p_gy->buf[p_gy->cursor]) < GY95_REG_THRESH) {
                 p_gy->length = p_gy->buf[p_gy->cursor];
             } else {
-                failed_bytes += p_gy->cursor;
+                failed_bytes += p_gy->cursor + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
@@ -334,7 +349,10 @@ void gy95_read(gy95_t* p_gy) {
         gy95_clean(p_gy);
     }
 
+    // ESP_LOGI(TAG, "Releasing Lock");
     xSemaphoreGive(p_gy->mux);
+    // ESP_LOGI(TAG, "Lock released");
+
     /** Failed to read gy95 **/
 }
 
