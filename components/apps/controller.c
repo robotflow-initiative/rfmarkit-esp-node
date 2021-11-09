@@ -44,6 +44,10 @@ typedef enum server_command_t {
     IMU_GY_SETUP = 14,
     IMU_ID = 15,
     IMU_VER = 16,
+    IMU_BLINK_SET = 17,
+    IMU_BLINK_START = 18,
+    IMU_BLINK_STOP = 19,
+    IMU_BLINK_GET = 20,
     IMU_ERROR,
 } server_command_t;
 
@@ -65,7 +69,11 @@ esp_err_t(*command_funcs[])(char*, int, char*, int) = {
     command_func_gy_imm,
     command_func_gy_setup,
     command_func_id,
-    command_func_ver
+    command_func_ver,
+    command_func_blink_set,
+    command_func_blink_start,
+    command_func_blink_stop,
+    command_func_blink_get,
 };
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)
@@ -106,6 +114,14 @@ server_command_t parse_command(char* command, int len) {
         return IMU_ID;
     } else if (MATCH_CMD(command, "ver")) {
         return IMU_VER;
+    } else if (MATCH_CMD(command, "blink_set")) {
+        return IMU_BLINK_SET;
+    } else if (MATCH_CMD(command, "blink_start")) {
+        return IMU_BLINK_START;
+    } else if (MATCH_CMD(command, "blink_stop")) {
+        return IMU_BLINK_STOP;
+    } else if (MATCH_CMD(command, "blink_get")) {
+        return IMU_BLINK_GET;
     } else {
         return IMU_ERROR;
     }

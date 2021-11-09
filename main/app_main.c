@@ -110,6 +110,8 @@ static void init() {
     /** Enable gpio hold in deep sleep **/
     gpio_deep_sleep_hold_en();
 
+    /** Blink init **/
+    app_blink_init();
 
     /** Configure Events **/
     xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
@@ -195,7 +197,6 @@ void app_main(void) {
 #endif
     }
 
-    // app_blink("\xF1\x01\xFF\x0F", 3);
     // while (1) {esp_task_wdt_feed();}
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
     while (1) {

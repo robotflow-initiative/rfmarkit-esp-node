@@ -3,7 +3,9 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "driver/uart.h"
+#include "nvs_flash.h"
 #include "globals.h"
+#include "apps.h"
 
 static const char* TAG = "func_command";
 
@@ -150,5 +152,91 @@ esp_err_t command_func_id(char* rx_buffer, int rx_len, char* tx_buffer, int tx_l
 esp_err_t command_func_ver(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ver");
     snprintf(tx_buffer, tx_len, "%s\n\n", CONFIG_FIRMWARE_VERSION);
+    return ESP_OK;
+}
+
+esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_BLINK_SET");
+    uint8_t seq = 0;
+    uint8_t pin = CONFIG_BLINK_DEFAULT_PIN;
+    int offset = 0;
+
+    /** Open nvs table **/
+    nvs_handle_t blink_handle;
+    nvs_open("blink", NVS_READWRITE, &blink_handle);
+
+    /** usage: blink_set R [0-255] **/
+    switch (rx_buffer[10]) // TODO: Magic Number
+    {
+    case 'R':
+    case 'r':
+        pin = CONFIG_BLINK_RED_PIN;
+        snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to RED_PIN; ");
+        offset += strlen(tx_buffer);
+        break;
+    case 'G':
+    case 'g':
+        pin = CONFIG_BLINK_GREEN_PIN;
+        snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to GREEN_PIN; ");
+        offset += strlen(tx_buffer);
+        break;
+    case 'B':
+    case 'b':
+        pin = CONFIG_BLINK_BLUE_PIN;
+        snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to BLUE_PIN; ");
+        offset += strlen(tx_buffer);
+        break;
+    default:
+        snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed\n\n");
+        offset += strlen(tx_buffer);
+        return ESP_FAIL;
+    }
+
+    nvs_set_u8(blink_handle, "pin", pin);
+    nvs_commit(blink_handle);
+
+    seq = strtol(rx_buffer + 12, NULL, 10) % 0x100; // TODO: Magic Number 
+    nvs_set_u8(blink_handle, "seq", seq);
+    nvs_commit(blink_handle);
+
+    snprintf(tx_buffer + offset, tx_len - offset, "Blink seq set to %d, reboot to make effective\n\n", seq);
+
+    nvs_close(blink_handle);
+    return ESP_OK;
+}
+
+esp_err_t command_func_blink_start(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_BLINK_START");
+
+    app_blink_start();
+
+    snprintf(tx_buffer, tx_len, "Blink started\n\n");
+    return ESP_OK;
+}
+
+esp_err_t command_func_blink_stop(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_BLINK_STOP");
+
+    app_blink_stop();
+
+    snprintf(tx_buffer, tx_len, "Blink stopped\n\n");
+    return ESP_OK;
+}
+
+esp_err_t command_func_blink_get(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_BLINK_GET");
+    uint8_t seq = 0;
+    uint8_t pin = 0;
+
+    /** Open nvs table **/
+    nvs_handle_t blink_handle;
+    nvs_open("blink", NVS_READWRITE, &blink_handle);
+
+    nvs_get_u8(blink_handle, "pin", &pin);
+    nvs_get_u8(blink_handle, "seq", &seq);
+
+    snprintf(tx_buffer, tx_len, "Blink pin is %d, seq is %d, \n\n", pin, seq);
+
+    nvs_close(blink_handle);
     return ESP_OK;
 }

@@ -32,11 +32,11 @@ static int s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
 
 /**
  * @brief Default Wi-Fi event handler from esp-idf example
- * 
- * @param arg 
- * @param event_base 
- * @param event_id 
- * @param event_data 
+ *
+ * @param arg
+ * @param event_base
+ * @param event_id
+ * @param event_data
  */
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data) {
@@ -61,7 +61,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 
 /**
  * @brief Default Wi-Fi STA connect function from esp-idf example
- * 
+ *
  */
 esp_err_t wifi_init_sta(void) {
     g_wifi_event_group = xEventGroupCreate();
@@ -229,7 +229,7 @@ void esp_enter_deep_sleep() {
 char g_device_id[14] = { 0 };
 /**
  * @brief Read esp mac address from chip to g_device_id
- * 
+ *
 **/
 void esp_get_device_id() {
     uint8_t base_mac_addr[6];

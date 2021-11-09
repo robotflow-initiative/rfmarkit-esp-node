@@ -34,4 +34,9 @@ esp_err_t command_func_gy_imm(char * rx_buffer, int rx_len, char* tx_buffer, int
 esp_err_t command_func_gy_setup(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 esp_err_t command_func_id(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 esp_err_t command_func_ver(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+esp_err_t command_func_blink_set(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+esp_err_t command_func_blink_start(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+esp_err_t command_func_blink_stop(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+esp_err_t command_func_blink_get(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+
 #endif
