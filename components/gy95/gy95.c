@@ -279,7 +279,7 @@ void gy95_read(gy95_t* p_gy) {
     int failed_bytes = 0;
     while (failed_bytes < CONFIG_GY95_MAXFAILED_BYTES) {
         uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xF);
-        ESP_LOGI(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->cursor], p_gy->cursor);
+        ESP_LOGD(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->cursor], p_gy->cursor);
 
         switch (p_gy->cursor) {
         case 0:
