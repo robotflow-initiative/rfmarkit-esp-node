@@ -190,11 +190,13 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
     err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
 
     ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
-    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x73", 4));
+    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
 
     ESP_LOGI(TAG, "Set mount to horizontal");
     err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
 
+    /** Enable continuous output **/
+    uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x03\x00\xad", 5);
     return err;
 }
 
@@ -206,12 +208,12 @@ esp_err_t gy95_cali_acc(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
 
-    ESP_LOGI(TAG, "Save module configuration");
-    /** Save module configuration **/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
+    // ESP_LOGI(TAG, "Save module configuration");
+    // /** Save module configuration **/
+    // gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
 
     gy95_disable(p_gy);
-    vTaskDelay(10); // TODO: Magic Delay
+    vTaskDelay(10 / portTICK_PERIOD_MS); // TODO: Magic Delay
     gy95_enable(p_gy);
 
     return err;
@@ -249,7 +251,7 @@ void gy95_cali_mag(gy95_t* p_gy) {
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
 
     gy95_disable(p_gy);
-    vTaskDelay(10); // TODO: Magic Delay
+    vTaskDelay(10 / portTICK_PERIOD_MS); // TODO: Magic Delay
     gy95_enable(p_gy);
 
 }
@@ -260,7 +262,7 @@ esp_err_t gy95_cali_reset(gy95_t* p_gy) {
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
        
     gy95_disable(p_gy);
-    vTaskDelay(10); // TODO: Magic Delay
+    vTaskDelay(10 / portTICK_PERIOD_MS); // TODO: Magic Delay
     gy95_enable(p_gy);
     return err;
 }
@@ -359,6 +361,7 @@ void gy95_read(gy95_t* p_gy) {
 void gy95_enable(gy95_t* p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 0);
     vTaskDelay(200 / portTICK_PERIOD_MS);
+    gy95_setup(p_gy);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }

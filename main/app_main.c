@@ -65,6 +65,8 @@ static void init() {
     esp_get_device_id();
     ESP_LOGI(TAG, "Device ID: %s", g_device_id);
 
+    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
+
     /** Setup GY95 **/
     ESP_LOGI(TAG, "setting up gy95");
 
@@ -98,11 +100,6 @@ static void init() {
     ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
 
-    // /** Check Update **/
-    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
-    // ESP_LOGW(TAG, "Will try to update in 3 seconds");
-    // vTaskDelay(3000 / portTICK_PERIOD_MS);
-    // esp_do_ota();
 
     /** Create TCP event group **/
     g_sys_event_group = xEventGroupCreate();

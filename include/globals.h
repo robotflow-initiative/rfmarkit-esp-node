@@ -46,5 +46,7 @@ extern EventGroupHandle_t g_sys_event_group;
 #define WIFI_FAIL_BIT      BIT1
 extern EventGroupHandle_t g_wifi_event_group;
 
+/** Blink **/
+extern uint8_t g_blink_pin;
 #endif
 

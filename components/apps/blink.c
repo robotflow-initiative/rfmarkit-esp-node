@@ -13,18 +13,18 @@
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define LED_ON() gpio_set_level(s_blink_pin, CONFIG_BLINK_LED_ENABLE_VALUE)
-#define LED_OFF() gpio_set_level(s_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE)
+#define LED_ON() gpio_set_level(g_blink_pin, CONFIG_BLINK_LED_ENABLE_VALUE)
+#define LED_OFF() gpio_set_level(g_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE)
 
 static char s_blink_seq[CONFIG_BLINK_SEQ_LEN];
 static int s_blink_idx;
-static uint8_t s_blink_pin;
+uint8_t g_blink_pin;
 
 static const char* TAG = "app_blink";
 
 bool blink_timeout(void *args) {
     if (s_blink_idx >= CONFIG_BLINK_SEQ_LEN) s_blink_idx = 0;
-    gpio_set_level(s_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
+    gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
     s_blink_idx++;
     // printf("%d", s_blink_seq[s_blink_idx]);
 
@@ -40,9 +40,9 @@ void app_blink_init() {
     nvs_handle_t blink_handle;
     uint8_t seq;
     nvs_open("blink", NVS_READWRITE, &blink_handle);
-    nvs_get_u8(blink_handle, "pin", &s_blink_pin);
+    nvs_get_u8(blink_handle, "pin", &g_blink_pin);
     nvs_get_u8(blink_handle, "seq", &seq);
-    ESP_LOGI(TAG, "Blinking pin: %d", s_blink_pin);
+    ESP_LOGI(TAG, "Blinking pin: %d", g_blink_pin);
     ESP_LOGI(TAG, "Blinking sequence: %d", seq);
     s_blink_idx = 0;
 
@@ -52,7 +52,7 @@ void app_blink_init() {
 
     /** Init GPIO **/
     gpio_config_t io_config = {
-        .pin_bit_mask = (1ull << s_blink_pin),
+        .pin_bit_mask = (1ull << CONFIG_BLINK_RED_PIN) | (1ull << CONFIG_BLINK_GREEN_PIN) |(1ull << CONFIG_BLINK_BLUE_PIN),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -61,13 +61,9 @@ void app_blink_init() {
     gpio_config(&io_config);
 
     /** After init, light up the led **/
+    LED_ALLOFF();
     LED_ON();
 
-    /** Verify the length **/
-    if (seq > 32) {
-        ESP_LOGE(TAG, "Sequence out of range");
-        return;
-    }
     ESP_LOGI(TAG, "Sequence Number: %d", seq);
     for (int idx = 0; idx < 8; ++idx) {
         value = get_flag(&seq, idx);
