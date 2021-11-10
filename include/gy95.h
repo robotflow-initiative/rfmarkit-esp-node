@@ -37,7 +37,7 @@ void gy95_init(gy95_t* p_gy,
                int addr
 );
 
-esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4]);
+esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo);
 
 esp_err_t gy95_setup(gy95_t* p_gy);
 
