@@ -74,7 +74,7 @@ esp_err_t parse_imu_reading(imu_msg_raw_t* p_reading, char* buffer, int len) {
 
 #if CONFIG_EN_PARSER_DEBUG
     ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
-    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+    for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {
         printf("0x%02x, ", p_reading->data[idx]);
     };
     ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
@@ -146,17 +146,17 @@ int tag_imu_reading(imu_msg_raw_t* p_reading, uint8_t* payload_buffer, int len) 
     ESP_LOGD(TAG, "Tagging imu readings");
 #if CONFIG_EN_PARSER_DEBUG
     ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
-    for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+    for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {
         printf("0x%02x, ", p_reading->data[idx]);
     };
     ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
 #endif
 
-    if ((offset + GY95_MSG_LEN + sizeof(p_reading->time_us) + 12) > len) {
+    if ((offset + GY95_PAYLOAD_LEN + sizeof(p_reading->time_us) + 12) > len) {
         return -1;
     }
-    memcpy(payload_buffer + offset, p_reading->data, GY95_MSG_LEN);
-    offset += GY95_MSG_LEN;
+    memcpy(payload_buffer + offset, p_reading->data, GY95_PAYLOAD_LEN);
+    offset += GY95_PAYLOAD_LEN;
 
     memcpy(payload_buffer + offset, &p_reading->time_us, sizeof(p_reading->time_us));
     offset += sizeof(p_reading->time_us);

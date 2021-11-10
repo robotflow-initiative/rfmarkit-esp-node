@@ -15,6 +15,7 @@
 static const char* TAG = "GY95";
 // static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
 
+/**
 #define ENTER_CONFIGURATION(p_gy)    \
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);\
     uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x03\x01\xae", 5);\
@@ -24,7 +25,7 @@ static const char* TAG = "GY95";
     xSemaphoreGive(p_gy->mux);\
     uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x03\x00\xad", 5);\
     vTaskDelay(50 / portTICK_PERIOD_MS)
-
+**/
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     uart_config_t uart_config = {
@@ -38,7 +39,7 @@ void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     };
     int intr_alloc_flags = 0;
     ESP_LOGI(TAG, "Initiate uart service at port %d, rx:%d, tx:%d", port, rx, tx);
-    ESP_ERROR_CHECK(uart_driver_install(port, 512, 0, 0, NULL, intr_alloc_flags)); // TODO: Magic rx buffer len
+    ESP_ERROR_CHECK(uart_driver_install(port, CONFIG_UART_RX_BUF_LEN, 0, 0, NULL, intr_alloc_flags)); // TODO: Magic rx buffer len
     ESP_ERROR_CHECK(uart_param_config(port, &uart_config));
 
     ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, rts, cts));
@@ -94,7 +95,7 @@ void gy95_init(gy95_t* p_gy,
         esp_restart();
     }
 
-    bzero(p_gy->buf, GY95_MSG_LEN);
+    bzero(p_gy->buf, GY95_PAYLOAD_LEN);
 
 }
 
@@ -104,18 +105,19 @@ void gy95_init(gy95_t* p_gy,
  * @param p_gy
  */
 void gy95_clean(gy95_t* p_gy) {
-    bzero(p_gy->buf, GY95_MSG_LEN);
+    bzero(p_gy->buf, GY95_PAYLOAD_LEN);
     p_gy->cursor = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
     p_gy->flag = 0;
 }
 
-#define CONFIG_GY95_MAX_CHECK_LEN 1024
+#define CONFIG_GY95_MAX_CHECK_LEN 48
 #define CONFIG_GY95_MAX_CHECK_TIMEOUT 3072
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
     gy95_clean(p_gy);
+
     int cnt = CONFIG_GY95_MAX_CHECK_LEN;
     TickType_t start_tick = xTaskGetTickCount();
     while (cnt > 0) {
@@ -148,73 +150,125 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  * @param msg
  * @param len
  */
-esp_err_t gy95_send(gy95_t* p_gy, uint8_t* msg, int len) {
-    // #if ! CONFIG_MULTI_CORE
-    //     taskENTER_CRITICAL(&s_gy95_mux);
-    // #endif
+esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4]) {
 
-    // taskENTER_CRITICAL(&s_gy95_mux);
-    ENTER_CONFIGURATION(p_gy);
+    // ENTER_CONFIGURATION(p_gy);
+    uint8_t ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN + 1] = { 0 };
 
-    if (len <= 0) {
-        len = strlen((char*)msg);
-    }
     long int sum = 0;
-    char chksum = 0;
-    for (int idx = 0; idx < len; ++idx) {
-        sum += msg[idx];
+    for (int idx = 0; idx < GY95_CTRL_MSG_LEN; ++idx) {
+        sum += ctrl_msg[idx];
+        ctrl_msg_with_chksum[idx] = ctrl_msg[idx];
     }
-    chksum = sum % 0x100;
-    // taskEXIT_CRITICAL(&s_gy95_mux);
+    ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN] = sum % 0x100;
 
-    uart_write_bytes(p_gy->port, msg, len);
-    uart_write_bytes(p_gy->port, &chksum, 1);
+    int n_retry = 10;
+    while (n_retry-- > 0) {
+        uart_write_bytes_with_break((p_gy->port), ctrl_msg_with_chksum, 5, 0xF);
+        uart_wait_tx_done((p_gy->port), portMAX_DELAY);
 
-    esp_err_t err = gy95_check_echo(p_gy, msg, len);
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "GY95 Echo Succeed");
-    } else {
-        ESP_LOGE(TAG, "GY95 Echo Failed");
+        esp_err_t err = gy95_check_echo(p_gy, ctrl_msg_with_chksum, GY95_CTRL_MSG_LEN);
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "GY95 Echo Succeed");
+            return ESP_OK;
+        } else {
+            ESP_LOGE(TAG, "GY95 Echo Failed");
+        }
+        vTaskDelay(4000 / portTICK_PERIOD_MS);
     }
 
-    EXIT_CONFIGURATION(p_gy);
 
-    return err;
+    // EXIT_CONFIGURATION(p_gy);
+
+    return ESP_FAIL;
 }
 
 esp_err_t gy95_setup(gy95_t* p_gy) {
 
     esp_err_t err = ESP_OK;
+    xSemaphoreTake(p_gy->mux, portMAX_DELAY);
+
+    ESP_LOGI(TAG, "Stop continuous output");
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x01\xae", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Set rate to 100hz");
-    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x02\x02\xae", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
-    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x73", 4));
+    ESP_LOGI(TAG, "Set rate to 100hz");
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x02\x02\xae", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Set mount to horizontal");
-    err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
+    ESP_LOGI(TAG, "Set rate to 100hz");
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x02\x02\xae", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
 
+    // ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
+    // uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x07\x1b\xcc", 5);
+
+    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
+    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
+
+
+    /** Enable continuous output **/
+    ESP_LOGI(TAG, "Resume continuous output");
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Resume continuous output");
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Resume continuous output");
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Done");
+    xSemaphoreGive(p_gy->mux);
     return err;
 }
 
 esp_err_t gy95_cali_acc(gy95_t* p_gy) {
-
-    ESP_LOGI(TAG, "Re-run setup");
-    esp_err_t err = gy95_setup(p_gy);
-
+    /** Enable continuous output **/
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
+    // gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", 4);
+    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x05\x57\x06", 5, 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
 
-    ESP_LOGI(TAG, "Save module configuration");
-    /** Save module configuration **/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
 
-    gy95_disable(p_gy);
-    vTaskDelay(10); // TODO: Magic Delay
-    gy95_enable(p_gy);
-
-    return err;
+    // ESP_LOGI(TAG, "Save module configuration");
+    // /** Save module configuration **/
+    // gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
+    // uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x05\x55\x04", 5);
+    return ESP_OK;
 }
 // if self.ser.writable():
 //     self.ser.write(append_chksum(bytearray([0xa4, 0x06, 0x02, 0x02])))  # Rate 100Hz
@@ -229,38 +283,35 @@ esp_err_t gy95_cali_acc(gy95_t* p_gy) {
 void gy95_cali_mag(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Mag calibrate");
     /** Start calibration **/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", 4);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58");
     ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
 
     vTaskDelay(30000 / portTICK_PERIOD_MS); // TODO: Magic delay
 
     /** Stop calibration **/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", 4);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59");
 
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
     /** Save calibration result**/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x5A", 4);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x5A");
 
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
 
     /** Save module configuration **/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", 4);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55");
 
     vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
-
-    gy95_disable(p_gy);
-    vTaskDelay(10); // TODO: Magic Delay
-    gy95_enable(p_gy);
-
 }
 
 esp_err_t gy95_cali_reset(gy95_t* p_gy) {
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
+    // gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", 4);
+    uart_write_bytes((p_gy->port), (uint8_t*)"\xa4\x06\x05\xaa\x59", 5);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+
     esp_err_t err = gy95_setup(p_gy);
-    vTaskDelay(200 / portTICK_PERIOD_MS); // TODO: Magic delay
-       
+
     gy95_disable(p_gy);
-    vTaskDelay(10); // TODO: Magic Delay
+    vTaskDelay(5000 / portTICK_PERIOD_MS); // TODO: Magic Delay
     gy95_enable(p_gy);
     return err;
 }

@@ -21,7 +21,7 @@ typedef struct gy95_t {
     
     SemaphoreHandle_t mux;
 
-    uint8_t buf[GY95_MSG_LEN];
+    uint8_t buf[GY95_PAYLOAD_LEN];
 
 } gy95_t;
 
@@ -37,7 +37,7 @@ void gy95_init(gy95_t* p_gy,
                int addr
 );
 
-esp_err_t gy95_send(gy95_t* p_gy, uint8_t* msg, int len);
+esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4]);
 
 esp_err_t gy95_setup(gy95_t* p_gy);
 

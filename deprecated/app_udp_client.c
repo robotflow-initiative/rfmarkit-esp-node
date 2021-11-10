@@ -76,7 +76,7 @@ void app_udp_client(void* pvParameters) {
             if (xQueueReceive(serial_queue, &payload, (TickType_t)0xF) != pdPASS) {
                 continue;
             }
-            int err = sendto(sock, payload.data, GY95_MSG_LEN, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+            int err = sendto(sock, payload.data, GY95_PAYLOAD_LEN, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
             if (err < 0) {
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                 // break;

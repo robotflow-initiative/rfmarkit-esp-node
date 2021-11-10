@@ -111,17 +111,17 @@ esp_err_t command_func_gy_imm(char* rx_buffer, int rx_len, char* tx_buffer, int 
     imu_msg_raw_t imu_data;
     // uart_flush_input(g_gy95_imu.port);
     uint8_t trash[1];
-    for (int idx = 0; idx < 512; ++idx) {
+    for (int idx = 0; idx < CONFIG_UART_RX_BUF_LEN; ++idx) {
         uart_read_bytes(g_imu.port, trash, 1, 0);
     }
     gy95_read(&g_imu);
-    memcpy(imu_data.data, g_imu.buf, GY95_MSG_LEN);
+    memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
     int offset = 0;
 
     parse_imu_reading(&imu_data, tx_buffer, tx_len);
     offset = strlen(tx_buffer);
     snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
-    // for (int idx = 0; idx < GY95_MSG_LEN; ++idx) {
+    // for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {
     //     snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
     //     offset = strlen(tx_buffer);
     // };
