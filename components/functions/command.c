@@ -102,7 +102,7 @@ esp_err_t command_func_gy_status(char* rx_buffer, int rx_len, char* tx_buffer, i
 
     int ret = gpio_get_level(g_imu.ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %s\n\n", ret ? "HIGH" : "LOW");
-    snprintf(tx_buffer, tx_len, "GY95 control pin %s", ret ? "HIGH" : "LOW");
+    snprintf(tx_buffer, tx_len, "GY95 control pin %s\n\n", ret ? "HIGH" : "LOW");
     return ESP_OK;
 }
 
@@ -238,5 +238,17 @@ esp_err_t command_func_blink_get(char* rx_buffer, int rx_len, char* tx_buffer, i
     snprintf(tx_buffer, tx_len, "Blink pin is %d, seq is %d, \n\n", pin, seq);
 
     nvs_close(blink_handle);
+    return ESP_OK;
+}
+
+esp_err_t command_func_blink_off(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_GY_BLINK_OFF");
+
+    app_blink_stop();
+    
+    gpio_set_level(g_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE);
+
+    snprintf(tx_buffer, tx_len, "Blink pin %d set to OFF\n\n", g_blink_pin);
+
     return ESP_OK;
 }

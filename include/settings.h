@@ -1,7 +1,7 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
-#define CONFIG_FIRMWARE_VERSION "2.2.0"
+#define CONFIG_FIRMWARE_VERSION "2.3.0"
 
 #include "driver/gpio.h"
 
@@ -87,7 +87,6 @@
 #define CONFIG_BLINK_INTERVAL_MS 50 // Blink interval in ms
 #define CONFIG_BLINK_SEQ_LEN 16 // Blink sequence length
 #define CONFIG_BLINK_TIMER_GROUP 0
-
 #define CONFIG_BLINK_RED_PIN GPIO_NUM_18
 #define CONFIG_BLINK_GREEN_PIN GPIO_NUM_19
 #define CONFIG_BLINK_BLUE_PIN GPIO_NUM_8
@@ -95,6 +94,7 @@
 #define CONFIG_BLINK_TIMER_IDX 0
 
 /** @warning Dev board and product have diffenrent definition **/
-#define CONFIG_BLINK_LED_ENABLE_VALUE 0 // set low to enable led 
+#define CONFIG_BLINK_LED_ENABLE_VALUE 1 // set low to enable led
+#define LED_ALLOFF() gpio_set_level(CONFIG_BLINK_RED_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE);gpio_set_level(CONFIG_BLINK_GREEN_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE);gpio_set_level(CONFIG_BLINK_BLUE_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE)
 
 #endif

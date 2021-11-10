@@ -38,5 +38,5 @@ esp_err_t command_func_blink_set(char * rx_buffer, int rx_len, char* tx_buffer, 
 esp_err_t command_func_blink_start(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 esp_err_t command_func_blink_stop(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 esp_err_t command_func_blink_get(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
-
+esp_err_t command_func_blink_off(char * rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 #endif

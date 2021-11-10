@@ -353,6 +353,7 @@ void gy95_read(gy95_t* p_gy) {
 void gy95_enable(gy95_t* p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 0);
     vTaskDelay(200 / portTICK_PERIOD_MS);
+    gy95_setup(p_gy);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
