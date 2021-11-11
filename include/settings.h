@@ -73,7 +73,7 @@
 #define GY95_RX GPIO_NUM_6
 #define GY95_TX GPIO_NUM_7
 #define GY95_RTS GPIO_NUM_4
-#define GY95_CTS GPIO_NUM_9
+#define GY95_CTS GPIO_NUM_8
 #define GY95_N_TICK 10
 #define CONFIG_GY95_MAX_CHECK_TICKS 1024
 
@@ -90,11 +90,11 @@
 
 #define CONFIG_BLINK_RED_PIN GPIO_NUM_18
 #define CONFIG_BLINK_GREEN_PIN GPIO_NUM_19
-#define CONFIG_BLINK_BLUE_PIN GPIO_NUM_8
-#define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_RED_PIN
+#define CONFIG_BLINK_BLUE_PIN GPIO_NUM_10
+#define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_BLUE_PIN
 #define CONFIG_BLINK_TIMER_IDX 0
 
 /** @warning Dev board and product have diffenrent definition **/
-#define CONFIG_BLINK_LED_ENABLE_VALUE 0 // set low to enable led 
+#define CONFIG_BLINK_LED_ENABLE_VALUE 1 // set low to enable led 
 
 #endif

@@ -134,7 +134,7 @@ void app_main(void) {
                 "app_time_sync",
                 2560,
                 NULL,
-                2,
+                3,
                 &time_sync_task);
     if (tcp_task == NULL) {
         ESP_LOGI(TAG, "Launching tcp client task");
@@ -143,7 +143,7 @@ void app_main(void) {
                                 "app_tcp_client",
                                 4096,
                                 (void*)serial_queue,
-                                1,
+                                2,
                                 NULL,
                                 0x0);
 #else
@@ -151,7 +151,7 @@ void app_main(void) {
                     "app_tcp_client",
                     4096,
                     (void*)serial_queue,
-                    1,
+                    2,
                     &tcp_task);
 
 #endif
@@ -163,7 +163,7 @@ void app_main(void) {
                                 "app_uart_monitor",
                                 2560,
                                 (void*)serial_queue,
-                                1,
+                                2,
                                 &uart_task,
                                 0x0);
 #else
@@ -171,7 +171,7 @@ void app_main(void) {
                     "app_uart_monitor",
                     2560,
                     (void*)serial_queue,
-                    1,
+                    2,
                     &uart_task);
 #endif
     }
@@ -183,7 +183,7 @@ void app_main(void) {
                                 "app_controller",
                                 4096,
                                 NULL,
-                                2,
+                                1,
                                 &controller_task,
                                 0x0);
 #else
@@ -191,7 +191,7 @@ void app_main(void) {
                     "app_controller",
                     4096,
                     NULL,
-                    2,
+                    1,
                     &controller_task);
 #endif
     }

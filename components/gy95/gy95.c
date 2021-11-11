@@ -188,23 +188,6 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
     esp_err_t err = ESP_OK;
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);
 
-    ESP_LOGI(TAG, "Stop continuous output");
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x01\xae", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Set rate to 100hz");
-    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x02\x02\xae", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Set rate to 100hz");
-    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x02\x02\xae", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
-
     ESP_LOGI(TAG, "Set rate to 100hz");
     // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", 4));
     uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x02\x02\xae", 5, 0xF);
@@ -214,42 +197,31 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
     // ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
     // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
     // uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x07\x1b\xcc", 5);
+    for (int i = 0; i < 3; ++i) {
+        ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
+        // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
+        uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
+        uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+        vTaskDelay(4000 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
-    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
+        /** Enable continuous output **/
+        ESP_LOGI(TAG, "Continuous output");
+        uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
+        uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+        vTaskDelay(4000 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
-    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, "Save configuration");
+        // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
+        uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x05\x55\04", 5, 0xF);
+        uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+        vTaskDelay(4000 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
-    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", 4));
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x07\x8b\x3c", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, "Refresh using cali_acc");
+        uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
+        uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+    }
 
 
-    /** Enable continuous output **/
-    ESP_LOGI(TAG, "Resume continuous output");
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Resume continuous output");
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Resume continuous output");
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x00\xad", 5, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "Done");
     xSemaphoreGive(p_gy->mux);
     return err;
 }
