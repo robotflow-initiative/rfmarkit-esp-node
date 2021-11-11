@@ -72,7 +72,7 @@ void app_uart_monitor(void* pvParameters) {
                     gy95_enable(&g_imu);
                     vTaskDelay(1);
                     ESP_LOGI(TAG, "Setting up gy95");
-                    gy95_setup(&g_imu);
+                    // gy95_setup(&g_imu);
                     xEventGroupSetBits(g_sys_event_group, GY95_CALIBRATED_BIT);
                     ESP_LOGI(TAG, "Setup finished");
                     break;
