@@ -1,4 +1,4 @@
 ota/firmware.bin
 ota/version.txt
 sdkconfig.old
-.vscode/c_cpp_properties.json
+.vscode/

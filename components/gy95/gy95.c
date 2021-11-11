@@ -113,7 +113,7 @@ void gy95_clean(gy95_t* p_gy) {
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
     uint8_t rx_buf[GY95_CTRL_MSG_LEN] = {0};
-    int cursor;
+    int cursor = 0;
 
     TickType_t start_tick = xTaskGetTickCount();
     while (xTaskGetTickCount() - start_tick < CONFIG_GY95_MAX_CHECK_TIMEOUT) {
