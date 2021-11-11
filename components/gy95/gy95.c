@@ -18,18 +18,10 @@ static const char* TAG = "GY95";
 
 #define ENTER_CONFIGURATION(p_gy)    \
     ESP_LOGI(TAG, "Stop continuous output");\
-    xSemaphoreTake(p_gy->mux, portMAX_DELAY);\
-    while(!gy95_check_echo(p_gy, (uint8_t *)"\xa4\x06\x03\x01\xae", 5)) {\
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*)"\xa4\x06\x03\x01\xae", 5, 0xF);\
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);\
-    vTaskDelay(1000 / portTICK_PERIOD_MS);}
+    xSemaphoreTake(p_gy->mux, portMAX_DELAY);
 
 #define EXIT_CONFIGURATION(p_gy)    \
     ESP_LOGI(TAG, "Resume continuous output");\
-    while(!gy95_check_echo(p_gy, (uint8_t *)"\xa4\x06\x03\x00\xad", 5)) {\
-    uart_write_bytes_with_break((p_gy->port), (uint8_t*) "\xa4\x06\x03\x00\xad", 5, 0xF);\
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);\
-    vTaskDelay(100 / portTICK_PERIOD_MS);} \
     xSemaphoreGive(p_gy->mux);
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
@@ -117,33 +109,28 @@ void gy95_clean(gy95_t* p_gy) {
     p_gy->flag = 0;
 }
 
-#define CONFIG_GY95_MAX_CHECK_NUM 48
-#define CONFIG_GY95_MAX_CHECK_TIMEOUT 3072
+#define CONFIG_GY95_MAX_CHECK_TIMEOUT 1024
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
-    gy95_clean(p_gy);
+    uint8_t rx_buf[GY95_CTRL_MSG_LEN] = {0};
+    int cursor;
 
-    int cnt = CONFIG_GY95_MAX_CHECK_NUM;
     TickType_t start_tick = xTaskGetTickCount();
-    while (cnt > 0) {
-        if (xTaskGetTickCount() - start_tick > CONFIG_GY95_MAX_CHECK_TIMEOUT) {
-            break;
-        }
-        uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xF);
+    while (xTaskGetTickCount() - start_tick < CONFIG_GY95_MAX_CHECK_TIMEOUT) {
+
+        uart_read_bytes(p_gy->port, &rx_buf[cursor], 1, 0xF);
 #if CONFIG_EN_GY95_DEBUG
-        printf("0x%x.", p_gy->buf[p_gy->cursor]);
+        printf("0x%x.", rx_buf[cursor]);
 #endif
-        if (p_gy->buf[p_gy->cursor] != msg[p_gy->cursor]) {
-            gy95_clean(p_gy);
-            ESP_LOGD(TAG, "GYT95 reset buffer");
+        if (rx_buf[cursor] != msg[cursor]) {
+            bzero(rx_buf, sizeof(rx_buf));
+            cursor = 0;
             continue;
-        } else {
-            ++p_gy->cursor;
         }
-        if (p_gy->cursor >= len) {
+        cursor++;
+        if (cursor >= len) {
             return ESP_OK;
         }
-        --cnt;
     }
     return ESP_FAIL;
 }
@@ -155,7 +142,6 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  * @param ctrl_msg
  */
 esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
-
     uint8_t ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN + 1] = { 0 };
 
     long int sum = 0;
@@ -165,9 +151,8 @@ esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
     }
     ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN] = sum % 0x100;
 
-    int n_retry = 10;
-    
-    while (n_retry-- > 0) {
+    int n_retry = 3;
+    while (n_retry > 0) {
         uart_write_bytes_with_break((p_gy->port), ctrl_msg_with_chksum, 5, 0xF);
         uart_wait_tx_done((p_gy->port), portMAX_DELAY);
         esp_err_t err = ESP_FAIL;
@@ -184,6 +169,7 @@ esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
             ESP_LOGE(TAG, "GY95 Echo Failed");
         }
         vTaskDelay(100 / portTICK_PERIOD_MS);
+        n_retry--;
     }
 
     return ESP_FAIL;
@@ -196,14 +182,13 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
     ENTER_CONFIGURATION(p_gy);
 
     ESP_LOGI(TAG, "Set rate to 100hz");
-    err = err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", NULL);
-
+    err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", NULL);
     // ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
     // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
     // uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x07\x1b\xcc", 5);
 
     ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
-    err = err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", NULL);
+    err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", NULL);
 
     /** Enable continuous output **/
     EXIT_CONFIGURATION(p_gy);

@@ -14,7 +14,7 @@
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
 #define CONFIG_MSG_QUEUE_LEN 256
-#define CONFIG_UART_RX_BUF_LEN 1024
+#define CONFIG_UART_RX_BUF_LEN 5120
 
 /** LAB and Non LAB environment has different network **/
 #define ENV 3
