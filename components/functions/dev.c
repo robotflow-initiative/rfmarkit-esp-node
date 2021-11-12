@@ -138,69 +138,6 @@ esp_err_t wifi_init_sta(void) {
     // vEventGroupDelete(g_wifi_event_group);
 }
 
-/**
- * @brief Enter sleep mode if tcp connection is not established
- *
- * @param nms
- */
-static struct timeval now = { 0 };
-static struct timeval sleep_enter_time = { 0 };
-void esp_enter_light_sleep() {
-
-    esp_sleep_enable_timer_wakeup(CONFIG_DISCONNECT_SLEEP_NUS);
-    // esp_sleep_enable_gpio_wakeup();
-    /* Enter sleep mode */
-    ESP_LOGI(TAG, "Maximum retry. Going to sleep");
-    gettimeofday(&sleep_enter_time, NULL);
-    ESP_LOGI(TAG, "Disconnecting Wifi");
-    ESP_ERROR_CHECK(esp_wifi_disconnect());
-    ESP_LOGI(TAG, "Stopping Wifi");
-    ESP_ERROR_CHECK(esp_wifi_stop());
-    ESP_LOGI(TAG, "Disabling GY95");
-
-    gy95_disable(&g_imu);
-    xEventGroupClearBits(g_sys_event_group, GY95_CALIBRATED_BIT);
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
-
-    /** Begin sleep **/
-    esp_light_sleep_start();
-    /** End sleep **/
-
-    gettimeofday(&now, NULL);
-    int sleep_time_ms = (now.tv_sec - sleep_enter_time.tv_sec) * 1000 + (now.tv_usec - sleep_enter_time.tv_usec) / 1000;
-
-    /** Detect wake up cause **/
-    switch (esp_sleep_get_wakeup_cause()) {
-    case ESP_SLEEP_WAKEUP_EXT1: {
-        ESP_LOGD(TAG, "Wake up from GPIO");
-        break;
-    }
-    case ESP_SLEEP_WAKEUP_TIMER: { // Wake up by timer
-        ESP_LOGD(TAG, "Wake up from timer. Time spent in deep sleep: %dms", sleep_time_ms);
-        break;
-    }
-    case ESP_SLEEP_WAKEUP_UNDEFINED: // Normal boot
-    default:
-        ESP_LOGD(TAG, "Not a deep sleep reset");
-    }
-
-    ESP_ERROR_CHECK(esp_wifi_start());
-    esp_wifi_connect();
-    vTaskDelay(5000 / portTICK_PERIOD_MS); // TODO: Magic Delay
-    EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group,
-                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                           pdFALSE,
-                                           pdFALSE,
-                                           portMAX_DELAY);
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGD(TAG, "Reconnected to ap ");
-    } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGD(TAG, "Failed to reconnect");
-    } else {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
-    }
-    /* Execution continues here after wakeup */
-}
 void esp_enter_deep_sleep() {
 
     // esp_sleep_enable_gpio_wakeup();
@@ -209,6 +146,8 @@ void esp_enter_deep_sleep() {
 
     ESP_LOGI(TAG, "Disabling GY95");
     gy95_disable(&g_imu);
+    xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
+    
     vTaskDelay(200 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
 

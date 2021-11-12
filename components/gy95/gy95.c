@@ -17,11 +17,9 @@ static const char* TAG = "GY95";
 
 
 #define ENTER_CONFIGURATION(p_gy)    \
-    ESP_LOGI(TAG, "Stop continuous output");\
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);
 
 #define EXIT_CONFIGURATION(p_gy)    \
-    ESP_LOGI(TAG, "Resume continuous output");\
     xSemaphoreGive(p_gy->mux);
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
@@ -36,7 +34,7 @@ void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     };
     int intr_alloc_flags = 0;
     ESP_LOGI(TAG, "Initiate uart service at port %d, rx:%d, tx:%d", port, rx, tx);
-    ESP_ERROR_CHECK(uart_driver_install(port, CONFIG_UART_RX_BUF_LEN, 0, 0, NULL, intr_alloc_flags)); // TODO: Magic rx buffer len
+    ESP_ERROR_CHECK(uart_driver_install(port, CONFIG_UART_RX_BUF_LEN, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(port, &uart_config));
 
     ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, rts, cts));
@@ -109,7 +107,7 @@ void gy95_clean(gy95_t* p_gy) {
     p_gy->flag = 0;
 }
 
-#define CONFIG_GY95_MAX_CHECK_TIMEOUT 1024
+#define CONFIG_GY95_MAX_CHECK_TIMEOUT 1024 / portTICK_PERIOD_MS
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
     uint8_t rx_buf[GY95_CTRL_MSG_LEN] = {0};
@@ -183,12 +181,24 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
 
     ESP_LOGI(TAG, "Set rate to 100hz");
     err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", NULL);
+    if (err != ESP_OK) return err;
     // ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
     // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
     // uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x07\x1b\xcc", 5);
 
     ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
     err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", NULL);
+    if (err != ESP_OK) return err;
+
+    ESP_LOGI(TAG, "Set continous output");
+    err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x03\x00", NULL);
+    if (err != ESP_OK) return err;
+
+    ESP_LOGI(TAG, "Update with cali_acc");
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00");
+
+    ESP_LOGI(TAG, "Save module configuration");
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", NULL);
 
     /** Enable continuous output **/
     EXIT_CONFIGURATION(p_gy);
@@ -198,7 +208,7 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
 esp_err_t gy95_cali_acc(gy95_t* p_gy) {
     ENTER_CONFIGURATION(p_gy);
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
-    esp_err_t err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00");
+    esp_err_t err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00\x04");
 
     EXIT_CONFIGURATION(p_gy);
     return err;
@@ -221,14 +231,14 @@ void gy95_cali_mag(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", NULL);
     ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
 
-    vTaskDelay(30000 / portTICK_PERIOD_MS); // TODO: Magic delay
+    vTaskDelay(15000 / portTICK_PERIOD_MS); // TODO: Magic delay
 
     /** Stop calibration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", NULL);
     /** Save calibration result**/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x5A", NULL);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x5A", (uint8_t*)"\xa4\x06\x05\x5A");
     /** Save module configuration **/
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", NULL);
+    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", (uint8_t*)"\xa4\x06\x05\x55");
 
     EXIT_CONFIGURATION(p_gy);
 }
@@ -237,7 +247,11 @@ esp_err_t gy95_cali_reset(gy95_t* p_gy) {
     ENTER_CONFIGURATION(p_gy);
     esp_err_t err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\xaa", (uint8_t*)"\xa4\x06\x05\x00");
 
-    err = err && gy95_setup(p_gy);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    err = gy95_setup(p_gy);
 
     EXIT_CONFIGURATION(p_gy);
 
@@ -338,7 +352,6 @@ void gy95_read(gy95_t* p_gy) {
 void gy95_enable(gy95_t* p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 0);
     vTaskDelay(200 / portTICK_PERIOD_MS);
-    gy95_setup(p_gy);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }

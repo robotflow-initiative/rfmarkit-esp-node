@@ -44,8 +44,6 @@ void app_uart_monitor(void* pvParameters) {
     imu_msg_raw_t imu_data = { 0 };
     imu_msg_raw_t imu_data_trash = { 0 };
     int ret = 0;
-    // int cnt = 0;
-    // TickType_t last_update = 0;
 
     while (1) {
         EventBits_t bits;
@@ -62,30 +60,25 @@ void app_uart_monitor(void* pvParameters) {
             bits = xEventGroupGetBits(g_sys_event_group);
             ESP_LOGD(TAG, "Bits: %x", bits);
             if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
-                vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
                 continue;
             } else {
-                if (bits & GY95_CALIBRATED_BIT) {
+                if (bits & GY95_ENABLED_BIT) {
                     break;
                 } else {
                     ESP_LOGI(TAG, "Enabling gy95");
                     gy95_enable(&g_imu);
-                    vTaskDelay(1);
-                    ESP_LOGI(TAG, "Setting up gy95");
-                    gy95_setup(&g_imu);
-                    xEventGroupSetBits(g_sys_event_group, GY95_CALIBRATED_BIT);
-                    ESP_LOGI(TAG, "Setup finished");
+                    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
                     break;
                 }   
             }
         }
-
         /** Get data **/
 #if CONFIG_USE_PSEUDO_VALUE
         bzero(imu_data.data, GY95_PAYLOAD_LEN);
         memcpy(imu_data.data, pseudo_data1, GY95_PAYLOAD_LEN);
         gettimeofday(&tv_now, NULL);
-        imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
+        imu_data.timew_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
         // ESP_LOGI(TAG, "Try to read gy");
@@ -108,7 +101,6 @@ void app_uart_monitor(void* pvParameters) {
         } else {
             ESP_LOGD(TAG, "Enqueue message\n");
         }
-        // esp_task_wdt_reset();
     }
     vTaskDelete(NULL);
 }

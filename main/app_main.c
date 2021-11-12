@@ -43,6 +43,9 @@ static TaskHandle_t uart_task = NULL;
 static TaskHandle_t time_sync_task = NULL;
 static TaskHandle_t controller_task = NULL;
 
+/** Setup up g_sleep_countup **/
+int g_sleep_countup = 0;
+
 static void init() {
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -71,7 +74,6 @@ static void init() {
     ESP_LOGI(TAG, "setting up gy95");
 
     /** Cancel GPIO hold **/
-    //TODO: Verify this will not cause trouble
     gpio_hold_dis(GY95_CTRL_PIN);
     gpio_deep_sleep_hold_dis();
 
@@ -112,7 +114,7 @@ static void init() {
     /** Configure Events **/
     xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
     xEventGroupClearBits(g_sys_event_group, NTP_SYNCED_BIT);
-    xEventGroupClearBits(g_sys_event_group, GY95_CALIBRATED_BIT);
+    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
 
 }
@@ -140,7 +142,7 @@ void app_main(void) {
                                 "app_tcp_client",
                                 4096,
                                 (void*)serial_queue,
-                                1,
+                                2,
                                 NULL,
                                 0x0);
 #else
@@ -148,7 +150,7 @@ void app_main(void) {
                     "app_tcp_client",
                     4096,
                     (void*)serial_queue,
-                    1,
+                    2,
                     &tcp_task);
 
 #endif
@@ -168,7 +170,7 @@ void app_main(void) {
                     "app_uart_monitor",
                     2560,
                     (void*)serial_queue,
-                    1,
+                    2,
                     &uart_task);
 #endif
     }
@@ -180,7 +182,7 @@ void app_main(void) {
                                 "app_controller",
                                 4096,
                                 NULL,
-                                2,
+                                1,
                                 &controller_task,
                                 0x0);
 #else
@@ -188,19 +190,32 @@ void app_main(void) {
                     "app_controller",
                     4096,
                     NULL,
-                    2,
+                    1,
                     &controller_task);
 #endif
     }
 
     // while (1) {esp_task_wdt_feed();}
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
+
+    RESET_SLEEP_COUNTUP();
     while (1) {
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, "main loop, g_sleep_countup: %d", g_sleep_countup);
         /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
-        EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group, WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+        EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group, WIFI_FAIL_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_COUNT_PERIOD_MS / portTICK_PERIOD_MS);
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
+            esp_enter_deep_sleep();
+        }
+
+        /** Check other events **/
+        bits = xEventGroupGetBits(g_sys_event_group);
+        if ((bits & UART_BLOCK_BIT)) {
+            g_sleep_countup++;
+        }
+
+        if (g_sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
+            ESP_LOGI(TAG, "Timeout");
             esp_enter_deep_sleep();
         }
     }

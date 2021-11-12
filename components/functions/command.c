@@ -20,12 +20,6 @@ esp_err_t command_func_ping(char* rx_buffer, int rx_len, char* tx_buffer, int tx
     return ESP_OK;
 }
 
-esp_err_t command_func_sleep(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
-    ESP_LOGI(TAG, "Executing command : IMU_SLEEP");
-    esp_enter_light_sleep();
-    return ESP_OK;
-}
-
 esp_err_t command_func_shutdown(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
     esp_enter_deep_sleep();
@@ -87,12 +81,14 @@ esp_err_t command_func_stop(char* rx_buffer, int rx_len, char* tx_buffer, int tx
 esp_err_t command_func_gy_enable(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
+    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
 
 esp_err_t command_func_gy_disable(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     gy95_disable(&g_imu);
+    xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
 

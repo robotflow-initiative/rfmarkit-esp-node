@@ -1,7 +1,7 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
-#define CONFIG_FIRMWARE_VERSION "2.4.0"
+#define CONFIG_FIRMWARE_VERSION "2.4.1"
 
 #include "driver/gpio.h"
 
@@ -10,13 +10,16 @@
 #define CONFIG_EN_PARSER_DEBUG 0
 #define CONFIG_EN_GY95_DEBUG 0
 
+/** System settings **/
 
+#define CONFIG_MAIN_LOOP_COUNT_PERIOD_MS 20000
+#define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 10
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
 #define CONFIG_MSG_QUEUE_LEN 256
 #define CONFIG_UART_RX_BUF_LEN 5120
 
-/** LAB and Non LAB environment has different network **/
+/** Wi-Fi environment settings**/
 #define ENV 3
 #if ENV == 0
 #define CONFIG_ESP_WIFI_SSID "yz_ri"
@@ -84,13 +87,13 @@
 #define CONFIG_NTP_UPDATE_INTERVAL_MS 1200000
 
 /** Blink settings **/
-#define CONFIG_BLINK_INTERVAL_MS 50 // Blink interval in ms
+#define CONFIG_BLINK_INTERVAL_MS 100 // Blink interval in ms
 #define CONFIG_BLINK_SEQ_LEN 16 // Blink sequence length
 #define CONFIG_BLINK_TIMER_GROUP 0
 #define CONFIG_BLINK_RED_PIN GPIO_NUM_18
 #define CONFIG_BLINK_GREEN_PIN GPIO_NUM_19
 #define CONFIG_BLINK_BLUE_PIN GPIO_NUM_10
-#define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_RED_PIN
+#define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_BLUE_PIN
 #define CONFIG_BLINK_TIMER_IDX 0
 
 /** @warning Dev board and product have diffenrent definition **/

@@ -6,7 +6,8 @@
 /** @brief Device properties **/
 extern char g_device_id[14];
 extern RTC_DATA_ATTR int boot_count;
-
+extern int g_sleep_countup;
+#define RESET_SLEEP_COUNTUP() g_sleep_countup = 0
 
 /** @brief TCP Debug related **/
 #include "lwip/sockets.h"
@@ -27,8 +28,6 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 #include "gy95.h"
 extern gy95_t g_imu;
 
-
-
 /** @brief Global Events **/
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -37,7 +36,7 @@ extern gy95_t g_imu;
 /** System **/
 #define TCP_CONNECTED_BIT BIT0
 #define NTP_SYNCED_BIT BIT1
-#define GY95_CALIBRATED_BIT BIT2
+#define GY95_ENABLED_BIT BIT2
 #define UART_BLOCK_BIT BIT3
 extern EventGroupHandle_t g_sys_event_group;
 

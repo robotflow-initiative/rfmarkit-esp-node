@@ -5,7 +5,6 @@
 
 /** @brief func_dev **/
 esp_err_t wifi_init_sta(void);
-void esp_enter_light_sleep(void);
 void esp_enter_deep_sleep(void);
 void esp_get_device_id(void);
 void esp_button_init(void);

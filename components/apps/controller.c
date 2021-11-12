@@ -16,6 +16,7 @@
 #include "settings.h"
 #include "types.h"
 #include "functions.h"
+#include "globals.h"
 
 #define RX_BUFFER_LEN 64 
 #define TX_BUFFER_LEN 512
@@ -34,7 +35,6 @@ typedef struct command_reg_t {
 static command_reg_t s_registration[] = {
     {.name = "restart", .func=command_func_restart},
     {.name = "ping", .func=command_func_ping},
-    {.name = "sleep", .func=command_func_sleep},
     {.name = "shutdown", .func=command_func_shutdown},
     {.name = "update", .func=command_func_update},
     {.name = "cali_reset", .func=command_func_cali_reset},
@@ -114,7 +114,9 @@ static void interact(const int sock)
             s_rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
             ESP_LOGI(TAG, "Received %d bytes: %s", len, s_rx_buffer);
 
+            RESET_SLEEP_COUNTUP();
             execute_command(s_rx_buffer, s_tx_buffer, RX_BUFFER_LEN, TX_BUFFER_LEN);
+
             int to_write = strlen(s_tx_buffer);
             while (to_write > 0) {
                 int written = send(sock, s_tx_buffer, to_write, 0);
@@ -211,11 +213,11 @@ void app_controller(void* pvParameters) {
         }
 
 socket_error:
-        vTaskDelay(10); // TODO: Magic Delay
+        vTaskDelay(100 / portTICK_PERIOD_MS); // TODO: Magic Delay
         if (listen_sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(listen_sock, 0);
-            vTaskDelay(10 / portTICK_PERIOD_MS); // TODO: Magic Delay
+            vTaskDelay(100 / portTICK_PERIOD_MS); // TODO: Magic Delay
             close(listen_sock);
         }
     }

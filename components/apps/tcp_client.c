@@ -25,8 +25,6 @@ void app_tcp_client(void* pvParameters) {
     ESP_LOGI(TAG, "app_tcp_client started");
     int addr_family = 0;
     int ip_protocol = 0;
-    int n_tcp_retry = CONFIG_ESP_TCP_MAXIMUM_RETRY;
-    int n_light_sleep_retry = CONFIG_ESP_LIGHT_SLEEP_MAXIMUM_RETRY;
 
     QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
     struct timeval timeout = { 3,0 }; // TCP timeout 
@@ -59,7 +57,7 @@ void app_tcp_client(void* pvParameters) {
         /** Set socket options **/
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
 
-        /** Wait time sync **/ // TODO: Verify this part
+        /** Wait time sync **/
         ESP_LOGI(TAG, "Waiting for time sync");
         xEventGroupWaitBits(g_sys_event_group,
                             NTP_SYNCED_BIT,
@@ -80,7 +78,6 @@ void app_tcp_client(void* pvParameters) {
         SET_DEBUG_SOCK(sock);
 
         xEventGroupSetBits(g_sys_event_group, TCP_CONNECTED_BIT);
-        n_tcp_retry = CONFIG_ESP_TCP_MAXIMUM_RETRY;
 
         while (1) {
             ESP_LOGD(TAG, "tcp_client loop");
@@ -115,6 +112,8 @@ void app_tcp_client(void* pvParameters) {
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                 xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
                 break;
+            } else {
+                RESET_SLEEP_COUNTUP();
             }
             taskYIELD();
 
@@ -124,30 +123,12 @@ void app_tcp_client(void* pvParameters) {
 socket_error:
 
         xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
-        vTaskDelay(10); // TODO: Magic Delay
         if (sock != -1) {
-            ESP_LOGE(TAG, "n_tcp_retry = %d, Shutting down socket...", n_tcp_retry);
+            ESP_LOGE(TAG, " Shutting down socket...");
             shutdown(sock, 0);
-            vTaskDelay(10 / portTICK_PERIOD_MS);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
             close(sock);
         }
-
-        /** Sleep related **/
-        ESP_LOGW(TAG, "0x%x", xEventGroupGetBits(g_sys_event_group));
-        if ((xEventGroupGetBits(g_sys_event_group) & UART_BLOCK_BIT)){
-            --n_tcp_retry;
-            if (n_light_sleep_retry <= 0) {
-                ESP_LOGI(TAG, "Entering deep sleep");
-                esp_enter_deep_sleep();
-            }
-            if (n_tcp_retry <= 0) {
-                esp_enter_light_sleep();
-                ESP_LOGI(TAG, "Light sleep retry: %d", n_light_sleep_retry);
-                --n_light_sleep_retry;
-                n_tcp_retry += 2;
-            }
-        }
-
     }
 
     vTaskDelete(NULL);
