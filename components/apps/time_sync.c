@@ -41,7 +41,7 @@ bool esp_wait_sync_time(const char* const posix_tz) {
         time(&now);
         localtime_r(&now, &timeinfo);
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-        ESP_LOGI(TAG, "The current date/time in Shanghai is: %s", strftime_buf); // TODO: Magic City Shanghai
+        ESP_LOGI(TAG, "The current date/time in "CONFIG_LOCAL_TZ" is: %s", strftime_buf); // FIXME: Possible issue: time not synced
         ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", n_retry, max_retry);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
@@ -66,13 +66,13 @@ void app_time_sync(void* pvParameters) {
 
     while (1) {
         /** Set timezone to China Standard Time **/
-        ret = esp_wait_sync_time("CTS-8"); // TODO: Magic Timezone
+        ret = esp_wait_sync_time(CONFIG_LOCAL_TZ);
         if (ret) {
             /** Update 'now' variable with current time **/
             time(&now);
             localtime_r(&now, &timeinfo);
             strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-            ESP_LOGI(TAG, "The current date/time in Shanghai is: %s", strftime_buf); // TODO: Magic City Shanghai
+            ESP_LOGI(TAG, "The current date/time in "CONFIG_LOCAL_TZ" is: %s", strftime_buf);
 
             /** Set event **/
             ESP_LOGI(TAG, "Setting NTP_SYNCED_BIT");

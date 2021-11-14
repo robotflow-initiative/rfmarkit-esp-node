@@ -57,7 +57,7 @@ static void init() {
              (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
              (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
 
-    ESP_LOGI(TAG, "silicon revision %d, ", chip_info.revision);
+    ESP_LOGI(TAG, "Silicon revision %d, ", chip_info.revision);
 
     ESP_LOGI(TAG, "%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
              (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
@@ -70,24 +70,23 @@ static void init() {
 
     ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
 
-    /** Setup GY95 **/
-    ESP_LOGI(TAG, "setting up gy95");
-
-    /** Cancel GPIO hold **/
-    gpio_hold_dis(GY95_CTRL_PIN);
-    gpio_deep_sleep_hold_dis();
-
-    /** Init global imu struct g_imu **/
-    gy95_init(&g_imu, GY95_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
-    gy95_msp_init(&g_imu);
-    gy95_enable(&g_imu);
-
     /** Initialize NVS **/
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
+
+    /** Cancel GPIO hold **/
+    gpio_hold_dis(GY95_CTRL_PIN);
+    gpio_deep_sleep_hold_dis();
+
+    /** Init global imu struct g_imu **/
+    /** Setup GY95 **/
+    ESP_LOGI(TAG, "Setting up gy95");
+    gy95_init(&g_imu, GY95_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
+    gy95_msp_init(&g_imu);
+    gy95_enable(&g_imu);
 
 
     ESP_ERROR_CHECK(ret);
@@ -98,7 +97,7 @@ static void init() {
     }
 
     /** Configure wifi tx power **/
-    ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
+    ESP_LOGI(TAG, "Set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
 
 
@@ -128,7 +127,7 @@ void app_main(void) {
     ESP_LOGD(TAG, "\nSerial Queue Addr %p\n", serial_queue);
 
     /** Launch time sync task **/
-    ESP_LOGI(TAG, "launching time sync task");
+    ESP_LOGI(TAG, "Launching time sync task");
     xTaskCreate(app_time_sync,
                 "app_time_sync",
                 2560,
@@ -170,7 +169,7 @@ void app_main(void) {
                     "app_uart_monitor",
                     2560,
                     (void*)serial_queue,
-                    2,
+                    1,
                     &uart_task);
 #endif
     }
@@ -199,10 +198,14 @@ void app_main(void) {
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
 
     RESET_SLEEP_COUNTUP();
+    EventBits_t bits;
     while (1) {
-        ESP_LOGI(TAG, "main loop, g_sleep_countup: %d", g_sleep_countup);
+        ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_sleep_countup);
+        esp_delay_ms(CONFIG_MAIN_LOOP_COUNT_PERIOD_MS);
+
         /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
-        EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group, WIFI_FAIL_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_COUNT_PERIOD_MS / portTICK_PERIOD_MS);
+        bits = xEventGroupGetBits(g_wifi_event_group); // TODO: Check old bits
+
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
             esp_enter_deep_sleep();
@@ -210,7 +213,7 @@ void app_main(void) {
 
         /** Check other events **/
         bits = xEventGroupGetBits(g_sys_event_group);
-        if ((bits & UART_BLOCK_BIT)) {
+        if ((bits & UART_BLOCK_BIT)) { // TODO: Check esp blink
             g_sleep_countup++;
         }
 

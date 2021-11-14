@@ -163,8 +163,6 @@ void esp_enter_deep_sleep() {
     /** If we donote disable wakeup source, then deep sleep will be waken **/
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
-
     /** Begin deep sleep **/
     esp_deep_sleep_start();
     /** ESP shutdown **/

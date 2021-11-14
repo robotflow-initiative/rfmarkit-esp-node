@@ -1,6 +1,7 @@
 #include "apps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "nvs_flash.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "driver/rtc_io.h"
@@ -24,7 +25,7 @@ static const char* TAG = "GY95";
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     uart_config_t uart_config = {
-        .baud_rate = 115200, // TODO: Magic baud_rate
+        .baud_rate = GY95_DEFAULT_BAUDRATE,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -62,6 +63,42 @@ void gy95_msp_init(gy95_t* p_gy) {
     }
 }
 
+static void gy95_read_scale(gy95_t* p_gy) {
+    nvs_handle_t gy_scale_handle;
+    ESP_ERROR_CHECK(nvs_open("gy_scale", NVS_READWRITE, &gy_scale_handle)); // TODO: Magic Name
+
+    p_gy->acc_scale = 0;
+    p_gy->gyro_scale = 0;
+    p_gy->mag_scale = 0;
+    p_gy->scale = 0x8b;
+
+    uint8_t scale = 0;
+    scale |= 1ULL << 7; // TODO: Magic Op, set mount to horizontal
+
+    nvs_get_u8(gy_scale_handle, "acc", &p_gy->acc_scale);
+    nvs_get_u8(gy_scale_handle, "gyro", &p_gy->gyro_scale);
+    nvs_get_u8(gy_scale_handle, "mag", &p_gy->mag_scale);
+
+    if (p_gy->acc_scale <= 3) {
+        scale |= p_gy->acc_scale << 2;
+        ESP_LOGI(TAG, "Setting acc scale to %d", p_gy->acc_scale);
+    }
+    if (p_gy->gyro_scale <= 3) {
+        scale |= p_gy->gyro_scale;
+        ESP_LOGI(TAG, "Setting gyro scale to %d", p_gy->gyro_scale);
+    }
+    if (p_gy->mag_scale <= 3) {
+        scale |= p_gy->mag_scale << 4;
+        ESP_LOGI(TAG, "Setting mag scale to %d", p_gy->mag_scale);
+    }
+
+    ESP_LOGI(TAG, "Scale byte is %x", scale);
+    p_gy->scale = scale;
+
+    nvs_close(gy_scale_handle);
+
+}
+
 void gy95_init(gy95_t* p_gy,
                int port,
                int ctrl_pin,
@@ -83,6 +120,8 @@ void gy95_init(gy95_t* p_gy,
     p_gy->start_reg = 0;
     p_gy->length = 0;
     p_gy->flag = 0;
+
+    gy95_read_scale(p_gy);
 
     p_gy->mux = xSemaphoreCreateMutex();
     if (p_gy->mux == NULL) {
@@ -107,10 +146,10 @@ void gy95_clean(gy95_t* p_gy) {
     p_gy->flag = 0;
 }
 
-#define CONFIG_GY95_MAX_CHECK_TIMEOUT 1024 / portTICK_PERIOD_MS
+#define CONFIG_GY95_MAX_CHECK_TIMEOUT 2000 / portTICK_PERIOD_MS
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
-    uint8_t rx_buf[GY95_CTRL_MSG_LEN] = {0};
+    uint8_t rx_buf[GY95_CTRL_MSG_LEN] = { 0 };
     int cursor = 0;
 
     TickType_t start_tick = xTaskGetTickCount();
@@ -173,26 +212,27 @@ esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
     return ESP_FAIL;
 }
 
-esp_err_t gy95_setup(gy95_t* p_gy) {
+esp_err_t gy95_setup(gy95_t* p_gy) { // TODO: Use a bit array to mark return code of each instruction
 
     esp_err_t err = ESP_OK;
 
     ENTER_CONFIGURATION(p_gy);
 
+    gy95_read_scale(p_gy);
+
     ESP_LOGI(TAG, "Set rate to 100hz");
     err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", NULL);
-    if (err != ESP_OK) return err;
-    // ESP_LOGI(TAG, "Set calibration method"); // TODO: experimental
-    // err = (err && gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
-    // uart_write_bytes((p_gy->port), (uint8_t*) "\xa4\x06\x07\x1b\xcc", 5);
 
-    ESP_LOGI(TAG, "Set mount to horizontal and sensibility");
-    err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x07\x8b", NULL);
-    if (err != ESP_OK) return err;
+    // ESP_LOGI(TAG, "Set calibration method"); // TODO: Test this function
+    // err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
+    // if (err != ESP_OK) return err;
+
+    ESP_LOGI(TAG, "Set mount to horizontal and sensibility: %x", p_gy->scale);
+    uint8_t msg[4] = { 0xa4, 0x06, 0x07, p_gy->scale };
+    err = gy95_send(p_gy, msg, NULL);
 
     ESP_LOGI(TAG, "Set continous output");
     err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x03\x00", NULL);
-    if (err != ESP_OK) return err;
 
     ESP_LOGI(TAG, "Update with cali_acc");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00");
@@ -200,7 +240,6 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Save module configuration");
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", NULL);
 
-    /** Enable continuous output **/
     EXIT_CONFIGURATION(p_gy);
     return err;
 }
@@ -208,7 +247,7 @@ esp_err_t gy95_setup(gy95_t* p_gy) {
 esp_err_t gy95_cali_acc(gy95_t* p_gy) {
     ENTER_CONFIGURATION(p_gy);
     ESP_LOGI(TAG, "Gyro-Accel calibrate");
-    esp_err_t err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00\x04");
+    esp_err_t err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00");
 
     EXIT_CONFIGURATION(p_gy);
     return err;
@@ -231,7 +270,7 @@ void gy95_cali_mag(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", NULL);
     ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
 
-    vTaskDelay(15000 / portTICK_PERIOD_MS); // TODO: Magic delay
+    esp_delay_ms(15000); // TODO: Magic Delay
 
     /** Stop calibration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", NULL);
@@ -272,7 +311,6 @@ void gy95_read(gy95_t* p_gy) {
     // ESP_LOGI(TAG, "Acquiring Lock");
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);
     // ESP_LOGI(TAG, "Lock Acquired");
-
 
     gy95_clean(p_gy);
     int failed_bytes = 0;
@@ -349,11 +387,19 @@ void gy95_read(gy95_t* p_gy) {
     /** Failed to read gy95 **/
 }
 
+int gy95_get_buffer_len(gy95_t* p_gy) {
+    size_t length;
+    uart_get_buffered_data_len(p_gy->port, &length);
+    return length;
+}
+
 void gy95_enable(gy95_t* p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 0);
     vTaskDelay(200 / portTICK_PERIOD_MS);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
+    // esp_delay_ms(3000);
+    // gy95_setup(p_gy);
 }
 
 void gy95_disable(gy95_t* p_gy) {

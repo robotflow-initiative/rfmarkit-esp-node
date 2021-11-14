@@ -47,6 +47,7 @@ static command_reg_t s_registration[] = {
     {.name = "gy_status", .func=command_func_gy_status},
     {.name = "gy_imm", .func=command_func_gy_imm},
     {.name = "gy_setup", .func=command_func_gy_setup},
+    {.name = "gy_scale",.func=command_func_gy_scale},
     {.name = "id", .func=command_func_id},
     {.name = "ver", .func=command_func_ver},
     {.name = "blink_set", .func=command_func_blink_set},
@@ -213,11 +214,11 @@ void app_controller(void* pvParameters) {
         }
 
 socket_error:
-        vTaskDelay(100 / portTICK_PERIOD_MS); // TODO: Magic Delay
+        esp_delay_ms(100);
         if (listen_sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(listen_sock, 0);
-            vTaskDelay(100 / portTICK_PERIOD_MS); // TODO: Magic Delay
+            esp_delay_ms(100);
             close(listen_sock);
         }
     }

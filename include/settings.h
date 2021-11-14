@@ -1,7 +1,7 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
-#define CONFIG_FIRMWARE_VERSION "2.4.1"
+#define CONFIG_FIRMWARE_VERSION "2.5"
 
 #include "driver/gpio.h"
 
@@ -12,7 +12,7 @@
 
 /** System settings **/
 
-#define CONFIG_MAIN_LOOP_COUNT_PERIOD_MS 20000
+#define CONFIG_MAIN_LOOP_COUNT_PERIOD_MS 40000
 #define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 10
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
@@ -61,7 +61,13 @@
 
 /** Send parsed json **/
 #define CONFIG_SEND_PARSED 0
+#undef CONFIG_PAYLOAD_BUFFER_LEN
+#if CONFIG_SEND_PARSED
 #define CONFIG_PAYLOAD_BUFFER_LEN 512
+#else 
+#define CONFIG_PAYLOAD_BUFFER_LEN 40
+#endif
+
 
 /** GY95 related settings **/
 #define GY95_CTRL_MSG_LEN 4
@@ -77,11 +83,13 @@
 #define GY95_TX GPIO_NUM_7
 #define GY95_RTS GPIO_NUM_4
 #define GY95_CTS GPIO_NUM_8
-#define GY95_N_TICK 10
+#define GY95_DEFAULT_FREQ 100
+#define GY95_DEFAULT_BAUDRATE 115200
 #define CONFIG_GY95_MAX_CHECK_TICKS 1024
 
 
 /** NTP settings **/
+#define CONFIG_LOCAL_TZ "CTS-8"
 #define CONFIG_NTP_SERVER_ADDR CONFIG_HOST_IP_ADDR
 #define CONFIG_NTP_MAX_RETRY 2
 #define CONFIG_NTP_UPDATE_INTERVAL_MS 1200000

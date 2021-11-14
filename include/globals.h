@@ -38,6 +38,7 @@ extern gy95_t g_imu;
 #define NTP_SYNCED_BIT BIT1
 #define GY95_ENABLED_BIT BIT2
 #define UART_BLOCK_BIT BIT3
+#define UART_ACTIVE_BIT BIT4
 extern EventGroupHandle_t g_sys_event_group;
 
 /** Wi-Fi **/
