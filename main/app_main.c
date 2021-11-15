@@ -86,6 +86,7 @@ static void init() {
     ESP_LOGI(TAG, "Setting up gy95");
     gy95_init(&g_imu, GY95_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
     gy95_msp_init(&g_imu);
+    gy95_disable(&g_imu);
     gy95_enable(&g_imu);
 
 

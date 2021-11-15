@@ -237,6 +237,7 @@ esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, i
 
     /**
     rx_buffer = "blink_set {"pin":"[R|G|B|r|g|b]","seq":"[0-255]"}
+    rx_buffer = "blink_set {"seq":"[0-255]"}
     **/
 
     cJSON* pRoot = cJSON_Parse(rx_buffer + sizeof("blink_set"));
@@ -249,57 +250,60 @@ esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, i
     } else {
         pPin = cJSON_GetObjectItem(pRoot, "pin");
         pSeq = cJSON_GetObjectItem(pRoot, "seq");
-        if ((pPin == NULL) || (pSeq == NULL)) {
-        ESP_LOGE(TAG, "Parse failed, invalid keys");
-        err = ESP_FAIL;
-        goto blink_set_cleanup;
+        if ((pSeq == NULL)) {
+            ESP_LOGE(TAG, "Parse failed, invalid keys");
+            err = ESP_FAIL;
+            goto blink_set_cleanup;
         }
     }
 
-    if (cJSON_IsString(pPin)) {
-        switch (pPin->valuestring[0]) {
-        case 'R':
-        case 'r':
-            pin = CONFIG_BLINK_RED_PIN;
-            snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to RED_PIN; ");
-            offset = strlen(tx_buffer);
-            break;
-        case 'G':
-        case 'g':
-            pin = CONFIG_BLINK_GREEN_PIN;
-            snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to GREEN_PIN; ");
-            offset = strlen(tx_buffer);
-            break;
-        case 'B':
-        case 'b':
-            pin = CONFIG_BLINK_BLUE_PIN;
-            snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to BLUE_PIN; ");
-            offset = strlen(tx_buffer);
-            break;
-        default:
-            snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed\n\n");
-            offset = strlen(tx_buffer);
-            err = ESP_FAIL;
-            goto blink_set_cleanup;
-        }
-    } else if (cJSON_IsNumber(pPin)) {
-        pin = pPin->valueint;
-        if (GPIO_IS_VALID_GPIO(pin)) {
-            snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to %d; ");
-            offset = strlen(tx_buffer);
-            err = ESP_FAIL;
-            goto blink_set_cleanup;
+    if (pPin != NULL) {
+        if (cJSON_IsString(pPin)) {
+            switch (pPin->valuestring[0]) {
+            case 'R':
+            case 'r':
+                pin = CONFIG_BLINK_RED_PIN;
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to RED_PIN; ");
+                offset = strlen(tx_buffer);
+                break;
+            case 'G':
+            case 'g':
+                pin = CONFIG_BLINK_GREEN_PIN;
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to GREEN_PIN; ");
+                offset = strlen(tx_buffer);
+                break;
+            case 'B':
+            case 'b':
+                pin = CONFIG_BLINK_BLUE_PIN;
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to BLUE_PIN; ");
+                offset = strlen(tx_buffer);
+                break;
+            default:
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed\n\n");
+                offset = strlen(tx_buffer);
+                err = ESP_FAIL;
+                goto blink_set_cleanup;
+            }
+        } else if (cJSON_IsNumber(pPin)) {
+            pin = pPin->valueint;
+            if (GPIO_IS_VALID_GPIO(pin)) {
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to %d; ");
+                offset = strlen(tx_buffer);
+                err = ESP_FAIL;
+                goto blink_set_cleanup;
+            } else {
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed, invalid gpio\n\n");
+                offset = strlen(tx_buffer);
+            }
         } else {
-            snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed, invalid gpio\n\n");
-            offset = strlen(tx_buffer);
+            ESP_LOGI(TAG, "Parse failed, invalid pin");
+            err = ESP_FAIL;
+            goto blink_set_cleanup;
         }
-    } else {
-        ESP_LOGI(TAG, "Parse failed, invalid pin");
-        err = ESP_FAIL;
-        goto blink_set_cleanup;
+        nvs_set_u8(blink_handle, "pin", pin); // TODO: Magic Name
+        nvs_commit(blink_handle);
+
     }
-    nvs_set_u8(blink_handle, "pin", pin); // TODO: Magic Name
-    nvs_commit(blink_handle);
 
 
     if (cJSON_IsNumber(pSeq)) {

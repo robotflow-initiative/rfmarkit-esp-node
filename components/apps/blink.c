@@ -16,13 +16,22 @@
 #define LED_ON() gpio_set_level(g_blink_pin, CONFIG_BLINK_LED_ENABLE_VALUE)
 #define LED_OFF() gpio_set_level(g_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE)
 
-static char s_blink_seq[CONFIG_BLINK_SEQ_LEN];
+#define CONFIG_BLINK_SYNC_SEQ_LEN 4
+#ifdef CONFIG_BLINK_EN_CHKSUM
+#define CONFIG_BLINK_CHKSUM_SEQ_LEN 4
+#else 
+#define CONFIG_BLINK_CHKSUM_SEQ_LEN 0
+#endif
+
+static char s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + CONFIG_BLINK_SEQ_LEN + CONFIG_BLINK_CHKSUM_SEQ_LEN];
+// [ 4bit sync | 16 bit data | 4 bit chksum]
+
 static int s_blink_idx;
 uint8_t g_blink_pin;
 
 static const char* TAG = "app_blink";
 
-bool blink_timeout(void *args) {
+bool blink_timeout(void* args) {
     if (s_blink_idx >= CONFIG_BLINK_SEQ_LEN) s_blink_idx = 0;
     gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
     s_blink_idx++;
@@ -40,7 +49,16 @@ void app_blink_init() {
     nvs_handle_t blink_handle;
     uint8_t seq;
     nvs_open("blink", NVS_READWRITE, &blink_handle);
+
+    /** FIXME: Temporarily suppress pin config
     nvs_get_u8(blink_handle, "pin", &g_blink_pin);
+    if (g_blink_pin != CONFIG_BLINK_BLUE_PIN && g_blink_pin != CONFIG_BLINK_GREEN_PIN && g_blink_pin != CONFIG_BLINK_RED_PIN) {
+        g_blink_pin = CONFIG_BLINK_DEFAULT_PIN;
+        nvs_set_u8(blink_handle, "pin", g_blink_pin); // TODO: Magic Name
+        nvs_commit(blink_handle);
+    }
+    **/
+    g_blink_pin = CONFIG_BLINK_DEFAULT_PIN;
     nvs_get_u8(blink_handle, "seq", &seq);
     ESP_LOGI(TAG, "Blinking pin: %d", g_blink_pin);
     ESP_LOGI(TAG, "Blinking sequence: %d", seq);
@@ -52,7 +70,7 @@ void app_blink_init() {
 
     /** Init GPIO **/
     gpio_config_t io_config = {
-        .pin_bit_mask = (1ull << CONFIG_BLINK_RED_PIN) | (1ull << CONFIG_BLINK_GREEN_PIN) |(1ull << CONFIG_BLINK_BLUE_PIN),
+        .pin_bit_mask = (1ull << CONFIG_BLINK_RED_PIN) | (1ull << CONFIG_BLINK_GREEN_PIN) | (1ull << CONFIG_BLINK_BLUE_PIN),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -65,21 +83,35 @@ void app_blink_init() {
     LED_ON();
 
     ESP_LOGI(TAG, "Sequence Number: %d", seq);
+
+    /** fill sync bits **/
+    s_blink_seq[0] = 1;
+    s_blink_seq[1] = 1;
+    s_blink_seq[2] = 1;
+    s_blink_seq[3] = 0;
+
+    /** fill data bits **/
+    int n_ones = 0;
     for (int idx = 0; idx < 8; ++idx) {
-        value = get_flag(&seq, idx);
+        value = get_flag(&seq, 8 - idx);
         ESP_LOGD(TAG, "value: %d\n", value);
         if (value) {
             pattern[0] = !pattern[0];
             pattern[1] = !pattern[1];
+            ++n_ones;
         }
-        s_blink_seq[idx * 2] = pattern[0];
+        s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2] = pattern[0];
         ESP_LOGD(TAG, "s_blink_seq[%d]=%d\n", idx * 2, pattern[0]);
-        s_blink_seq[idx * 2 + 1] = pattern[1];
-        ESP_LOGD(TAG,"s_blink_seq[%d]=%d\n", idx * 2 + 1, pattern[1]);
+        s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2 + 1] = pattern[1];
+        ESP_LOGD(TAG, "s_blink_seq[%d]=%d\n", idx * 2 + 1, pattern[1]);
     }
 
+#ifdef CONFIG_BLINK_EN_CHKSUM
+#else 
+#endif
+
     ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");
-    for (int idx = 0; idx < CONFIG_BLINK_SEQ_LEN; ++idx) {
+    for (int idx = 0; idx < sizeof(s_blink_seq); ++idx) {
         printf("%d ", s_blink_seq[idx]);
     }
     printf("\n");
@@ -112,7 +144,7 @@ void app_blink_start() {
     timer_start(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
 }
 
-void app_blink_stop(){
+void app_blink_stop() {
     ESP_LOGI(TAG, "Timer stopped");
     timer_pause(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
     LED_ON();
