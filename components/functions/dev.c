@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_err.h"
+#include "esp_intr_alloc.h"
 #include "nvs_flash.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -157,7 +158,7 @@ void esp_enter_deep_sleep() {
     gpio_hold_en(CONFIG_BLINK_RED_PIN);
     gpio_hold_en(CONFIG_BLINK_GREEN_PIN);
     gpio_hold_en(CONFIG_BLINK_BLUE_PIN);
-    
+
     ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_imu.ctrl_pin);
 
     /** If we donote disable wakeup source, then deep sleep will be waken **/
@@ -167,6 +168,10 @@ void esp_enter_deep_sleep() {
     esp_deep_sleep_start();
     /** ESP shutdown **/
 
+}
+
+static void esp_enter_deep_sleep_from_isr(void* params) {
+    g_sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
 }
 
 char g_device_id[14] = { 0 };
@@ -184,4 +189,18 @@ void esp_get_device_id() {
              base_mac_addr[3],
              base_mac_addr[4],
              base_mac_addr[5]);
+}
+
+void esp_button_init() {
+    /** Init GPIO **/
+    gpio_config_t io_config = {
+        .pin_bit_mask = (1ull << CONFIG_BUTTON_GPIO_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_NEGEDGE
+    };
+    gpio_config(&io_config);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(CONFIG_BUTTON_GPIO_PIN, esp_enter_deep_sleep_from_isr, NULL);
 }

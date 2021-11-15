@@ -54,7 +54,8 @@ static command_reg_t s_registration[] = {
     {.name = "blink_get", .func=command_func_blink_get},
     {.name = "blink_start", .func=command_func_blink_start},
     {.name = "blink_stop", .func=command_func_blink_stop},
-    {.name = "blink_off",.func=command_func_blink_off}
+    {.name = "blink_off",.func=command_func_blink_off},
+    {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func=command_func_shutdown}
 };
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)

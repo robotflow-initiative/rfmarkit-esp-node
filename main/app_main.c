@@ -69,6 +69,8 @@ static void init() {
     ESP_LOGI(TAG, "Device ID: %s", g_device_id);
 
     ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
+    /** Setup Button **/
+    esp_button_init();
 
     /** Initialize NVS **/
     esp_err_t ret = nvs_flash_init();
