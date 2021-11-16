@@ -16,6 +16,7 @@
 #include "settings.h"
 #include "types.h"
 #include "functions.h"
+#include "globals.h"
 
 #define RX_BUFFER_LEN 64 
 #define TX_BUFFER_LEN 512
@@ -26,101 +27,59 @@ static char s_addr_str[128];
 static char s_rx_buffer[RX_BUFFER_LEN];
 static char s_tx_buffer[TX_BUFFER_LEN];
 
-typedef enum server_command_t {
-    IMU_RESTART = 0,
-    IMU_PING = 1,
-    IMU_SLEEP = 2,
-    IMU_SHUTDOWN = 3,
-    IMU_UPDATE = 4,
-    IMU_CALI_RESET = 5,
-    IMU_CALI_ACC = 6,
-    IMU_CALI_MAG = 7,
-    IMU_START = 8,
-    IMU_STOP = 9,
-    IMU_GY_ENABLE = 10,
-    IMU_GY_DISABLE = 11,
-    IMU_GY_STATUS = 12,
-    IMU_GY_IMM = 13,
-    IMU_GY_SETUP = 14,
-    IMU_ID = 15,
-    IMU_VER = 16,
-    IMU_ERROR,
-} server_command_t;
+typedef struct command_reg_t {
+    char name[16];
+    esp_err_t(*func)(char*, int, char*, int);
+} command_reg_t;
 
-
-esp_err_t(*command_funcs[])(char*, int, char*, int) = {
-    command_func_restart,
-    command_func_ping,
-    command_func_sleep,
-    command_func_shutdown,
-    command_func_update,
-    command_func_cali_reset,
-    command_func_cali_acc,
-    command_func_cali_mag,
-    command_func_start,
-    command_func_stop,
-    command_func_gy_enable,
-    command_func_gy_disable,
-    command_func_gy_status,
-    command_func_gy_imm,
-    command_func_gy_setup,
-    command_func_id,
-    command_func_ver
+static command_reg_t s_registration[] = {
+    {.name = "restart", .func=command_func_restart},
+    {.name = "ping", .func=command_func_ping},
+    {.name = "shutdown", .func=command_func_shutdown},
+    {.name = "update", .func=command_func_update},
+    {.name = "cali_reset", .func=command_func_cali_reset},
+    {.name = "cali_acc", .func=command_func_cali_acc},
+    {.name = "cali_mag", .func=command_func_cali_mag},
+    {.name = "start", .func=command_func_start},
+    {.name = "stop", .func=command_func_stop},
+    {.name = "gy_enable", .func=command_func_gy_enable},
+    {.name = "gy_disable", .func=command_func_gy_disable},
+    {.name = "gy_status", .func=command_func_gy_status},
+    {.name = "gy_imm", .func=command_func_gy_imm},
+    {.name = "gy_setup", .func=command_func_gy_setup},
+    {.name = "gy_scale",.func=command_func_gy_scale},
+    {.name = "id", .func=command_func_id},
+    {.name = "ver", .func=command_func_ver},
+    {.name = "blink_set", .func=command_func_blink_set},
+    {.name = "blink_get", .func=command_func_blink_get},
+    {.name = "blink_start", .func=command_func_blink_start},
+    {.name = "blink_stop", .func=command_func_blink_stop},
+    {.name = "blink_off",.func=command_func_blink_off},
+    {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func=command_func_shutdown}
 };
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)
 
-server_command_t parse_command(char* command, int len) {
+command_reg_t * parse_command(char* command, int len) {
     ESP_LOGI(TAG, "Got command %s from controller", command);
-    if (MATCH_CMD(command, "restart")) {
-        return IMU_RESTART;
-    } else if (MATCH_CMD(command, "ping")) {
-        return IMU_PING;
-    } else if (MATCH_CMD(command, "sleep")) {
-        return IMU_SLEEP;
-    } else if (MATCH_CMD(command, "shutdown")) {
-        return IMU_SHUTDOWN;
-    } else if (MATCH_CMD(command, "update")) {
-        return IMU_UPDATE;
-    } else if (MATCH_CMD(command, "cali_reset")) {
-        return IMU_CALI_RESET;
-    } else if (MATCH_CMD(command, "cali_acc")) {
-        return IMU_CALI_ACC;
-    } else if (MATCH_CMD(command, "cali_mag")) {
-        return IMU_CALI_MAG;
-    } else if (MATCH_CMD(command, "start")) {
-        return IMU_START;
-    } else if (MATCH_CMD(command, "stop") | MATCH_CMD(command, "pause")) {
-        return IMU_STOP;
-    } else if (MATCH_CMD(command, "gy_enable")) {
-        return IMU_GY_ENABLE;
-    } else if (MATCH_CMD(command, "gy_disable")) {
-        return IMU_GY_DISABLE;
-    } else if (MATCH_CMD(command, "gy_status")) {
-        return IMU_GY_STATUS;
-    } else if (MATCH_CMD(command, "gy_imm")) {
-        return IMU_GY_IMM;
-    } else if (MATCH_CMD(command, "gy_setup")) {
-        return IMU_GY_SETUP;
-    }else if (MATCH_CMD(command, "id")) {
-        return IMU_ID;
-    } else if (MATCH_CMD(command, "ver")) {
-        return IMU_VER;
-    } else {
-        return IMU_ERROR;
-    }
+   for (int idx = 0; idx < sizeof(s_registration) / sizeof(command_reg_t); ++idx) {
+       if (MATCH_CMD(command, s_registration[idx].name)) {
+           return &s_registration[idx];
+       }
+   }
+   return NULL;
 }
 
 esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_t tx_len) {
-    server_command_t cmd = parse_command(rx_buffer, rx_len);
+    command_reg_t * cmd = parse_command(rx_buffer, rx_len);
     esp_err_t ret = ESP_FAIL;
-    if (cmd == IMU_ERROR) {
+    if (cmd == NULL) {
         /** Output error **/
         ESP_LOGE(TAG, "Got invalid command : %s", rx_buffer);
 
         /** Fill tx_buffer with 'ERROR\n' **/
         bzero(tx_buffer, sizeof(char) * tx_len);
-        strcpy(tx_buffer, "ERROR\n\n");
+        strcpy(tx_buffer, "COMMAND NOT FOUND\n\n");
 
         /** Return False **/
         return ESP_FAIL;
@@ -130,7 +89,7 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         /** Fill tx_buffer with '\0' **/
         bzero(tx_buffer, sizeof(char) * tx_len);
         /** Fill tx buffer with command related context **/
-        ret = command_funcs[cmd](rx_buffer, rx_len, tx_buffer, tx_len);
+        ret = cmd->func(rx_buffer, rx_len, tx_buffer, tx_len);
 
         /** Command did not modify the buffer **/
         if (strlen(tx_buffer) == 0) {
@@ -157,7 +116,9 @@ static void interact(const int sock)
             s_rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
             ESP_LOGI(TAG, "Received %d bytes: %s", len, s_rx_buffer);
 
+            RESET_SLEEP_COUNTUP();
             execute_command(s_rx_buffer, s_tx_buffer, RX_BUFFER_LEN, TX_BUFFER_LEN);
+
             int to_write = strlen(s_tx_buffer);
             while (to_write > 0) {
                 int written = send(sock, s_tx_buffer, to_write, 0);
@@ -254,11 +215,11 @@ void app_controller(void* pvParameters) {
         }
 
 socket_error:
-        vTaskDelay(10); // TODO: Magic Delay
+        esp_delay_ms(100);
         if (listen_sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(listen_sock, 0);
-            vTaskDelay(10 / portTICK_PERIOD_MS); // TODO: Magic Delay
+            esp_delay_ms(100);
             close(listen_sock);
         }
     }

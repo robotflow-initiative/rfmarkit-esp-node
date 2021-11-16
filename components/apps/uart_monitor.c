@@ -12,7 +12,7 @@
 #include "types.h"
 #include "gy95.h"
 #include "globals.h"
-
+#include "functions.h"
 
 /** pseudo data **/
 #if CONFIG_USE_PSEUDO_VALUE
@@ -30,8 +30,8 @@ char pseudo_data2[40] = { 0xA4, 0x03, 0x08, 0x27, 0xFC, 0xFF,
                           0x0C, 0xe0, 0x04 ,0x03, 0x02, 0x0F,
                           0xFB, 0xBE };
 #endif
- 
-static const char* TAG =  "app_uart_monitor";
+
+static const char* TAG = "app_uart_monitor";
 
 void app_uart_monitor(void* pvParameters) {
     ESP_LOGI(TAG, "app_uart_monitor started");
@@ -44,14 +44,12 @@ void app_uart_monitor(void* pvParameters) {
     imu_msg_raw_t imu_data = { 0 };
     imu_msg_raw_t imu_data_trash = { 0 };
     int ret = 0;
-    // int cnt = 0;
-    // TickType_t last_update = 0;
 
+    /** Wait until tcp connection is established, time synced and uart not blocked**/
     while (1) {
         EventBits_t bits;
-        /** Wait until tcp connection is established **/
 
-        // TODO: figure out why xEventGroupWaitBits won't work
+        // TODO: Figure out why xEventGroupWaitBits won't work
         // last_update = xTaskGetTickCount();
         // xEventGroupWaitBits(net_event_group,
         //                     TCP_CONNECTED_BIT | NTP_SYNCED_BIT,
@@ -62,39 +60,39 @@ void app_uart_monitor(void* pvParameters) {
             bits = xEventGroupGetBits(g_sys_event_group);
             ESP_LOGD(TAG, "Bits: %x", bits);
             if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
-                vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
+                esp_delay_ms(1000);
+                xEventGroupClearBits(g_sys_event_group, UART_ACTIVE_BIT); // Mark uart as inactive
                 continue;
             } else {
-                if (bits & GY95_CALIBRATED_BIT) {
+                if (bits & GY95_ENABLED_BIT) {
                     break;
                 } else {
                     ESP_LOGI(TAG, "Enabling gy95");
                     gy95_enable(&g_imu);
-                    vTaskDelay(1);
-                    ESP_LOGI(TAG, "Setting up gy95");
-                    gy95_setup(&g_imu);
-                    xEventGroupSetBits(g_sys_event_group, GY95_CALIBRATED_BIT);
-                    ESP_LOGI(TAG, "Setup finished");
+                    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
                     break;
-                }   
+                }
             }
         }
-
+        if (!(bits & UART_ACTIVE_BIT)) {
+            xEventGroupSetBits(g_sys_event_group, UART_ACTIVE_BIT);
+        }
         /** Get data **/
 #if CONFIG_USE_PSEUDO_VALUE
-        bzero(imu_data.data, GY95_MSG_LEN);
-        memcpy(imu_data.data, pseudo_data1, GY95_MSG_LEN);
+        bzero(imu_data.data, GY95_PAYLOAD_LEN);
+        memcpy(imu_data.data, pseudo_data1, GY95_PAYLOAD_LEN);
         gettimeofday(&tv_now, NULL);
-        imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
+        imu_data.timew_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
         // ESP_LOGI(TAG, "Try to read gy");
         gy95_read(&g_imu);
-        memcpy(imu_data.data, g_imu.buf, GY95_MSG_LEN);
+        memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
         gettimeofday(&tv_now, NULL);
-        imu_data.time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
-#endif
+        int buffer_len = gy95_get_buffer_len(&g_imu); // How many bits are left in the buffer
+        imu_data.time_us = ((int64_t)tv_now.tv_sec - ((int64_t)buffer_len / (GY95_DEFAULT_FREQ * GY95_PAYLOAD_LEN))) * 1000000L + (int64_t)tv_now.tv_usec;
 
+#endif
         /** If queue is full, clear queue **/
         while (uxQueueSpacesAvailable(serial_queue) <= 0) {
             xQueueReceive(serial_queue, (void*)&imu_data_trash, (TickType_t)0xF);
@@ -108,7 +106,6 @@ void app_uart_monitor(void* pvParameters) {
         } else {
             ESP_LOGD(TAG, "Enqueue message\n");
         }
-        // esp_task_wdt_reset();
     }
     vTaskDelete(NULL);
 }

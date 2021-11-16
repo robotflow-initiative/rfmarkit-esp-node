@@ -21,7 +21,7 @@ typedef struct imu_msg_holder_t {
 } imu_msg_holder_t;
 
 typedef struct imu_msg_raw_t {
-    uint8_t data[GY95_MSG_LEN];
+    uint8_t data[GY95_PAYLOAD_LEN];
     int64_t time_us;
 } imu_msg_raw_t;
 

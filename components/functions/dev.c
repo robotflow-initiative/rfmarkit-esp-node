@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_err.h"
+#include "esp_intr_alloc.h"
 #include "nvs_flash.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -32,11 +33,11 @@ static int s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
 
 /**
  * @brief Default Wi-Fi event handler from esp-idf example
- * 
- * @param arg 
- * @param event_base 
- * @param event_id 
- * @param event_data 
+ *
+ * @param arg
+ * @param event_base
+ * @param event_id
+ * @param event_data
  */
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data) {
@@ -61,7 +62,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 
 /**
  * @brief Default Wi-Fi STA connect function from esp-idf example
- * 
+ *
  */
 esp_err_t wifi_init_sta(void) {
     g_wifi_event_group = xEventGroupCreate();
@@ -138,69 +139,6 @@ esp_err_t wifi_init_sta(void) {
     // vEventGroupDelete(g_wifi_event_group);
 }
 
-/**
- * @brief Enter sleep mode if tcp connection is not established
- *
- * @param nms
- */
-static struct timeval now = { 0 };
-static struct timeval sleep_enter_time = { 0 };
-void esp_enter_light_sleep() {
-
-    esp_sleep_enable_timer_wakeup(CONFIG_DISCONNECT_SLEEP_NUS);
-    // esp_sleep_enable_gpio_wakeup();
-    /* Enter sleep mode */
-    ESP_LOGI(TAG, "Maximum retry. Going to sleep");
-    gettimeofday(&sleep_enter_time, NULL);
-    ESP_LOGI(TAG, "Disconnecting Wifi");
-    ESP_ERROR_CHECK(esp_wifi_disconnect());
-    ESP_LOGI(TAG, "Stopping Wifi");
-    ESP_ERROR_CHECK(esp_wifi_stop());
-    ESP_LOGI(TAG, "Disabling GY95");
-
-    gy95_disable(&g_imu);
-    xEventGroupClearBits(g_sys_event_group, GY95_CALIBRATED_BIT);
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
-
-    /** Begin sleep **/
-    esp_light_sleep_start();
-    /** End sleep **/
-
-    gettimeofday(&now, NULL);
-    int sleep_time_ms = (now.tv_sec - sleep_enter_time.tv_sec) * 1000 + (now.tv_usec - sleep_enter_time.tv_usec) / 1000;
-
-    /** Detect wake up cause **/
-    switch (esp_sleep_get_wakeup_cause()) {
-    case ESP_SLEEP_WAKEUP_EXT1: {
-        ESP_LOGD(TAG, "Wake up from GPIO");
-        break;
-    }
-    case ESP_SLEEP_WAKEUP_TIMER: { // Wake up by timer
-        ESP_LOGD(TAG, "Wake up from timer. Time spent in deep sleep: %dms", sleep_time_ms);
-        break;
-    }
-    case ESP_SLEEP_WAKEUP_UNDEFINED: // Normal boot
-    default:
-        ESP_LOGD(TAG, "Not a deep sleep reset");
-    }
-
-    ESP_ERROR_CHECK(esp_wifi_start());
-    esp_wifi_connect();
-    vTaskDelay(5000 / portTICK_PERIOD_MS); // TODO: Magic Delay
-    EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group,
-                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                           pdFALSE,
-                                           pdFALSE,
-                                           portMAX_DELAY);
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGD(TAG, "Reconnected to ap ");
-    } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGD(TAG, "Failed to reconnect");
-    } else {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
-    }
-    /* Execution continues here after wakeup */
-}
 void esp_enter_deep_sleep() {
 
     // esp_sleep_enable_gpio_wakeup();
@@ -209,16 +147,22 @@ void esp_enter_deep_sleep() {
 
     ESP_LOGI(TAG, "Disabling GY95");
     gy95_disable(&g_imu);
+    xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
+    
     vTaskDelay(200 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
 
+    LED_ALLOFF();
+
     gpio_hold_en(g_imu.ctrl_pin);
+    gpio_hold_en(CONFIG_BLINK_RED_PIN);
+    gpio_hold_en(CONFIG_BLINK_GREEN_PIN);
+    gpio_hold_en(CONFIG_BLINK_BLUE_PIN);
+
     ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_imu.ctrl_pin);
 
     /** If we donote disable wakeup source, then deep sleep will be waken **/
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // TODO: Magic Delay
 
     /** Begin deep sleep **/
     esp_deep_sleep_start();
@@ -226,10 +170,14 @@ void esp_enter_deep_sleep() {
 
 }
 
+static void esp_enter_deep_sleep_from_isr(void* params) {
+    g_sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
+}
+
 char g_device_id[14] = { 0 };
 /**
  * @brief Read esp mac address from chip to g_device_id
- * 
+ *
 **/
 void esp_get_device_id() {
     uint8_t base_mac_addr[6];
@@ -241,4 +189,18 @@ void esp_get_device_id() {
              base_mac_addr[3],
              base_mac_addr[4],
              base_mac_addr[5]);
+}
+
+void esp_button_init() {
+    /** Init GPIO **/
+    gpio_config_t io_config = {
+        .pin_bit_mask = (1ull << CONFIG_BUTTON_GPIO_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_NEGEDGE
+    };
+    gpio_config(&io_config);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(CONFIG_BUTTON_GPIO_PIN, esp_enter_deep_sleep_from_isr, NULL);
 }

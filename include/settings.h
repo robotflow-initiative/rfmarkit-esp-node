@@ -1,7 +1,7 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
-#define CONFIG_FIRMWARE_VERSION "2.2.0"
+#define CONFIG_FIRMWARE_VERSION "2.5.1"
 
 #include "driver/gpio.h"
 
@@ -10,12 +10,16 @@
 #define CONFIG_EN_PARSER_DEBUG 0
 #define CONFIG_EN_GY95_DEBUG 0
 
+/** System settings **/
 
+#define CONFIG_MAIN_LOOP_COUNT_PERIOD_MS 10000
+#define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 18
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
 #define CONFIG_MSG_QUEUE_LEN 256
+#define CONFIG_UART_RX_BUF_LEN 5120
 
-/** LAB and Non LAB environment has different network **/
+/** Wi-Fi environment settings**/
 #define ENV 3
 #if ENV == 0
 #define CONFIG_ESP_WIFI_SSID "yz_ri"
@@ -57,10 +61,17 @@
 
 /** Send parsed json **/
 #define CONFIG_SEND_PARSED 0
+#undef CONFIG_PAYLOAD_BUFFER_LEN
+#if CONFIG_SEND_PARSED
 #define CONFIG_PAYLOAD_BUFFER_LEN 512
+#else 
+#define CONFIG_PAYLOAD_BUFFER_LEN 40
+#endif
+
 
 /** GY95 related settings **/
-#define GY95_MSG_LEN 32
+#define GY95_CTRL_MSG_LEN 4
+#define GY95_PAYLOAD_LEN 32
 #define GY95_CTRL_PIN GPIO_NUM_5
 #define GY95_CTRL_PIN_MASK (1ULL << GY95_CTRL_PIN)
 #define GY95_ADDR 0xa4
@@ -72,13 +83,32 @@
 #define GY95_TX GPIO_NUM_7
 #define GY95_RTS GPIO_NUM_4
 #define GY95_CTS GPIO_NUM_8
-#define GY95_N_TICK 10
+#define GY95_DEFAULT_FREQ 100
+#define GY95_DEFAULT_BAUDRATE 115200
 #define CONFIG_GY95_MAX_CHECK_TICKS 1024
 
 
 /** NTP settings **/
+#define CONFIG_LOCAL_TZ "CTS-8"
 #define CONFIG_NTP_SERVER_ADDR CONFIG_HOST_IP_ADDR
 #define CONFIG_NTP_MAX_RETRY 2
 #define CONFIG_NTP_UPDATE_INTERVAL_MS 1200000
+
+/** Blink settings **/
+#define CONFIG_BLINK_INTERVAL_MS 100 // Blink interval in ms
+#define CONFIG_BLINK_SEQ_LEN 16 // Blink sequence length
+#define CONFIG_BLINK_TIMER_GROUP 0
+#define CONFIG_BLINK_RED_PIN GPIO_NUM_18
+#define CONFIG_BLINK_GREEN_PIN GPIO_NUM_19
+#define CONFIG_BLINK_BLUE_PIN GPIO_NUM_10
+#define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_BLUE_PIN
+#define CONFIG_BLINK_TIMER_IDX 0
+
+/** @warning Dev board and product have diffenrent definition **/
+#define CONFIG_BLINK_LED_ENABLE_VALUE 1 // set low to enable led
+#define LED_ALLOFF() gpio_set_level(CONFIG_BLINK_RED_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE);gpio_set_level(CONFIG_BLINK_GREEN_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE);gpio_set_level(CONFIG_BLINK_BLUE_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE)
+
+/** On Board Button **/
+#define CONFIG_BUTTON_GPIO_PIN GPIO_NUM_9
 
 #endif

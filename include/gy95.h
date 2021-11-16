@@ -2,6 +2,7 @@
 #define _GY95_H
 
 #include "esp_system.h"
+#include "freertos/semphr.h"
 #include "settings.h"
 
 typedef struct gy95_t {
@@ -18,10 +19,15 @@ typedef struct gy95_t {
     int start_reg;
     int length;
     bool flag;
+
+    uint8_t acc_scale;
+    uint8_t gyro_scale;
+    uint8_t mag_scale;
+    uint8_t scale;
     
     SemaphoreHandle_t mux;
 
-    uint8_t buf[GY95_MSG_LEN];
+    uint8_t buf[GY95_PAYLOAD_LEN];
 
 } gy95_t;
 
@@ -37,7 +43,7 @@ void gy95_init(gy95_t* p_gy,
                int addr
 );
 
-esp_err_t gy95_send(gy95_t* p_gy, uint8_t* msg, int len);
+esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo);
 
 esp_err_t gy95_setup(gy95_t* p_gy);
 
@@ -52,6 +58,8 @@ void gy95_clean(gy95_t* p_gy);
 bool gy95_chksum(gy95_t* p_gy);
 
 void gy95_read(gy95_t* p_gy);
+
+int gy95_get_buffer_len(gy95_t* p_gy);
 
 void gy95_enable(gy95_t* p_gy);
 
