@@ -21,7 +21,7 @@
 
 static const char* TAG = "app_tcp_client";
 
-static uint8_t s_send_buffer[CONFIG_PAYLOAD_BUFFER_LEN * 10]; // TODO: Magic Number
+static uint8_t s_send_buffer[CONFIG_PAYLOAD_BUFFER_LEN * 0xF];
 static int s_send_buffer_tail = 0;
 #define SEND_BUFFER_FULL() (s_send_buffer_tail > CONFIG_PAYLOAD_BUFFER_LEN * (10 - 2))
 #define RESET_SEND_BUFFER() \

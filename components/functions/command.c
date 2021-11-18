@@ -170,10 +170,10 @@ esp_err_t command_func_gy_scale(char* rx_buffer, int rx_len, char* tx_buffer, in
 
     /** Open nvs table **/
     nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open("gy_scale", NVS_READWRITE, &gy_scale_handle)); // TODO: Magic Name
+    ESP_ERROR_CHECK(nvs_open(CONFIG_GY95_SCALE_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
 
     /**
-    rx_buffer = "gy_scale {"acc":[0-3],"gyro":[0-3], "mag":[0-3]}
+    rx_buffer = "gy_scale {"acc":[0-3],"gyro":[0-3], "mag":[0-3]}"
     **/
     cJSON* pRoot = cJSON_Parse(rx_buffer + sizeof("gy_scale"));
     cJSON* pAcc = NULL;
@@ -195,9 +195,9 @@ esp_err_t command_func_gy_scale(char* rx_buffer, int rx_len, char* tx_buffer, in
         }
     }
 
-    SET_ATTR(pAcc, acc, "acc"); // TODO: Magic Name
-    SET_ATTR(pGyro, gyro, "gyro"); // TODO: Magic Name
-    SET_ATTR(pMag, mag, "mag"); // TODO: Magic Name
+    SET_ATTR(pAcc, acc, "acc"); 
+    SET_ATTR(pGyro, gyro, "gyro");
+    SET_ATTR(pMag, mag, "mag"); 
 
     snprintf(tx_buffer + offset, tx_len - offset, "Finished, re-run gy_setup to take effect; \n\n");
     offset = strlen(tx_buffer);
@@ -300,7 +300,7 @@ esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, i
             err = ESP_FAIL;
             goto blink_set_cleanup;
         }
-        nvs_set_u8(blink_handle, "pin", pin); // TODO: Magic Name
+        nvs_set_u8(blink_handle, "pin", pin);
         nvs_commit(blink_handle);
 
     }
@@ -315,7 +315,7 @@ esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, i
         err = ESP_FAIL;
         goto blink_set_cleanup;
     }
-    nvs_set_u8(blink_handle, "seq", seq); // TODO: Magic Name
+    nvs_set_u8(blink_handle, "seq", seq);
     nvs_commit(blink_handle);
 
     err = ESP_OK;

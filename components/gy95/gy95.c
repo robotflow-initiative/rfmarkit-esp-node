@@ -16,7 +16,6 @@
 static const char* TAG = "GY95";
 // static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
 
-
 #define ENTER_CONFIGURATION(p_gy)    \
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);
 
@@ -65,7 +64,7 @@ void gy95_msp_init(gy95_t* p_gy) {
 
 static void gy95_read_scale(gy95_t* p_gy) {
     nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open("gy_scale", NVS_READWRITE, &gy_scale_handle)); // TODO: Magic Name
+    ESP_ERROR_CHECK(nvs_open(CONFIG_GY95_SCALE_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
 
     p_gy->acc_scale = 0;
     p_gy->gyro_scale = 0;
@@ -73,7 +72,7 @@ static void gy95_read_scale(gy95_t* p_gy) {
     p_gy->scale = 0x8b;
 
     uint8_t scale = 0;
-    scale |= 1ULL << 7; // TODO: Magic Op, set mount to horizontal
+    scale |= 1ULL << 7; // According to manual, set mount to horizontal
 
     nvs_get_u8(gy_scale_handle, "acc", &p_gy->acc_scale);
     nvs_get_u8(gy_scale_handle, "gyro", &p_gy->gyro_scale);
