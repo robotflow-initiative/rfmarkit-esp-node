@@ -10,7 +10,7 @@ esp_err_t wifi_init_sta(void);
 void esp_enter_deep_sleep(void);
 void esp_get_device_id(void);
 void esp_button_init(void);
-void esp_self_test(char*, size_t);
+esp_err_t esp_self_test();
 #define esp_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
 
 /** @brief func_parse **/
@@ -47,4 +47,7 @@ esp_err_t command_func_blink_start(char* rx_buffer, int rx_len, char* tx_buffer,
 esp_err_t command_func_blink_stop(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 esp_err_t command_func_blink_get(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len);
 esp_err_t command_func_blink_off(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+esp_err_t command_func_self_test(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+esp_err_t command_func_always_on(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len);
+
 #endif

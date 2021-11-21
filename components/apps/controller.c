@@ -55,6 +55,7 @@ static command_reg_t s_registration[] = {
     {.name = "blink_start", .func=command_func_blink_start},
     {.name = "blink_stop", .func=command_func_blink_stop},
     {.name = "blink_off",.func=command_func_blink_off},
+    {.name = "self_test", .func=command_func_self_test},
     {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func=command_func_shutdown}
 };
 

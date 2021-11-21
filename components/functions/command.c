@@ -379,3 +379,19 @@ esp_err_t command_func_blink_off(char* rx_buffer, int rx_len, char* tx_buffer, i
 
     return ESP_OK;
 }
+
+esp_err_t command_func_self_test(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
+
+    esp_err_t err = esp_self_test();
+
+    if (err == ESP_OK) {
+        snprintf(tx_buffer, tx_len, "Self-test OK\n\n", g_blink_pin);
+        return err;
+    } else {
+        snprintf(tx_buffer, tx_len, "Self-test FAIL\n\n", g_blink_pin);
+        return err;
+    }
+
+}
+
