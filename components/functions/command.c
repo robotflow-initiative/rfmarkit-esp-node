@@ -108,45 +108,18 @@ esp_err_t command_func_gy_status(char* rx_buffer, int rx_len, char* tx_buffer, i
     return ESP_OK;
 }
 
-#define CONFIG_GY95_IMM_RETRY_N 10
+
 esp_err_t command_func_gy_imm(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
-    imu_msg_raw_t imu_data;
-    // uart_flush_input(g_imu.port);
+    imu_dgram_t imu_data;
+    imu_res_t imu_res = { 0 };
 
-    ESP_LOGI(TAG, "Reading from gy95");
-
-    /** Manually flush input **/
-    size_t buffer_len = gy95_get_buffer_len(&g_imu);
-    if (buffer_len > CONFIG_UART_RX_BUF_LEN / 4) {
-        ESP_LOGW(TAG, "BUFFER: %d", buffer_len);
-        for (int i = 0; i < (buffer_len / GY95_PAYLOAD_LEN) / 2; ++i) {
-            gy95_read(&g_imu);
-            esp_delay_ms(10);
-        }
-    }
-
-    esp_delay_ms(1000); // FIXME: Still not capable of guarantee success
-
-    for (int i = 0; i < CONFIG_GY95_IMM_RETRY_N; ++i) {
-        gy95_read(&g_imu);
-        esp_delay_ms(10);
-        if (g_imu.status == GY95_OK) {
-            int sum = 0;
-            for (int i=4; i<31; ++i) {
-                sum += g_imu.buf[i];
-            }
-            if (sum >= 0) {
-                break;
-            }
-        }
-    }
-
-    gy95_read(&g_imu);
+    gy95_safe_read(&g_imu);
     memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
-    int offset = 0;
 
-    parse_imu_reading(&g_imu, &imu_data, tx_buffer, tx_len);
+    int offset = 0;
+    parse_imu_reading(&g_imu, &imu_data, &imu_res, tx_buffer, tx_len);
+
     offset = strlen(tx_buffer);
     snprintf(tx_buffer + offset, tx_len - offset, "\n{\n\t\"acc_scale\":%d,\n\t\"gyro_scale\":%d,\n\t\"mag_scale\":%d\n}\n\n", g_imu.acc_scale, g_imu.gyro_scale, g_imu.mag_scale);
     // for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {

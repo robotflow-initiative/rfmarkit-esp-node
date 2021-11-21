@@ -148,7 +148,7 @@ void esp_enter_deep_sleep() {
     ESP_LOGI(TAG, "Disabling GY95");
     gy95_disable(&g_imu);
     xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
-    
+
     vTaskDelay(200 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
 

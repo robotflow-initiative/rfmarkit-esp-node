@@ -86,7 +86,7 @@ static void init() {
     /** Init global imu struct g_imu **/
     /** Setup GY95 **/
     ESP_LOGI(TAG, "Setting up gy95");
-    gy95_init(&g_imu, GY95_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
+    gy95_init(&g_imu, GY95_UART_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
     gy95_msp_init(&g_imu);
     gy95_disable(&g_imu);
     gy95_enable(&g_imu);
@@ -126,7 +126,7 @@ void app_main(void) {
     esp_ota_mark_app_valid_cancel_rollback();
     init();
 
-    QueueHandle_t serial_queue = xQueueCreate(CONFIG_MSG_QUEUE_LEN, sizeof(imu_msg_raw_t));
+    QueueHandle_t serial_queue = xQueueCreate(CONFIG_MSG_QUEUE_LEN, sizeof(imu_dgram_t));
     ESP_LOGD(TAG, "\nSerial Queue Addr %p\n", serial_queue);
 
     /** Launch time sync task **/
@@ -207,8 +207,7 @@ void app_main(void) {
         esp_delay_ms(CONFIG_MAIN_LOOP_COUNT_PERIOD_MS);
 
         /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
-        bits = xEventGroupGetBits(g_wifi_event_group); // TODO: Check old bits
-
+        bits = xEventGroupGetBits(g_wifi_event_group);
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
             esp_enter_deep_sleep();
@@ -216,7 +215,7 @@ void app_main(void) {
 
         /** Check other events **/
         bits = xEventGroupGetBits(g_sys_event_group);
-        if ((bits & UART_BLOCK_BIT)) { // TODO: Check esp blink
+        if ((bits & UART_BLOCK_BIT)) {
             g_sleep_countup++;
         }
 

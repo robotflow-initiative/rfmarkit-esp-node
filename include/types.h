@@ -4,7 +4,7 @@
 
 #include "settings.h"
 
-typedef struct imu_msg_holder_t {
+typedef struct imu_holder_t {
     int32_t accel_x;
     int32_t accel_y;
     int32_t accel_z;
@@ -18,14 +18,14 @@ typedef struct imu_msg_holder_t {
     int32_t mag_x;
     int32_t mag_y;
     int32_t mag_z;
-} imu_msg_holder_t;
+} imu_holder_t;
 
-typedef struct imu_msg_raw_t {
+typedef struct imu_dgram_t {
     uint8_t data[GY95_PAYLOAD_LEN];
     int64_t time_us;
-} imu_msg_raw_t;
+} imu_dgram_t;
 
-typedef struct imu_msg_key_t {
+typedef struct imu_key_t {
     uint8_t accel_x;
     uint8_t accel_y;
     uint8_t accel_z;
@@ -39,7 +39,7 @@ typedef struct imu_msg_key_t {
     uint8_t mag_x;
     uint8_t mag_y;
     uint8_t mag_z;
-} imu_msg_key_t;
+} imu_key_t;
 
 typedef struct _imu_float_t {
     float accel_x;
@@ -55,6 +55,6 @@ typedef struct _imu_float_t {
     float mag_x;
     float mag_y;
     float mag_z;
-} imu_msg_multiplier_t, imu_msg_parsed_t;
+} imu_multiplier_t, imu_res_t;
 
 #endif

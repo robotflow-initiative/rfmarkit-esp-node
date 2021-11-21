@@ -177,6 +177,7 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  * @param p_gy
  * @param ctrl_msg
  */
+#define CONFIG_GY95_CHECK_ECHO_N_RERY 2
 esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
     uint8_t ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN + 1] = { 0 };
 
@@ -187,7 +188,7 @@ esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
     }
     ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN] = sum % 0x100;
 
-    int n_retry = 3;
+    int n_retry = CONFIG_GY95_CHECK_ECHO_N_RERY;
     while (n_retry > 0) {
         uart_write_bytes_with_break((p_gy->port), ctrl_msg_with_chksum, 5, 0xF);
         uart_wait_tx_done((p_gy->port), portMAX_DELAY);
@@ -261,6 +262,7 @@ esp_err_t gy95_cali_acc(gy95_t* p_gy) {
 //     self.ser.write(append_chksum(bytearray([0xa4, 0x06, 0x05, 0x57])))  # Calibrate
 //     time.sleep(7)
 
+#define CONFIG_GY95_CALI_MAG_DELAY_MS 15000
 void gy95_cali_mag(gy95_t* p_gy) {
     ENTER_CONFIGURATION(p_gy);
 
@@ -269,7 +271,7 @@ void gy95_cali_mag(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", NULL);
     ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
 
-    esp_delay_ms(15000); // TODO: Magic Delay
+    esp_delay_ms(CONFIG_GY95_CALI_MAG_DELAY_MS);
 
     /** Stop calibration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", NULL);
@@ -386,6 +388,36 @@ void gy95_read(gy95_t* p_gy) {
     ESP_LOGD(TAG, "Lock released");
 
     /** Failed to read gy95 **/
+}
+
+void gy95_safe_read(gy95_t* p_gy) {
+    ESP_LOGD(TAG, "Safe Reading from gy95");
+
+    /** Manually flush input **/
+    size_t buffer_len = gy95_get_buffer_len(p_gy);
+    if (buffer_len > CONFIG_UART_RX_BUF_LEN / 4) {
+        ESP_LOGW(TAG, "BUFFER: %d", buffer_len);
+        for (int i = 0; i < (buffer_len / GY95_PAYLOAD_LEN) / 2; ++i) {
+            gy95_read(p_gy);
+            esp_delay_ms(10);
+        }
+    }
+
+    esp_delay_ms(1000);
+
+    for (int i = 0; i < CONFIG_GY95_RETRY_N; ++i) {
+        gy95_read(p_gy);
+        esp_delay_ms(10);
+        if (p_gy->status == GY95_OK) {
+            int sum = 0;
+            for (int i = CONFIG_GY95_PAYLOAD_HEAD_IDX; i < CONFIG_GY95_PAYLOAD_TAIL_IDX; ++i) {
+                sum += p_gy->buf[i];
+            }
+            if (sum >= 0) {
+                break;
+            }
+        }
+    }
 }
 
 size_t gy95_get_buffer_len(gy95_t* p_gy) {

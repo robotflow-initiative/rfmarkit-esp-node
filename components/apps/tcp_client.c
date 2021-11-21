@@ -35,7 +35,7 @@ void app_tcp_client(void* pvParameters) {
     QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
     struct timeval timeout = { 3,0 }; // TCP timeout 
 
-    imu_msg_raw_t imu_reading = { 0 };
+    imu_dgram_t imu_reading = { 0 };
 
     while (1) {
         /** TCP connection is not established **/
@@ -95,7 +95,7 @@ void app_tcp_client(void* pvParameters) {
             }
             /** imu_reading is available **/
 #if CONFIG_SEND_PARSED
-            err = parse_imu_reading(&imu_reading, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
+            err = parse_imu_reading(&g_imu, &imu_reading, NULL, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
             payload_len = strlen(payload_buffer);
 
             if (payload_len == 0 || !err) {
@@ -124,7 +124,7 @@ void app_tcp_client(void* pvParameters) {
 
                 ESP_LOGD(TAG, "Message sent to %s:%s", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
                 RESET_SEND_BUFFER();
-            }else {
+            } else {
                 taskYIELD();
             }
 
@@ -135,9 +135,18 @@ socket_error:
 
         xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
         if (sock != -1) {
-            ESP_LOGE(TAG, " Shutting down socket...");
+            ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
+            switch (errno) {
+            case ECONNRESET:
+                esp_delay_ms(5000);
+                break;
+
+            default:
+                esp_delay_ms(100);
+                break;
+            };
+
             shutdown(sock, 0);
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
             close(sock);
         }
     }

@@ -66,6 +66,8 @@ bool gy95_chksum(gy95_t* p_gy);
 
 void gy95_read(gy95_t* p_gy);
 
+void gy95_safe_read(gy95_t* p_gy);
+
 size_t gy95_get_buffer_len(gy95_t* p_gy);
 
 void gy95_enable(gy95_t* p_gy);

@@ -41,16 +41,17 @@ void app_uart_monitor(void* pvParameters) {
 
     struct timeval tv_now = { 0 };
 
-    imu_msg_raw_t imu_data = { 0 };
-    imu_msg_raw_t imu_data_trash = { 0 };
+    imu_dgram_t imu_data = { 0 };
+    imu_dgram_t imu_data_trash = { 0 };
     int ret = 0;
 
     /** Wait until tcp connection is established, time synced and uart not blocked**/
     while (1) {
         EventBits_t bits;
 
-        // FIXME: xEventGroupWaitBits won't work because:
-        // xEventGroupWaitBits will wait for all marked bits to be 1, but will ignore the status of unmarked bits 
+        /** @warning xEventGroupWaitBits won't work because:
+         * xEventGroupWaitBits will wait for all marked bits to be 1, but will ignore the status of unmarked bits 
+        **/
         
         while (1) {
             bits = xEventGroupGetBits(g_sys_event_group);
