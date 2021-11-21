@@ -1,7 +1,7 @@
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
-#define CONFIG_FIRMWARE_VERSION "2.5.1"
+#define CONFIG_FIRMWARE_VERSION "2.6.0"
 
 #include "driver/gpio.h"
 
