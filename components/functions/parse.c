@@ -150,7 +150,8 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
 }
 
 /** Tag imu_reading with device id **/
-int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) { // TODO: add gy_scale information
+/** @warning must guarentee the payload_buffer length **/
+int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) { // TODO: add gy_scale information, read_start_time, uart queue len
     int offset = 0;
 
     ESP_LOGD(TAG, "Tagging imu readings");
@@ -162,17 +163,28 @@ int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) { 
     ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
 #endif
 
-    if ((offset + GY95_PAYLOAD_LEN + sizeof(p_reading->time_us) + 12) > len) {
-        return -1;
-    }
+    /**
+     * @brief Format of packet:
+     * 
+     * | 0xa4 | ... | chk_sum | timestamp |     id     | gy_scale | start_timestamp | uart_buffer_len | chk_sum |
+     *    0              31     32  -  39   40  -  51       52         53  -  60         61  -  64         65
+     */
     memcpy(payload_buffer + offset, p_reading->data, GY95_PAYLOAD_LEN);
     offset += GY95_PAYLOAD_LEN;
 
     memcpy(payload_buffer + offset, &p_reading->time_us, sizeof(p_reading->time_us));
     offset += sizeof(p_reading->time_us);
 
-    memcpy(payload_buffer + offset, g_device_id, 12);
-    offset += 12;
+    memcpy(payload_buffer + offset, g_device_id, CONFIG_DEVICE_ID_LEN);
+    offset += CONFIG_DEVICE_ID_LEN;
+
+    payload_buffer[offset++] = g_imu.scale;
+    
+    memcpy(payload_buffer + offset, &p_reading->start_time_us, sizeof(p_reading->start_time_us));
+    offset += sizeof(p_reading->start_time_us);
+
+    memcpy(payload_buffer + offset, &p_reading->uart_buffer_len, sizeof(p_reading->uart_buffer_len));
+    offset += sizeof(p_reading->uart_buffer_len);
 
     uint32_t sum = 0;
     for (int idx = 0; idx < offset; ++idx) {

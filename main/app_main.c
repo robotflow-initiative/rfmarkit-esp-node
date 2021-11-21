@@ -130,7 +130,7 @@ void app_main(void) {
     esp_ota_mark_app_valid_cancel_rollback();
     init();
 
-    QueueHandle_t serial_queue = xQueueCreate(CONFIG_MSG_QUEUE_LEN, sizeof(imu_dgram_t));
+    QueueHandle_t serial_queue = xQueueCreate(CONFIG_SERIAL_QUEUE_LEN, sizeof(imu_dgram_t));
     ESP_LOGD(TAG, "\nSerial Queue Addr %p\n", serial_queue);
 
     /** Launch time sync task **/

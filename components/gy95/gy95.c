@@ -78,14 +78,16 @@ static void gy95_read_scale(gy95_t* p_gy) {
     nvs_get_u8(gy_scale_handle, "gyro", &p_gy->gyro_scale);
     nvs_get_u8(gy_scale_handle, "mag", &p_gy->mag_scale);
 
-    if (p_gy->acc_scale <= 3) {
-        scale |= p_gy->acc_scale << 2;
-        ESP_LOGI(TAG, "Setting acc scale to %d", p_gy->acc_scale);
-    }
     if (p_gy->gyro_scale <= 3) {
         scale |= p_gy->gyro_scale;
         ESP_LOGI(TAG, "Setting gyro scale to %d", p_gy->gyro_scale);
     }
+    
+    if (p_gy->acc_scale <= 3) {
+        scale |= p_gy->acc_scale << 2;
+        ESP_LOGI(TAG, "Setting acc scale to %d", p_gy->acc_scale);
+    }
+
     if (p_gy->mag_scale <= 3) {
         scale |= p_gy->mag_scale << 4;
         ESP_LOGI(TAG, "Setting mag scale to %d", p_gy->mag_scale);

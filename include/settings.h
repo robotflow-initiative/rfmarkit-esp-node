@@ -16,8 +16,9 @@
 #define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 18
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
-#define CONFIG_MSG_QUEUE_LEN 256
+#define CONFIG_SERIAL_QUEUE_LEN 10240
 #define CONFIG_UART_RX_BUF_LEN 5120
+#define CONFIG_DEVICE_ID_LEN 12
 
 /** Wi-Fi environment settings**/
 #define ENV 3
