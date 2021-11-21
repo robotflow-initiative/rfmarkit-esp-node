@@ -52,7 +52,7 @@ void gy95_init(gy95_t* p_gy,
 
 esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo);
 
-esp_err_t gy95_setup(gy95_t* p_gy);
+uint8_t gy95_setup(gy95_t* p_gy);
 
 esp_err_t gy95_cali_acc(gy95_t* p_gy);
 

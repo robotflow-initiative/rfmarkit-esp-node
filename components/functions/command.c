@@ -133,14 +133,10 @@ esp_err_t command_func_gy_imm(char* rx_buffer, int rx_len, char* tx_buffer, int 
 
 esp_err_t command_func_gy_setup(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_SETUP");
-    esp_err_t err = gy95_setup(&g_imu);
-    if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "SETUP_OK\n\n");
+    uint8_t ret = gy95_setup(&g_imu);
 
-    } else {
-        snprintf(tx_buffer, tx_len, "SETUP_FAIL\n\n");
-
-    }
+    snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
+    
     return ESP_OK;
 }
 

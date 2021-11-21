@@ -212,9 +212,10 @@ esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
     return ESP_FAIL;
 }
 
-esp_err_t gy95_setup(gy95_t* p_gy) { // TODO: Use a bit array to mark return code of each instruction
+uint8_t gy95_setup(gy95_t* p_gy) {
 
     esp_err_t err = ESP_OK;
+    uint8_t ret = 0;
 
     ENTER_CONFIGURATION(p_gy);
 
@@ -222,6 +223,9 @@ esp_err_t gy95_setup(gy95_t* p_gy) { // TODO: Use a bit array to mark return cod
 
     ESP_LOGI(TAG, "Set rate to 100hz");
     err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x02\x02", NULL);
+    if (err == ESP_OK) {
+        ret |= BIT0;
+    }
 
     // ESP_LOGI(TAG, "Set calibration method"); // TODO: Test this function
     // err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
@@ -230,18 +234,35 @@ esp_err_t gy95_setup(gy95_t* p_gy) { // TODO: Use a bit array to mark return cod
     ESP_LOGI(TAG, "Set mount to horizontal and sensibility: %x", p_gy->scale);
     uint8_t msg[4] = { 0xa4, 0x06, 0x07, p_gy->scale };
     err = gy95_send(p_gy, msg, NULL);
+        if (err == ESP_OK) {
+        ret |= BIT1;
+    }
+
 
     ESP_LOGI(TAG, "Set continous output");
     err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x03\x00", NULL);
+    if (err == ESP_OK) {
+        ret |= BIT2;
+    }
+
 
     ESP_LOGI(TAG, "Update with cali_acc");
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00");
+    err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x57", (uint8_t*)"\xa4\x06\x05\x00");
+    if (err == ESP_OK) {
+        ret |= BIT3;
+    }
+
 
     ESP_LOGI(TAG, "Save module configuration");
-    gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", NULL);
+    err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x55", NULL);
+    if (err == ESP_OK) {
+        ret |= BIT4;
+        printf("Ret: 0x%x\n", ret);
+    }
+
 
     EXIT_CONFIGURATION(p_gy);
-    return err;
+    return ret;
 }
 
 esp_err_t gy95_cali_acc(gy95_t* p_gy) {
@@ -431,8 +452,6 @@ void gy95_enable(gy95_t* p_gy) {
     vTaskDelay(200 / portTICK_PERIOD_MS);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
-    // esp_delay_ms(3000);
-    // gy95_setup(p_gy);
 }
 
 void gy95_disable(gy95_t* p_gy) {

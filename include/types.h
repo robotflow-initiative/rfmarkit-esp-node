@@ -23,6 +23,8 @@ typedef struct imu_holder_t {
 typedef struct imu_dgram_t {
     uint8_t data[GY95_PAYLOAD_LEN];
     int64_t time_us;
+    int64_t start_time_us;
+    int uart_buffer_len;
 } imu_dgram_t;
 
 typedef struct imu_key_t {

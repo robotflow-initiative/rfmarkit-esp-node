@@ -83,11 +83,20 @@ void app_uart_monitor(void* pvParameters) {
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
         ESP_LOGD(TAG, "Try to read gy");
+
+        /** Tag starting point */
+        gettimeofday(&tv_now, NULL);
+        imu_data.start_time_us =  (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
+
         gy95_read(&g_imu);
         memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
+
+        /** Tag stop point **/
         gettimeofday(&tv_now, NULL);
-        size_t buffer_len = gy95_get_buffer_len(&g_imu); // How many bits are left in the buffer
-        imu_data.time_us = ((int64_t)tv_now.tv_sec - ((int64_t)buffer_len / (GY95_DEFAULT_FREQ * GY95_PAYLOAD_LEN))) * 1000000L + (int64_t)tv_now.tv_usec;
+        size_t uart_buffer_len = gy95_get_buffer_len(&g_imu); // How many bits are left in the buffer
+        imu_data.time_us = ((int64_t)tv_now.tv_sec - ((int64_t)uart_buffer_len / (GY95_DEFAULT_FREQ * GY95_PAYLOAD_LEN))) * 1000000L + (int64_t)tv_now.tv_usec;
+
+        imu_data.uart_buffer_len = uart_buffer_len;
 
 #endif
         /** If queue is full, clear queue **/
