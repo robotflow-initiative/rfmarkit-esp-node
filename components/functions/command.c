@@ -395,3 +395,10 @@ esp_err_t command_func_self_test(char* rx_buffer, int rx_len, char* tx_buffer, i
 
 }
 
+esp_err_t command_func_always_on(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+    ESP_LOGI(TAG, "Executing command : IMU_ALWAYS_ON");
+
+    g_sleep_countup = INT32_MIN;
+
+    return ESP_OK;
+}

@@ -218,10 +218,6 @@ esp_err_t esp_self_test() {
 
     for (int i = 0; i < 3; ++i) {
 
-        gy95_setup(&g_imu);
-        esp_delay_ms(1000);
-        RESET_SLEEP_COUNTUP();
-
         for (int j = 0; j < 3; ++j) {
             gy95_safe_read(&g_imu);
             parse_imu_reading(&g_imu, &imu_data, &imu_res, NULL, 0);
@@ -236,6 +232,10 @@ esp_err_t esp_self_test() {
             }
             esp_delay_ms(100);
         }
+
+        gy95_setup(&g_imu);
+        esp_delay_ms(1000);
+        RESET_SLEEP_COUNTUP();
 
     }
     

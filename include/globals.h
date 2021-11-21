@@ -7,7 +7,7 @@
 extern char g_device_id[14];
 extern RTC_DATA_ATTR int boot_count;
 extern int g_sleep_countup;
-#define RESET_SLEEP_COUNTUP() g_sleep_countup = 0
+#define RESET_SLEEP_COUNTUP() g_sleep_countup = (g_sleep_countup>0)?0:g_sleep_countup
 
 /** @brief TCP Debug related **/
 #include "lwip/sockets.h"
