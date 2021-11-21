@@ -5,6 +5,13 @@
 #include "freertos/semphr.h"
 #include "settings.h"
 
+typedef enum gy95_status_t {
+    GY95_OK,
+    GY95_RECV_COMPLETE,
+    GY95_FAIL,
+    GY95_READY,
+} gy95_status_t;
+
 typedef struct gy95_t {
     int port;
 
@@ -18,13 +25,13 @@ typedef struct gy95_t {
     int cursor;
     int start_reg;
     int length;
-    bool flag;
+    gy95_status_t status;
 
     uint8_t acc_scale;
     uint8_t gyro_scale;
     uint8_t mag_scale;
     uint8_t scale;
-    
+
     SemaphoreHandle_t mux;
 
     uint8_t buf[GY95_PAYLOAD_LEN];
@@ -33,10 +40,10 @@ typedef struct gy95_t {
 
 void gy95_msp_init(gy95_t* p_gy);
 
-void gy95_init(gy95_t* p_gy, 
-               int port, 
+void gy95_init(gy95_t* p_gy,
+               int port,
                int ctrl_pin,
-               int rx_pin, 
+               int rx_pin,
                int tx_pin,
                int rts_pin,
                int cts_pin,
@@ -59,7 +66,7 @@ bool gy95_chksum(gy95_t* p_gy);
 
 void gy95_read(gy95_t* p_gy);
 
-int gy95_get_buffer_len(gy95_t* p_gy);
+size_t gy95_get_buffer_len(gy95_t* p_gy);
 
 void gy95_enable(gy95_t* p_gy);
 

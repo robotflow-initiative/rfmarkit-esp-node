@@ -108,12 +108,40 @@ esp_err_t command_func_gy_status(char* rx_buffer, int rx_len, char* tx_buffer, i
     return ESP_OK;
 }
 
+#define CONFIG_GY95_IMM_RETRY_N 10
 esp_err_t command_func_gy_imm(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
     imu_msg_raw_t imu_data;
     // uart_flush_input(g_imu.port);
 
     ESP_LOGI(TAG, "Reading from gy95");
+
+    /** Manually flush input **/
+    size_t buffer_len = gy95_get_buffer_len(&g_imu);
+    if (buffer_len > CONFIG_UART_RX_BUF_LEN / 4) {
+        ESP_LOGW(TAG, "BUFFER: %d", buffer_len);
+        for (int i = 0; i < (buffer_len / GY95_PAYLOAD_LEN) / 2; ++i) {
+            gy95_read(&g_imu);
+            esp_delay_ms(10);
+        }
+    }
+
+    esp_delay_ms(1000); // FIXME: Still not capable of guarantee success
+
+    for (int i = 0; i < CONFIG_GY95_IMM_RETRY_N; ++i) {
+        gy95_read(&g_imu);
+        esp_delay_ms(10);
+        if (g_imu.status == GY95_OK) {
+            int sum = 0;
+            for (int i=4; i<31; ++i) {
+                sum += g_imu.buf[i];
+            }
+            if (sum >= 0) {
+                break;
+            }
+        }
+    }
+
     gy95_read(&g_imu);
     memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
     int offset = 0;
@@ -195,9 +223,9 @@ esp_err_t command_func_gy_scale(char* rx_buffer, int rx_len, char* tx_buffer, in
         }
     }
 
-    SET_ATTR(pAcc, acc, "acc"); 
+    SET_ATTR(pAcc, acc, "acc");
     SET_ATTR(pGyro, gyro, "gyro");
-    SET_ATTR(pMag, mag, "mag"); 
+    SET_ATTR(pMag, mag, "mag");
 
     snprintf(tx_buffer + offset, tx_len - offset, "Finished, re-run gy_setup to take effect; \n\n");
     offset = strlen(tx_buffer);
@@ -233,7 +261,7 @@ esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, i
 
     /** Open nvs table **/
     nvs_handle_t blink_handle;
-    ESP_ERROR_CHECK(nvs_open("blink", NVS_READWRITE, &blink_handle)); // TODO: Magic Name
+    ESP_ERROR_CHECK(nvs_open(CONFIG_BLINK_NVS_TABLE_NAME, NVS_READWRITE, &blink_handle));
 
     /**
     rx_buffer = "blink_set {"pin":"[R|G|B|r|g|b]","seq":"[0-255]"}

@@ -49,13 +49,9 @@ void app_uart_monitor(void* pvParameters) {
     while (1) {
         EventBits_t bits;
 
-        // TODO: Figure out why xEventGroupWaitBits won't work
-        // last_update = xTaskGetTickCount();
-        // xEventGroupWaitBits(net_event_group,
-        //                     TCP_CONNECTED_BIT | NTP_SYNCED_BIT,
-        //                     pdFALSE,
-        //                     pdTRUE,
-        //                     portMAX_DELAY);
+        // FIXME: xEventGroupWaitBits won't work because:
+        // xEventGroupWaitBits will wait for all marked bits to be 1, but will ignore the status of unmarked bits 
+        
         while (1) {
             bits = xEventGroupGetBits(g_sys_event_group);
             ESP_LOGD(TAG, "Bits: %x", bits);
@@ -85,11 +81,11 @@ void app_uart_monitor(void* pvParameters) {
         imu_data.timew_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
 #else
-        // ESP_LOGI(TAG, "Try to read gy");
+        ESP_LOGD(TAG, "Try to read gy");
         gy95_read(&g_imu);
         memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
         gettimeofday(&tv_now, NULL);
-        int buffer_len = gy95_get_buffer_len(&g_imu); // How many bits are left in the buffer
+        size_t buffer_len = gy95_get_buffer_len(&g_imu); // How many bits are left in the buffer
         imu_data.time_us = ((int64_t)tv_now.tv_sec - ((int64_t)buffer_len / (GY95_DEFAULT_FREQ * GY95_PAYLOAD_LEN))) * 1000000L + (int64_t)tv_now.tv_usec;
 
 #endif

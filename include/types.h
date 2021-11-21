@@ -39,7 +39,6 @@ typedef struct imu_msg_key_t {
     uint8_t mag_x;
     uint8_t mag_y;
     uint8_t mag_z;
-    
 } imu_msg_key_t;
 
 typedef struct _imu_float_t {

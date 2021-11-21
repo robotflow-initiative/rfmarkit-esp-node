@@ -104,6 +104,7 @@
 #define CONFIG_BLINK_BLUE_PIN GPIO_NUM_10
 #define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_BLUE_PIN
 #define CONFIG_BLINK_TIMER_IDX 0
+#define CONFIG_BLINK_NVS_TABLE_NAME "blink"
 
 /** @warning Dev board and product have diffenrent definition **/
 #define CONFIG_BLINK_LED_ENABLE_VALUE 1 // set low to enable led

@@ -53,7 +53,9 @@ static imu_msg_multiplier_t default_multiplier = {
  * @return esp_err_t
  * @warning This function dynamically allocates memory, remember to free them
  */
-esp_err_t parse_imu_reading(gy95_t * p_gy, imu_msg_raw_t* p_reading, char* buffer, int len) {
+esp_err_t parse_imu_reading(gy95_t * p_gy, 
+                           imu_msg_raw_t* p_reading, 
+                           char* buffer, int len) {
     imu_msg_holder_t msg_holder = { 0 };
     esp_err_t res;
 

@@ -163,6 +163,9 @@ void esp_enter_deep_sleep() {
 
     /** If we donote disable wakeup source, then deep sleep will be waken **/
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD);
+
 
     /** Begin deep sleep **/
     esp_deep_sleep_start();
@@ -203,4 +206,18 @@ void esp_button_init() {
     gpio_config(&io_config);
     gpio_install_isr_service(0);
     gpio_isr_handler_add(CONFIG_BUTTON_GPIO_PIN, esp_enter_deep_sleep_from_isr, NULL);
+}
+
+void esp_self_test(char* tx_buffer, size_t tx_len) {
+
+    ESP_LOGI(TAG, "Running self test");
+    gy95_disable(&g_imu);
+    esp_delay_ms(100);
+    gy95_enable(&g_imu);
+    esp_delay_ms(1000);
+    while (1) {
+        gy95_setup(&g_imu);
+        esp_delay_ms(500);
+
+    }
 }

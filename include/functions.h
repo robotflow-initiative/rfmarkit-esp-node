@@ -10,10 +10,11 @@ esp_err_t wifi_init_sta(void);
 void esp_enter_deep_sleep(void);
 void esp_get_device_id(void);
 void esp_button_init(void);
+void esp_self_test(char*, size_t);
 #define esp_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
 
 /** @brief func_parse **/
-esp_err_t parse_imu_reading(gy95_t * p_gy, imu_msg_raw_t* p_reading, char* buffer, int len);
+esp_err_t parse_imu_reading(gy95_t* p_gy, imu_msg_raw_t* p_reading, char* buffer, int len);
 int tag_imu_reading(imu_msg_raw_t* p_reading, uint8_t* payload, int len);
 
 /** @brief func_ota **/

@@ -118,7 +118,7 @@ void gy95_init(gy95_t* p_gy,
     p_gy->cursor = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
-    p_gy->flag = 0;
+    p_gy->status = GY95_READY;
 
     gy95_read_scale(p_gy);
 
@@ -142,7 +142,7 @@ void gy95_clean(gy95_t* p_gy) {
     p_gy->cursor = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
-    p_gy->flag = 0;
+    p_gy->status = GY95_READY;
 }
 
 #define CONFIG_GY95_MAX_CHECK_TIMEOUT 2000 / portTICK_PERIOD_MS
@@ -356,15 +356,16 @@ void gy95_read(gy95_t* p_gy) {
             break;
         default:
             if (p_gy->length + 4 == p_gy->cursor) {
-                p_gy->flag = true;
+                p_gy->status = GY95_RECV_COMPLETE;
             }
         }
 
-        if (p_gy->flag) {
-            p_gy->flag = false;
+        if (p_gy->status == GY95_RECV_COMPLETE) {
             if (gy95_chksum(p_gy)) {
+                p_gy->status = GY95_OK;
                 break;
             } else {
+                p_gy->status = GY95_READY;
                 ESP_LOGI(TAG, "GYT95 reset buffer");
                 failed_bytes += p_gy->cursor;
                 gy95_clean(p_gy);
@@ -376,17 +377,18 @@ void gy95_read(gy95_t* p_gy) {
     }
 
     if (failed_bytes >= CONFIG_GY95_MAXFAILED_BYTES) {
+        p_gy->status = GY95_FAIL;
         gy95_clean(p_gy);
     }
 
-    // ESP_LOGI(TAG, "Releasing Lock");
+    ESP_LOGD(TAG, "Releasing Lock");
     xSemaphoreGive(p_gy->mux);
-    // ESP_LOGI(TAG, "Lock released");
+    ESP_LOGD(TAG, "Lock released");
 
     /** Failed to read gy95 **/
 }
 
-int gy95_get_buffer_len(gy95_t* p_gy) {
+size_t gy95_get_buffer_len(gy95_t* p_gy) {
     size_t length;
     uart_get_buffered_data_len(p_gy->port, &length);
     return length;

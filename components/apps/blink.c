@@ -48,13 +48,13 @@ void app_blink_init() {
     /** Read blink sequence from nvs **/
     nvs_handle_t blink_handle;
     uint8_t seq;
-    nvs_open("blink", NVS_READWRITE, &blink_handle);
+    nvs_open(CONFIG_BLINK_NVS_TABLE_NAME, NVS_READWRITE, &blink_handle);
 
     /** FIXME: Temporarily suppress pin config
     nvs_get_u8(blink_handle, "pin", &g_blink_pin);
     if (g_blink_pin != CONFIG_BLINK_BLUE_PIN && g_blink_pin != CONFIG_BLINK_GREEN_PIN && g_blink_pin != CONFIG_BLINK_RED_PIN) {
         g_blink_pin = CONFIG_BLINK_DEFAULT_PIN;
-        nvs_set_u8(blink_handle, "pin", g_blink_pin); // TODO: Magic Name
+        nvs_set_u8(blink_handle, "pin", g_blink_pin);
         nvs_commit(blink_handle);
     }
     **/
