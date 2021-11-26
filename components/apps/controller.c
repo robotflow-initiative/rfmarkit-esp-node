@@ -14,8 +14,9 @@
 #include "freertos/event_groups.h"
 
 #include "settings.h"
-#include "functions.h"
+#include "controller.h"
 #include "globals.h"
+#include "blink.h"
 #include "gy95.h"
 
 #define RX_BUFFER_LEN 64 
@@ -37,9 +38,9 @@ static command_reg_t s_registration[] = {
     {.name = "ping", .func=command_func_ping},
     {.name = "shutdown", .func=command_func_shutdown},
     {.name = "update", .func=command_func_update},
-    {.name = "cali_reset", .func=command_func_cali_reset},
-    {.name = "cali_acc", .func=command_func_cali_acc},
-    {.name = "cali_mag", .func=command_func_cali_mag},
+    {.name = "imu_cali_reset", .func=command_func_imu_cali_reset},
+    {.name = "imu_cali_acc", .func=command_func_imu_cali_acc},
+    {.name = "imu_cali_mag", .func=command_func_imu_cali_mag},
     {.name = "start", .func=command_func_start},
     {.name = "stop", .func=command_func_stop},
     {.name = "imu_enable", .func=command_func_imu_enable},

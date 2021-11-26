@@ -115,7 +115,7 @@ static void init() {
     xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
 
-    if (gy95_self_test() != ESP_OK) {
+    if (gy95_self_test(&g_imu) != ESP_OK) {
         esp_enter_deep_sleep();
     }
 

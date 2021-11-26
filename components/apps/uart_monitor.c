@@ -75,8 +75,8 @@ void app_uart_monitor(void* pvParameters) {
         }
         /** Get data **/
 #if CONFIG_USE_PSEUDO_VALUE
-        bzero(imu_data.data, CONFIG_IMU_PAYLOAD_LEN);
-        memcpy(imu_data.data, pseudo_data1, CONFIG_IMU_PAYLOAD_LEN);
+        bzero(imu_data.data, sizeof(imu_data.data));
+        memcpy(imu_data.data, pseudo_data1, sizeof(imu_data.data));
         gettimeofday(&tv_now, NULL);
         imu_data.timew_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -88,7 +88,7 @@ void app_uart_monitor(void* pvParameters) {
         imu_data.start_time_us =  (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
 
         gy95_read(&g_imu);
-        memcpy(imu_data.data, g_imu.buf, CONFIG_IMU_PAYLOAD_LEN);
+        memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
 
         /** Tag stop point **/
         gettimeofday(&tv_now, NULL);
@@ -96,6 +96,7 @@ void app_uart_monitor(void* pvParameters) {
         size_t uart_buffer_len = 0;
         uart_get_buffered_data_len(g_imu.port, &uart_buffer_len);
         imu_data.time_us = ((int64_t)tv_now.tv_sec - ((int64_t)uart_buffer_len / (CONFIG_IMU_DEFAULT_FREQ * CONFIG_IMU_PAYLOAD_LEN))) * 1000000L + (int64_t)tv_now.tv_usec;
+        
         // imu_data.time_us = ((int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec);
 
         imu_data.uart_buffer_len = uart_buffer_len;

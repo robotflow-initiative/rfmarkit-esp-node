@@ -19,6 +19,7 @@
 #include "lwip/sys.h"
 
 #include "settings.h"
+#include "blink.h"
 #include "globals.h"
 #include "gy95.h"
 

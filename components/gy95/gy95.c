@@ -459,7 +459,7 @@ void gy95_disable(gy95_t* p_gy) {
     ESP_LOGI(TAG, "GY95 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
-esp_err_t gy95_self_test() {
+esp_err_t gy95_self_test(gy95_t* p_gy) {
 
     ESP_LOGI(TAG, "Running self test");
 
@@ -470,9 +470,9 @@ esp_err_t gy95_self_test() {
     for (int i = 0; i < 3; ++i) {
 
         for (int j = 0; j < 3; ++j) {
-            gy95_imm(&g_imu);
-            parse_imu_reading(&g_imu, &imu_data, &imu_res, NULL, 0);
-            memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
+            gy95_imm(p_gy);
+            parse_imu_reading(p_gy, &imu_data, &imu_res, NULL, 0);
+            memcpy(imu_data.data, p_gy->buf, sizeof(p_gy->buf));
 
             ESP_LOGI(TAG, "accel_x: %f, accel_y: %f, accel_z: %f", imu_res.accel_x, imu_res.accel_y, imu_res.accel_z);
             g_mod = imu_res.accel_x * imu_res.accel_x + imu_res.accel_y * imu_res.accel_y + imu_res.accel_z * imu_res.accel_z;
@@ -484,7 +484,7 @@ esp_err_t gy95_self_test() {
             esp_delay_ms(100);
         }
 
-        gy95_setup(&g_imu);
+        gy95_setup(p_gy);
         esp_delay_ms(1000);
         RESET_SLEEP_COUNTUP();
 
@@ -495,7 +495,7 @@ esp_err_t gy95_self_test() {
 
 
 
-COMMAND_FUNCTION(cali_reset) {
+COMMAND_FUNCTION(imu_cali_reset) {
     ESP_LOGI(TAG, "Executing command : IMU_RESET");
     esp_err_t err = gy95_cali_reset(&g_imu);
 
@@ -509,7 +509,7 @@ COMMAND_FUNCTION(cali_reset) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(cali_acc) {
+COMMAND_FUNCTION(imu_cali_acc) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_ACC");
     esp_err_t err = gy95_cali_acc(&g_imu);
     if (err == ESP_OK) {
@@ -522,7 +522,7 @@ COMMAND_FUNCTION(cali_acc) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(cali_mag) {
+COMMAND_FUNCTION(imu_cali_mag) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     gy95_cali_mag(&g_imu);
     return ESP_OK;
@@ -585,13 +585,13 @@ COMMAND_FUNCTION(imu_setup) {
     return ESP_OK;
 }
 
-#define SET_ATTR(p, var, name) \
+#define SET_ATTR_U8(p, var, name, handle) \
 if ((p) != NULL) { \
         if (cJSON_IsNumber((p))) { \
             (var) = (p)->valueint; \
             if ((var) <= 3) { \
-                nvs_set_u8(gy_scale_handle, (name), (var)); \
-                nvs_commit(gy_scale_handle); \
+                nvs_set_u8(handle, (name), (var)); \
+                nvs_commit(handle); \
                 snprintf(tx_buffer + offset, tx_len - offset, ""name"_SCALE set to %d; \n", (var)); \
                 offset = strlen(tx_buffer); \
             } \
@@ -637,9 +637,9 @@ COMMAND_FUNCTION(imu_scale) {
         }
     }
 
-    SET_ATTR(pAcc, acc, "acc");
-    SET_ATTR(pGyro, gyro, "gyro");
-    SET_ATTR(pMag, mag, "mag");
+    SET_ATTR_U8(pAcc, acc, "acc", gy_scale_handle);
+    SET_ATTR_U8(pGyro, gyro, "gyro", gy_scale_handle);
+    SET_ATTR_U8(pMag, mag, "mag", gy_scale_handle);
 
     snprintf(tx_buffer + offset, tx_len - offset, "Finished, re-run gy_setup to take effect; \n\n");
     offset = strlen(tx_buffer);
@@ -657,7 +657,7 @@ gy_scale_cleanup:
 COMMAND_FUNCTION(self_test) {
     ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
 
-    esp_err_t err = gy95_self_test();
+    esp_err_t err = gy95_self_test(&g_imu);
 
     if (err == ESP_OK) {
         snprintf(tx_buffer, tx_len, "Self-test OK\n\n", g_blink_pin);

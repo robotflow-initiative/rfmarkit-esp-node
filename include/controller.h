@@ -1,0 +1,21 @@
+#ifndef _CONTROLLER_H
+#define _CONTROLLER_H
+
+#include "sys.h"
+
+COMMAND_FUNCTION(restart);
+COMMAND_FUNCTION(ping);
+COMMAND_FUNCTION(sleep);
+COMMAND_FUNCTION(shutdown);
+COMMAND_FUNCTION(update);
+COMMAND_FUNCTION(start);
+COMMAND_FUNCTION(stop);
+COMMAND_FUNCTION(id);
+COMMAND_FUNCTION(ver);
+COMMAND_FUNCTION(self_test);
+COMMAND_FUNCTION(always_on);
+COMMAND_FUNCTION(wifi_set);
+COMMAND_FUNCTION(host_set);
+
+
+#endif

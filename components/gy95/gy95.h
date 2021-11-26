@@ -7,6 +7,7 @@
 #include "cJSON.h"
 
 /** GY95 related settings **/
+// INTERNAL
 #define CONFIG_GY95_UART_RX_BUF_LEN 5120
 #define CONFIG_GY95_CTRL_MSG_LEN 4
 #define CONFIG_GY95_PAYLOAD_LEN 32
@@ -36,14 +37,14 @@
 #define CONFIG_IMU_CTRL_PIN CONFIG_GY95_CTRL_PIN
 #define CONFIG_IMU_NVS_TABLE_NAME CONFIG_GY95_NVS_TABLE_NAME
 
-typedef struct imu_dgram_t {
+typedef struct {
     uint8_t data[CONFIG_IMU_PAYLOAD_LEN];
     int64_t time_us;
     int64_t start_time_us;
     int uart_buffer_len;
 } imu_dgram_t; // EXTERNAL
 
-typedef struct imu_holder_t {
+typedef struct {
     int32_t accel_x;
     int32_t accel_y;
     int32_t accel_z;
@@ -59,7 +60,7 @@ typedef struct imu_holder_t {
     int32_t mag_z;
 } imu_holder_t; // INTERNAL
 
-typedef struct imu_key_t {
+typedef struct {
     uint8_t accel_x;
     uint8_t accel_y;
     uint8_t accel_z;
@@ -75,7 +76,7 @@ typedef struct imu_key_t {
     uint8_t mag_z;
 } imu_key_t; // INTERNAL
 
-typedef struct _imu_float_t {
+typedef struct {
     float accel_x;
     float accel_y;
     float accel_z;
@@ -91,14 +92,14 @@ typedef struct _imu_float_t {
     float mag_z;
 } imu_multiplier_t, imu_res_t; // INTERNAL
 
-typedef enum gy95_status_t {
+typedef enum {
     GY95_OK,
     GY95_RECV_COMPLETE,
     GY95_FAIL,
     GY95_READY,
 } gy95_status_t; // INTERNAL
 
-typedef struct gy95_t {
+typedef struct {
     int port;
 
     int ctrl_pin;
@@ -154,7 +155,7 @@ void gy95_enable(gy95_t* p_gy);  // EXTERNAL
 
 void gy95_disable(gy95_t* p_gy);  // EXTERNAL
 
-esp_err_t gy95_self_test(void);  // EXTERNAL
+esp_err_t gy95_self_test(gy95_t* p_gy);  // EXTERNAL
 
 
 #define IMU_INIT(imu) \
@@ -170,9 +171,9 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
                             char* buffer, int len);// EXTERNAL
 int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload, int len);// EXTERNAL
 
-COMMAND_FUNCTION(cali_reset); // EXTERNAL
-COMMAND_FUNCTION(cali_acc); // EXTERNAL
-COMMAND_FUNCTION(cali_mag); // EXTERNAL
+COMMAND_FUNCTION(imu_cali_reset); // EXTERNAL
+COMMAND_FUNCTION(imu_cali_acc); // EXTERNAL
+COMMAND_FUNCTION(imu_cali_mag); // EXTERNAL
 COMMAND_FUNCTION(imu_enable); // EXTERNAL
 COMMAND_FUNCTION(imu_disable); // EXTERNAL
 COMMAND_FUNCTION(imu_status); // EXTERNAL

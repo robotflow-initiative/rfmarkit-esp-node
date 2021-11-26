@@ -3,6 +3,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "settings.h"
+#include "sys.h"
 
 /** @brief func_dev **/
 esp_err_t esp_wifi_init_sta(void);
@@ -12,31 +13,5 @@ void esp_button_init(void);
 #define esp_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
 esp_err_t esp_do_ota();
 
-
-/** @brief func_command **/
-#define COMMAND_FUNCTION(name) \
-        esp_err_t command_func_##name(char* rx_buffer, \
-                       int rx_len, \
-                       char* tx_buffer, \
-                       int tx_len)
-
-COMMAND_FUNCTION(restart);
-COMMAND_FUNCTION(ping);
-COMMAND_FUNCTION(sleep);
-COMMAND_FUNCTION(shutdown);
-COMMAND_FUNCTION(update);
-COMMAND_FUNCTION(start);
-COMMAND_FUNCTION(stop);
-COMMAND_FUNCTION(id);
-COMMAND_FUNCTION(ver);
-COMMAND_FUNCTION(blink_set);
-COMMAND_FUNCTION(blink_start);
-COMMAND_FUNCTION(blink_stop);
-COMMAND_FUNCTION(blink_get);
-COMMAND_FUNCTION(blink_off);
-COMMAND_FUNCTION(self_test);
-COMMAND_FUNCTION(always_on);
-COMMAND_FUNCTION(wifi_set);
-COMMAND_FUNCTION(host_set);
 
 #endif
