@@ -10,31 +10,34 @@
 
 static const char* TAG = "func_command";
 
-esp_err_t command_func_restart(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+
+
+
+COMMAND_FUNCTION(restart) {
     ESP_LOGI(TAG, "Executing command : IMU_RESTART");
     esp_restart();
     return ESP_OK;
 }
 
-esp_err_t command_func_ping(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(ping){
     ESP_LOGI(TAG, "Executing command : IMU_PING");
     return ESP_OK;
 }
 
-esp_err_t command_func_shutdown(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(shutdown) {
     ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
     esp_enter_deep_sleep();
     return ESP_OK;
 }
 
-esp_err_t command_func_update(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(update) {
     ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
     esp_err_t ret = esp_do_ota();
     return ret;
 }
 
-esp_err_t command_func_cali_reset(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(cali_reset) {
     ESP_LOGI(TAG, "Executing command : IMU_RESET");
     esp_err_t err = gy95_cali_reset(&g_imu);
 
@@ -48,7 +51,7 @@ esp_err_t command_func_cali_reset(char* rx_buffer, int rx_len, char* tx_buffer, 
     return ESP_OK;
 }
 
-esp_err_t command_func_cali_acc(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(cali_acc) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_ACC");
     esp_err_t err = gy95_cali_acc(&g_imu);
     if (err == ESP_OK) {
@@ -61,13 +64,13 @@ esp_err_t command_func_cali_acc(char* rx_buffer, int rx_len, char* tx_buffer, in
     return ESP_OK;
 }
 
-esp_err_t command_func_cali_mag(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(cali_mag) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     gy95_cali_mag(&g_imu);
     return ESP_OK;
 }
 
-esp_err_t command_func_start(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(start) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
     xEventGroupClearBits(g_sys_event_group, UART_BLOCK_BIT);
     EventBits_t bits = xEventGroupWaitBits(g_sys_event_group, UART_ACTIVE_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_COUNT_PERIOD_MS / portTICK_PERIOD_MS);
@@ -78,20 +81,20 @@ esp_err_t command_func_start(char* rx_buffer, int rx_len, char* tx_buffer, int t
     }
 }
 
-esp_err_t command_func_stop(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(stop) {
     ESP_LOGI(TAG, "Executing command : IMU_STOP");
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
     return ESP_OK;
 }
 
-esp_err_t command_func_gy_enable(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(gy_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
     xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
 
-esp_err_t command_func_gy_disable(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(gy_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     gy95_disable(&g_imu);
     xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
@@ -99,7 +102,7 @@ esp_err_t command_func_gy_disable(char* rx_buffer, int rx_len, char* tx_buffer, 
 }
 
 /** FIXME: The status of  gy is output via serial debug port **/
-esp_err_t command_func_gy_status(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(gy_status) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
 
     int ret = gpio_get_level(g_imu.ctrl_pin);
@@ -109,7 +112,7 @@ esp_err_t command_func_gy_status(char* rx_buffer, int rx_len, char* tx_buffer, i
 }
 
 
-esp_err_t command_func_gy_imm(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(gy_imm) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
     imu_dgram_t imu_data;
     imu_res_t imu_res = { 0 };
@@ -131,12 +134,12 @@ esp_err_t command_func_gy_imm(char* rx_buffer, int rx_len, char* tx_buffer, int 
     return ESP_OK;
 }
 
-esp_err_t command_func_gy_setup(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(gy_setup) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_SETUP");
     uint8_t ret = gy95_setup(&g_imu);
 
     snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
-    
+
     return ESP_OK;
 }
 
@@ -157,7 +160,7 @@ if ((p) != NULL) { \
         } \
     } \
 
-esp_err_t command_func_gy_scale(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(gy_scale) {
     esp_err_t err = ESP_OK;
     ESP_LOGI(TAG, "Executing command : IMU_GY_SCALE");
     int offset = 0;
@@ -209,19 +212,19 @@ gy_scale_cleanup:
     return err;
 }
 
-esp_err_t command_func_id(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(id) {
     ESP_LOGI(TAG, "Executing command : IMU_ID");
     snprintf(tx_buffer, tx_len, "%s\n\n", g_device_id);
     return ESP_OK;
 }
 
-esp_err_t command_func_ver(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(ver) {
     ESP_LOGI(TAG, "Executing command : IMU_VER");
     snprintf(tx_buffer, tx_len, "%s\n\n", CONFIG_FIRMWARE_VERSION);
     return ESP_OK;
 }
 
-esp_err_t command_func_blink_set(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(blink_set) {
     esp_err_t err = ESP_OK;
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_SET");
     uint8_t seq = 0;
@@ -328,7 +331,7 @@ blink_set_cleanup:
     return err;
 }
 
-esp_err_t command_func_blink_start(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(blink_start) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_START");
 
     app_blink_start();
@@ -337,7 +340,7 @@ esp_err_t command_func_blink_start(char* rx_buffer, int rx_len, char* tx_buffer,
     return ESP_OK;
 }
 
-esp_err_t command_func_blink_stop(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(blink_stop) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_STOP");
 
     app_blink_stop();
@@ -346,7 +349,7 @@ esp_err_t command_func_blink_stop(char* rx_buffer, int rx_len, char* tx_buffer, 
     return ESP_OK;
 }
 
-esp_err_t command_func_blink_get(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(blink_get) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_GET");
     uint8_t seq = 0;
     uint8_t pin = 0;
@@ -364,7 +367,7 @@ esp_err_t command_func_blink_get(char* rx_buffer, int rx_len, char* tx_buffer, i
     return ESP_OK;
 }
 
-esp_err_t command_func_blink_off(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(blink_off) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_OFF");
 
     app_blink_stop();
@@ -376,7 +379,7 @@ esp_err_t command_func_blink_off(char* rx_buffer, int rx_len, char* tx_buffer, i
     return ESP_OK;
 }
 
-esp_err_t command_func_self_test(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(self_test) {
     ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
 
     esp_err_t err = esp_self_test();
@@ -391,10 +394,24 @@ esp_err_t command_func_self_test(char* rx_buffer, int rx_len, char* tx_buffer, i
 
 }
 
-esp_err_t command_func_always_on(char* rx_buffer, int rx_len, char* tx_buffer, int tx_len) {
+COMMAND_FUNCTION(always_on) {
     ESP_LOGI(TAG, "Executing command : IMU_ALWAYS_ON");
 
     g_sleep_countup = INT32_MIN;
 
     return ESP_OK;
+}
+
+COMMAND_FUNCTION(wifi_set) { // TODO: Finish wifi set 
+    ESP_LOGI(TAG, "Executing command : IMU_WIFI_SET");
+
+    return ESP_FAIL;
+}
+
+COMMAND_FUNCTION(host_set) { // TODO: Finish host set 
+    ESP_LOGI(TAG, "Executing command : IMU_HOST_SET");
+
+    g_sleep_countup = INT32_MIN;
+
+    return ESP_FAIL;
 }
