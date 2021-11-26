@@ -33,9 +33,8 @@
 
 #include "apps.h"
 #include "settings.h"
-#include "functions.h"
 #include "gy95.h"
-#include "globals.h"
+#include "device.h"
 
 static const char* TAG = "app_main";
 
@@ -44,10 +43,8 @@ static TaskHandle_t uart_task = NULL;
 static TaskHandle_t time_sync_task = NULL;
 static TaskHandle_t controller_task = NULL;
 
-/** Setup up g_sleep_countup **/
-int g_sleep_countup = 0;
 
-static void init() {
+static void init() { // TODO: Add BLE function
     /* Print chip information */
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
@@ -64,12 +61,16 @@ static void init() {
              (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
-    ++boot_count;
-    ESP_LOGI(TAG, "Boot count %d", boot_count);
+    ++g_mcu.boot_count;
+    ESP_LOGI(TAG, "Boot count %d", g_mcu.boot_count);
     esp_get_device_id();
-    ESP_LOGI(TAG, "Device ID: %s", g_device_id);
+    ESP_LOGI(TAG, "Device ID: %s", g_mcu.device_id);
 
     ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
+
+    /** Setup up g_sleep_countup **/
+    g_mcu.sleep_countup = 0;
+
     /** Setup Button **/
     esp_button_init();
 
@@ -103,7 +104,7 @@ static void init() {
 
 
     /** Create TCP event group **/
-    g_sys_event_group = xEventGroupCreate();
+    g_mcu.sys_event_group = xEventGroupCreate();
 
     /** Enable gpio hold in deep sleep **/
     gpio_deep_sleep_hold_en();
@@ -112,10 +113,10 @@ static void init() {
     app_blink_init();
 
     /** Configure Events **/
-    xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
-    xEventGroupClearBits(g_sys_event_group, NTP_SYNCED_BIT);
-    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
-    xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
+    xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
 
     if (gy95_self_test(&g_imu) != ESP_OK) {
         esp_enter_deep_sleep();
@@ -205,23 +206,23 @@ void app_main(void) {
     RESET_SLEEP_COUNTUP();
     EventBits_t bits;
     while (1) {
-        ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_sleep_countup);
+        ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_mcu.sleep_countup);
         esp_delay_ms(CONFIG_MAIN_LOOP_COUNT_PERIOD_MS);
 
         /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
-        bits = xEventGroupGetBits(g_wifi_event_group);
+        bits = xEventGroupGetBits(g_mcu.wifi_event_group);
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
             esp_enter_deep_sleep();
         }
 
         /** Check other events **/
-        bits = xEventGroupGetBits(g_sys_event_group);
+        bits = xEventGroupGetBits(g_mcu.sys_event_group);
         if ((bits & UART_BLOCK_BIT)) {
-            g_sleep_countup++;
+            g_mcu.sleep_countup++;
         }
 
-        if (g_sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
+        if (g_mcu.sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
             ESP_LOGI(TAG, "Timeout");
             esp_enter_deep_sleep(); // TODO: Replace with WDT
         }

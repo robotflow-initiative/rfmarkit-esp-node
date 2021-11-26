@@ -1,7 +1,7 @@
 #ifndef _BLINK_H
 #define _BLINK_H
 
-#include "sys.h"
+#include "device.h"
 
 /** Blink settings **/
 #define CONFIG_BLINK_INTERVAL_MS 100 // Blink interval in ms

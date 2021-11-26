@@ -14,7 +14,7 @@
 #include "esp_sntp.h"
 
 #include "apps.h"
-#include "globals.h"
+#include "device.h"
 #include "settings.h"
 
 static const char* TAG = "app_time_sync";
@@ -57,7 +57,7 @@ bool esp_wait_sync_time(const char* const posix_tz) {
 
 void app_time_sync(void* pvParameters) {
     ESP_LOGI(TAG, "app_time_sync started");
-    xEventGroupClearBits(g_sys_event_group, NTP_SYNCED_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
 
     time_t now;
     struct tm timeinfo;
@@ -77,7 +77,7 @@ void app_time_sync(void* pvParameters) {
 
             /** Set event **/
             ESP_LOGI(TAG, "Setting NTP_SYNCED_BIT");
-            xEventGroupSetBits(g_sys_event_group, NTP_SYNCED_BIT);
+            xEventGroupSetBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
             /** Sleep **/
             vTaskDelay(CONFIG_NTP_UPDATE_INTERVAL_MS / portTICK_PERIOD_MS);
             n_retry = CONFIG_NTP_MAX_RETRY;

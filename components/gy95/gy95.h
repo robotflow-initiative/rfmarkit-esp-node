@@ -7,8 +7,8 @@
 
 #include "cJSON.h"
 
-#include "functions.h"
-
+#include "device.h"
+#include "device.h"
 
 /** GY95 related settings **/
 // INTERNAL

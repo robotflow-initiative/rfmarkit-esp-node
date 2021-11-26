@@ -13,8 +13,8 @@
 #include "apps.h"
 #include "settings.h"
 #include "gy95.h"
-#include "globals.h"
-#include "functions.h"
+#include "device.h"
+#include "device.h"
 
 /** pseudo data **/
 #if CONFIG_USE_PSEUDO_VALUE
@@ -56,11 +56,11 @@ void app_uart_monitor(void* pvParameters) {
         **/
         
         while (1) {
-            bits = xEventGroupGetBits(g_sys_event_group);
+            bits = xEventGroupGetBits(g_mcu.sys_event_group);
             ESP_LOGD(TAG, "Bits: %x", bits);
             if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
                 esp_delay_ms(1000);
-                xEventGroupClearBits(g_sys_event_group, UART_ACTIVE_BIT); // Mark uart as inactive
+                xEventGroupClearBits(g_mcu.sys_event_group, UART_ACTIVE_BIT); // Mark uart as inactive
                 continue;
             } else {
                 if (bits & GY95_ENABLED_BIT) {
@@ -68,13 +68,13 @@ void app_uart_monitor(void* pvParameters) {
                 } else {
                     ESP_LOGI(TAG, "Enabling gy95");
                     gy95_enable(&g_imu);
-                    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
+                    xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
                     break;
                 }
             }
         }
         if (!(bits & UART_ACTIVE_BIT)) {
-            xEventGroupSetBits(g_sys_event_group, UART_ACTIVE_BIT);
+            xEventGroupSetBits(g_mcu.sys_event_group, UART_ACTIVE_BIT);
         }
         /** Get data **/
 #if CONFIG_USE_PSEUDO_VALUE

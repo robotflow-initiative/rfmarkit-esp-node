@@ -15,8 +15,7 @@
 
 #include "apps.h"
 #include "blink.h"
-#include "controller.h"
-#include "globals.h"
+#include "device.h"
 #include "gy95.h"
 #include "settings.h"
 
@@ -34,7 +33,7 @@ typedef struct command_reg_t {
     esp_err_t(*func)(char*, int, char*, int);
 } command_reg_t;
 
-static command_reg_t s_registration[] = {
+static command_reg_t s_registration[] = {// TODO: Use linked list to store function
     {.name = "restart", .func=command_func_restart},
     {.name = "ping", .func=command_func_ping},
     {.name = "shutdown", .func=command_func_shutdown},

@@ -21,8 +21,7 @@
 #include "lwip/sys.h"
 
 #include "blink.h"
-#include "functions.h"
-#include "globals.h"
+#include "device.h"
 #include "gy95.h"
 #include "settings.h"
 
@@ -36,6 +35,15 @@
 static const char* TAG = "func_dev";
 
 static int s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
+
+/** Socket-Debug related **/
+#if CONFIG_EN_DEBUG_OVER_TCP
+int g_debug_sock = -1;
+char g_debug_buffer[TCP_DEBUG_BUFFER_LEN] = { 0 };
+#endif
+
+/** MCU structure **/
+RTC_DATA_ATTR mcu_t g_mcu;
 
 /**
  * @brief Default Wi-Fi event handler from esp-idf example
@@ -55,14 +63,14 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
             s_retry_num--;
             ESP_LOGI(TAG, "retry to connect to the AP");
         } else {
-            xEventGroupSetBits(g_wifi_event_group, WIFI_FAIL_BIT);
+            xEventGroupSetBits(g_mcu.wifi_event_group, WIFI_FAIL_BIT);
         }
         ESP_LOGI(TAG, "connect to the AP fail");
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
-        xEventGroupSetBits(g_wifi_event_group, WIFI_CONNECTED_BIT);
+        xEventGroupSetBits(g_mcu.wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
@@ -71,7 +79,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
  *
  */
 esp_err_t esp_wifi_init_sta(void) {
-    g_wifi_event_group = xEventGroupCreate();
+    g_mcu.wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
 
@@ -117,7 +125,7 @@ esp_err_t esp_wifi_init_sta(void) {
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by wifi_event_handler() (see above) */
-    EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group,
+    EventBits_t bits = xEventGroupWaitBits(g_mcu.wifi_event_group,
                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
                                            pdFALSE,
                                            pdFALSE,
@@ -153,7 +161,7 @@ void esp_enter_deep_sleep() {
 
     ESP_LOGI(TAG, "Disabling GY95");
     gy95_disable(&g_imu);
-    xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
@@ -180,24 +188,25 @@ void esp_enter_deep_sleep() {
 }
 
 static void esp_enter_deep_sleep_from_isr(void* params) {
-    g_sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
+    g_mcu.sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
 }
 
-char g_device_id[14] = { 0 };
 /**
- * @brief Read esp mac address from chip to g_device_id
+ * @brief Read esp mac address from chip to g_mcu.device_id
  *
 **/
 void esp_get_device_id() {
     uint8_t base_mac_addr[6];
     esp_efuse_mac_get_default(base_mac_addr);
-    snprintf(g_device_id, 13, "%02x%02x%02x%02x%02x%02x",
+    char buf[13];
+    snprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x",
              base_mac_addr[0],
              base_mac_addr[1],
              base_mac_addr[2],
              base_mac_addr[3],
              base_mac_addr[4],
              base_mac_addr[5]);
+    memcpy(g_mcu.device_id, buf, 12);
 }
 
 void esp_button_init() {
@@ -229,4 +238,82 @@ esp_err_t esp_do_ota() {
             return ESP_FAIL;
         }
         return ESP_OK;
+}
+
+
+COMMAND_FUNCTION(restart) {
+    ESP_LOGI(TAG, "Executing command : IMU_RESTART");
+    esp_restart();
+    return ESP_OK;
+}
+
+COMMAND_FUNCTION(ping){
+    ESP_LOGI(TAG, "Executing command : IMU_PING");
+    return ESP_OK;
+}
+
+COMMAND_FUNCTION(shutdown) {
+    ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
+    esp_enter_deep_sleep();
+    return ESP_OK;
+}
+
+COMMAND_FUNCTION(update) {
+    ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
+    xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    esp_err_t ret = esp_do_ota();
+    return ret;
+}
+
+COMMAND_FUNCTION(start) {
+    ESP_LOGI(TAG, "Executing command : IMU_START");
+    xEventGroupClearBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, UART_ACTIVE_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_COUNT_PERIOD_MS / portTICK_PERIOD_MS);
+    if (bits & UART_ACTIVE_BIT) {
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+}
+
+COMMAND_FUNCTION(stop) {
+    ESP_LOGI(TAG, "Executing command : IMU_STOP");
+    xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    return ESP_OK;
+}
+
+
+COMMAND_FUNCTION(id) {
+    ESP_LOGI(TAG, "Executing command : IMU_ID");
+    snprintf(tx_buffer, tx_len, "%s\n\n", g_mcu.device_id);
+    return ESP_OK;
+}
+
+COMMAND_FUNCTION(ver) {
+    ESP_LOGI(TAG, "Executing command : IMU_VER");
+    snprintf(tx_buffer, tx_len, "%s\n\n", CONFIG_FIRMWARE_VERSION);
+    return ESP_OK;
+}
+
+
+COMMAND_FUNCTION(always_on) {
+    ESP_LOGI(TAG, "Executing command : IMU_ALWAYS_ON");
+
+    g_mcu.sleep_countup = INT32_MIN;
+
+    return ESP_OK;
+}
+
+COMMAND_FUNCTION(wifi_set) { // TODO: Finish wifi set 
+    ESP_LOGI(TAG, "Executing command : IMU_WIFI_SET");
+
+    return ESP_FAIL;
+}
+
+COMMAND_FUNCTION(host_set) { // TODO: Finish host set 
+    ESP_LOGI(TAG, "Executing command : IMU_HOST_SET");
+
+    g_mcu.sleep_countup = INT32_MIN;
+
+    return ESP_FAIL;
 }

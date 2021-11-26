@@ -11,7 +11,7 @@
 
 #include "apps.h"
 #include "esp_log.h"
-#include "globals.h"
+#include "device.h"
 #include "gy95.h"
 
 static const char* TAG = "GY95";
@@ -535,14 +535,14 @@ COMMAND_FUNCTION(imu_cali_mag) {
 COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
-    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     gy95_disable(&g_imu);
-    xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
 
@@ -663,10 +663,10 @@ COMMAND_FUNCTION(self_test) {
     esp_err_t err = gy95_self_test(&g_imu);
 
     if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "Self-test OK\n\n", g_blink_pin);
+        snprintf(tx_buffer, tx_len, "Self-test OK\n\n", g_mcu.blink_pin);
         return err;
     } else {
-        snprintf(tx_buffer, tx_len, "Self-test FAIL\n\n", g_blink_pin);
+        snprintf(tx_buffer, tx_len, "Self-test FAIL\n\n", g_mcu.blink_pin);
         return err;
     }
 

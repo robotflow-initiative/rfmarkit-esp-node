@@ -18,8 +18,7 @@
 
 #include "apps.h"
 #include "settings.h"
-#include "globals.h"
-#include "functions.h"
+#include "device.h"
 #include "gy95.h"
 
 static const char* TAG = "app_tcp_client";
@@ -42,7 +41,7 @@ void app_tcp_client(void* pvParameters) {
 
     while (1) {
         /** TCP connection is not established **/
-        xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
+        xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
 
         /** Create address struct **/
         struct sockaddr_in dest_addr;
@@ -66,7 +65,7 @@ void app_tcp_client(void* pvParameters) {
 
         /** Wait time sync **/
         ESP_LOGI(TAG, "Waiting for time sync");
-        xEventGroupWaitBits(g_sys_event_group,
+        xEventGroupWaitBits(g_mcu.sys_event_group,
                             NTP_SYNCED_BIT,
                             pdFALSE,
                             pdFALSE,
@@ -84,7 +83,7 @@ void app_tcp_client(void* pvParameters) {
 
         SET_DEBUG_SOCK(sock);
 
-        xEventGroupSetBits(g_sys_event_group, TCP_CONNECTED_BIT);
+        xEventGroupSetBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
         RESET_SEND_BUFFER();
 
         while (1) {
@@ -119,7 +118,7 @@ void app_tcp_client(void* pvParameters) {
                 err = send(sock, s_send_buffer, s_send_buffer_tail, 0);
                 if (err < 0) {
                     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                    xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
+                    xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
                     break;
                 } else {
                     RESET_SLEEP_COUNTUP();
@@ -136,7 +135,7 @@ void app_tcp_client(void* pvParameters) {
 
 socket_error:
 
-        xEventGroupClearBits(g_sys_event_group, TCP_CONNECTED_BIT);
+        xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
         if (sock != -1) {
             ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
             switch (errno) {

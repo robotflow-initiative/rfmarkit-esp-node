@@ -8,7 +8,7 @@
 #include "cJSON.h"
 
 #include "gy95.h"
-#include "globals.h"
+#include "device.h"
 
 static const char* TAG = "func_parse";
 
@@ -122,7 +122,7 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
     if (buffer != NULL) {
         cJSON* pRoot = cJSON_CreateObject();
 
-        cJSON_AddStringToObject(pRoot, "id", g_device_id);
+        cJSON_AddStringToObject(pRoot, "id", g_mcu.device_id);
         cJSON_AddNumberToObject(pRoot, "timestamp", p_reading->time_us);
         cJSON_AddNumberToObject(pRoot, "accel_x", res.accel_x);
         cJSON_AddNumberToObject(pRoot, "accel_y", res.accel_y);
@@ -182,7 +182,7 @@ int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     memcpy(payload_buffer + offset, &p_reading->time_us, sizeof(p_reading->time_us));
     offset += sizeof(p_reading->time_us);
 
-    memcpy(payload_buffer + offset, g_device_id, CONFIG_DEVICE_ID_LEN);
+    memcpy(payload_buffer + offset, g_mcu.device_id, sizeof(g_mcu.device_id));
     offset += CONFIG_DEVICE_ID_LEN;
 
     payload_buffer[offset++] = g_imu.scale;
