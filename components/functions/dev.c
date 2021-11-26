@@ -20,6 +20,7 @@
 
 #include "settings.h"
 #include "globals.h"
+#include "gy95.h"
 
 /* FreeRTOS event group to signal when we are connected*/
 
@@ -209,39 +210,6 @@ void esp_button_init() {
     gpio_isr_handler_add(CONFIG_BUTTON_GPIO_PIN, esp_enter_deep_sleep_from_isr, NULL);
 }
 
-esp_err_t esp_self_test() {
-
-    ESP_LOGI(TAG, "Running self test");
-
-    imu_dgram_t imu_data = { 0 };
-    imu_res_t imu_res = { 0 };
-    double g_mod = 0;
-
-    for (int i = 0; i < 3; ++i) {
-
-        for (int j = 0; j < 3; ++j) {
-            gy95_imm(&g_imu);
-            parse_imu_reading(&g_imu, &imu_data, &imu_res, NULL, 0);
-            memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
-
-            ESP_LOGI(TAG, "accel_x: %f, accel_y: %f, accel_z: %f", imu_res.accel_x, imu_res.accel_y, imu_res.accel_z);
-            g_mod = imu_res.accel_x * imu_res.accel_x + imu_res.accel_y * imu_res.accel_y + imu_res.accel_z * imu_res.accel_z;
-            if (g_mod > 1.1f || g_mod < 0.9f) {
-                continue;
-            } else {
-                return ESP_OK;
-            }
-            esp_delay_ms(100);
-        }
-
-        gy95_setup(&g_imu);
-        esp_delay_ms(1000);
-        RESET_SLEEP_COUNTUP();
-
-    }
-    
-    return ESP_FAIL;
-}
 
 esp_err_t esp_do_ota() {
     esp_http_client_config_t config = {

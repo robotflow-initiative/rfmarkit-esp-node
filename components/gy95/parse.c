@@ -1,12 +1,10 @@
-#include "functions.h"
-
 #include <string.h>
 #include "esp_system.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "cJSON.h"
 
-#include "settings.h"
+#include "gy95.h"
 #include "globals.h"
 
 static const char* TAG = "func_parse";
@@ -51,7 +49,7 @@ static imu_multiplier_t default_multiplier = {
  * @param len
  * @return esp_err_t
  * @warning This function dynamically allocates memory, remember to free them
- */
+**/
 esp_err_t parse_imu_reading(gy95_t* p_gy,
                             imu_dgram_t* p_reading,
                             imu_res_t* p_res,
@@ -148,8 +146,15 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
     return err;
 }
 
-/** Tag imu_reading with device id **/
-/** @warning must guarentee the payload_buffer length **/
+/**
+ * @brief Tag imu_reading with device id
+ * 
+ * @param p_reading 
+ * @param payload_buffer 
+ * @param len 
+ * @return int 
+ * @warning must guarentee the payload_buffer length
+**/
 int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     int offset = 0;
 

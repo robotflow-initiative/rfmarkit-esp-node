@@ -17,6 +17,7 @@
 #include "settings.h"
 #include "globals.h"
 #include "functions.h"
+#include "gy95.h"
 
 static const char* TAG = "app_tcp_client";
 

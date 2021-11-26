@@ -86,9 +86,6 @@ static void init() {
     /** Setup GY95 **/
     ESP_LOGI(TAG, "Setting up gy95");
     IMU_INIT(g_imu);
-    gy95_msp_init(&g_imu);
-    gy95_disable(&g_imu);
-    gy95_enable(&g_imu);
 
 
     ESP_ERROR_CHECK(ret);
@@ -118,7 +115,7 @@ static void init() {
     xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
     xEventGroupSetBits(g_sys_event_group, UART_BLOCK_BIT);
 
-    if (esp_self_test() != ESP_OK) {
+    if (gy95_self_test() != ESP_OK) {
         esp_enter_deep_sleep();
     }
 
@@ -224,7 +221,7 @@ void app_main(void) {
 
         if (g_sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
             ESP_LOGI(TAG, "Timeout");
-            esp_enter_deep_sleep();
+            esp_enter_deep_sleep(); // TODO: Replace with WDT
         }
     }
 }

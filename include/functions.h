@@ -9,9 +9,16 @@ esp_err_t esp_wifi_init_sta(void);
 void esp_enter_deep_sleep(void);
 void esp_get_device_id(void);
 void esp_button_init(void);
-esp_err_t esp_self_test(void);
 #define esp_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
 esp_err_t esp_do_ota();
+
+
+/** @brief func_command **/
+#define COMMAND_FUNCTION(name) \
+        esp_err_t command_func_##name(char* rx_buffer, \
+                       int rx_len, \
+                       char* tx_buffer, \
+                       int tx_len)
 
 COMMAND_FUNCTION(restart);
 COMMAND_FUNCTION(ping);

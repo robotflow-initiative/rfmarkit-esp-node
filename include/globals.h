@@ -23,11 +23,6 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 #define SET_DEBUG_SOCK(...)
 #endif
 
-
-/** @brief GY95 related **/
-#include "gy95.h"
-extern gy95_t g_imu;
-
 /** @brief Global Events **/
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

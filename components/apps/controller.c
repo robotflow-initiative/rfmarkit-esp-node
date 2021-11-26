@@ -16,6 +16,7 @@
 #include "settings.h"
 #include "functions.h"
 #include "globals.h"
+#include "gy95.h"
 
 #define RX_BUFFER_LEN 64 
 #define TX_BUFFER_LEN 512

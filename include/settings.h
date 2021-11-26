@@ -17,7 +17,6 @@
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
 #define CONFIG_SERIAL_QUEUE_LEN 1024
-#define CONFIG_UART_RX_BUF_LEN 5120
 #define CONFIG_DEVICE_ID_LEN 12
 
 /** Wi-Fi environment settings**/
@@ -94,12 +93,5 @@
 /** On Board Button **/
 #define CONFIG_BUTTON_GPIO_PIN GPIO_NUM_9
 
-
-/** @brief func_command **/
-#define COMMAND_FUNCTION(name) \
-        esp_err_t command_func_##name(char* rx_buffer, \
-                       int rx_len, \
-                       char* tx_buffer, \
-                       int tx_len)
                        
 #endif

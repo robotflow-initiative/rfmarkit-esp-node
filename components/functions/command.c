@@ -12,7 +12,6 @@ static const char* TAG = "func_command";
 
 
 
-
 COMMAND_FUNCTION(restart) {
     ESP_LOGI(TAG, "Executing command : IMU_RESTART");
     esp_restart();
@@ -37,39 +36,6 @@ COMMAND_FUNCTION(update) {
     return ret;
 }
 
-COMMAND_FUNCTION(cali_reset) {
-    ESP_LOGI(TAG, "Executing command : IMU_RESET");
-    esp_err_t err = gy95_cali_reset(&g_imu);
-
-    if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "CALI_RESET_OK\n\n");
-
-    } else {
-        snprintf(tx_buffer, tx_len, "CALI_RESET_FAIL\n\n");
-
-    }
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(cali_acc) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_ACC");
-    esp_err_t err = gy95_cali_acc(&g_imu);
-    if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "CALI_ACC_OK\n\n");
-
-    } else {
-        snprintf(tx_buffer, tx_len, "CALI_ACC_FAIL\n\n");
-
-    }
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(cali_mag) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-    gy95_cali_mag(&g_imu);
-    return ESP_OK;
-}
-
 COMMAND_FUNCTION(start) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
     xEventGroupClearBits(g_sys_event_group, UART_BLOCK_BIT);
@@ -87,130 +53,6 @@ COMMAND_FUNCTION(stop) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(imu_enable) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
-    gy95_enable(&g_imu);
-    xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_disable) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
-    gy95_disable(&g_imu);
-    xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
-    return ESP_OK;
-}
-
-/** FIXME: The status of  gy is output via serial debug port **/
-COMMAND_FUNCTION(imu_status) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
-
-    int ret = gpio_get_level(g_imu.ctrl_pin);
-    ESP_LOGI(TAG, "GY95 control pin %s\n\n", ret ? "HIGH" : "LOW");
-    snprintf(tx_buffer, tx_len, "GY95 control pin %s\n\n", ret ? "HIGH" : "LOW");
-    return ESP_OK;
-}
-
-
-COMMAND_FUNCTION(imu_imm) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
-    imu_dgram_t imu_data;
-    imu_res_t imu_res = { 0 };
-
-    gy95_imm(&g_imu);
-    memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
-
-    int offset = 0;
-    parse_imu_reading(&g_imu, &imu_data, &imu_res, tx_buffer, tx_len);
-
-    offset = strlen(tx_buffer);
-    snprintf(tx_buffer + offset, tx_len - offset, "\n{\n\t\"acc_scale\":%d,\n\t\"gyro_scale\":%d,\n\t\"mag_scale\":%d\n}\n\n", g_imu.acc_scale, g_imu.gyro_scale, g_imu.mag_scale);
-    // for (int idx = 0; idx < sizeof(g_imu.buf); ++idx) {
-    //     snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
-    //     offset = strlen(tx_buffer);
-    // };
-    // snprintf(tx_buffer + offset, tx_len - offset, "\n\n");
-
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_setup) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_SETUP");
-    uint8_t ret = gy95_setup(&g_imu);
-
-    snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
-
-    return ESP_OK;
-}
-
-#define SET_ATTR(p, var, name) \
-if ((p) != NULL) { \
-        if (cJSON_IsNumber((p))) { \
-            (var) = (p)->valueint; \
-            if ((var) <= 3) { \
-                nvs_set_u8(gy_scale_handle, (name), (var)); \
-                nvs_commit(gy_scale_handle); \
-                snprintf(tx_buffer + offset, tx_len - offset, ""name"_SCALE set to %d; \n", (var)); \
-                offset = strlen(tx_buffer); \
-            } \
-        } else { \
-            snprintf(tx_buffer + offset, tx_len - offset, ""name"_SCALE set failed; \n"); \
-            offset = strlen(tx_buffer); \
-            err = ESP_FAIL; \
-        } \
-    } \
-
-COMMAND_FUNCTION(imu_scale) {
-    esp_err_t err = ESP_OK;
-    ESP_LOGI(TAG, "Executing command : IMU_GY_SCALE");
-    int offset = 0;
-    uint8_t acc = 0;
-    uint8_t gyro = 0;
-    uint8_t mag = 0;
-
-    /** Open nvs table **/
-    nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open(CONFIG_IMU_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
-
-    /**
-    rx_buffer = "gy_scale {"acc":[0-3],"gyro":[0-3], "mag":[0-3]}"
-    **/
-    cJSON* pRoot = cJSON_Parse(rx_buffer + sizeof("gy_scale"));
-    cJSON* pAcc = NULL;
-    cJSON* pGyro = NULL;
-    cJSON* pMag = NULL;
-
-    if (pRoot == NULL) {
-        ESP_LOGE(TAG, "Parse failed");
-        err = ESP_FAIL;
-        goto gy_scale_cleanup;
-    } else {
-        pAcc = cJSON_GetObjectItem(pRoot, "acc");
-        pGyro = cJSON_GetObjectItem(pRoot, "gyro");
-        pMag = cJSON_GetObjectItem(pRoot, "mag");
-        if ((pAcc == NULL) && (pGyro == NULL) && (pMag == NULL)) {
-            ESP_LOGE(TAG, "Parse failed, invalid keys");
-            err = ESP_FAIL;
-            goto gy_scale_cleanup;
-        }
-    }
-
-    SET_ATTR(pAcc, acc, "acc");
-    SET_ATTR(pGyro, gyro, "gyro");
-    SET_ATTR(pMag, mag, "mag");
-
-    snprintf(tx_buffer + offset, tx_len - offset, "Finished, re-run gy_setup to take effect; \n\n");
-    offset = strlen(tx_buffer);
-
-gy_scale_cleanup:
-    nvs_commit(gy_scale_handle);
-    nvs_close(gy_scale_handle);
-
-    if (pRoot != NULL) {
-        cJSON_free(pRoot);
-    }
-    return err;
-}
 
 COMMAND_FUNCTION(id) {
     ESP_LOGI(TAG, "Executing command : IMU_ID");
@@ -377,21 +219,6 @@ COMMAND_FUNCTION(blink_off) {
     snprintf(tx_buffer, tx_len, "Blink pin %d set to OFF\n\n", g_blink_pin);
 
     return ESP_OK;
-}
-
-COMMAND_FUNCTION(self_test) {
-    ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
-
-    esp_err_t err = esp_self_test();
-
-    if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "Self-test OK\n\n", g_blink_pin);
-        return err;
-    } else {
-        snprintf(tx_buffer, tx_len, "Self-test FAIL\n\n", g_blink_pin);
-        return err;
-    }
-
 }
 
 COMMAND_FUNCTION(always_on) {
