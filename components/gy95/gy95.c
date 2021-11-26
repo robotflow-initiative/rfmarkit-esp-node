@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "settings.h"
-#include "types.h"
 #include "esp_log.h"
 #include "gy95.h"
 #include "functions.h"
@@ -24,7 +23,7 @@ static const char* TAG = "GY95";
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     uart_config_t uart_config = {
-        .baud_rate = GY95_DEFAULT_BAUDRATE,
+        .baud_rate = CONFIG_GY95_DEFAULT_BAUDRATE,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -64,7 +63,7 @@ void gy95_msp_init(gy95_t* p_gy) {
 
 static void gy95_read_scale(gy95_t* p_gy) {
     nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open(CONFIG_GY95_SCALE_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
+    ESP_ERROR_CHECK(nvs_open(CONFIG_IMU_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
 
     p_gy->acc_scale = 0;
     p_gy->gyro_scale = 0;
@@ -130,7 +129,7 @@ void gy95_init(gy95_t* p_gy,
         esp_restart();
     }
 
-    bzero(p_gy->buf, GY95_PAYLOAD_LEN);
+    bzero(p_gy->buf, CONFIG_GY95_PAYLOAD_LEN);
 
 }
 
@@ -140,7 +139,7 @@ void gy95_init(gy95_t* p_gy,
  * @param p_gy
  */
 static void gy95_clean(gy95_t* p_gy) {
-    bzero(p_gy->buf, GY95_PAYLOAD_LEN);
+    bzero(p_gy->buf, CONFIG_GY95_PAYLOAD_LEN);
     p_gy->cursor = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
@@ -150,7 +149,7 @@ static void gy95_clean(gy95_t* p_gy) {
 #define CONFIG_GY95_MAX_CHECK_TIMEOUT 2000 / portTICK_PERIOD_MS
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
-    uint8_t rx_buf[GY95_CTRL_MSG_LEN] = { 0 };
+    uint8_t rx_buf[CONFIG_GY95_CTRL_MSG_LEN] = { 0 };
     int cursor = 0;
 
     TickType_t start_tick = xTaskGetTickCount();
@@ -181,14 +180,14 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  */
 #define CONFIG_GY95_CHECK_ECHO_N_RERY 2
 static esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
-    uint8_t ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN + 1] = { 0 };
+    uint8_t ctrl_msg_with_chksum[CONFIG_GY95_CTRL_MSG_LEN + 1] = { 0 };
 
     long int sum = 0;
-    for (int idx = 0; idx < GY95_CTRL_MSG_LEN; ++idx) {
+    for (int idx = 0; idx < CONFIG_GY95_CTRL_MSG_LEN; ++idx) {
         sum += ctrl_msg[idx];
         ctrl_msg_with_chksum[idx] = ctrl_msg[idx];
     }
-    ctrl_msg_with_chksum[GY95_CTRL_MSG_LEN] = sum % 0x100;
+    ctrl_msg_with_chksum[CONFIG_GY95_CTRL_MSG_LEN] = sum % 0x100;
 
     int n_retry = CONFIG_GY95_CHECK_ECHO_N_RERY;
     while (n_retry > 0) {
@@ -197,9 +196,9 @@ static esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
         esp_err_t err = ESP_FAIL;
 
         if (echo == NULL) {
-            err = gy95_check_echo(p_gy, ctrl_msg_with_chksum, GY95_CTRL_MSG_LEN);
+            err = gy95_check_echo(p_gy, ctrl_msg_with_chksum, CONFIG_GY95_CTRL_MSG_LEN);
         } else {
-            err = gy95_check_echo(p_gy, echo, GY95_CTRL_MSG_LEN); // Compare with custom echo message
+            err = gy95_check_echo(p_gy, echo, CONFIG_GY95_CTRL_MSG_LEN); // Compare with custom echo message
         }
         if (err == ESP_OK) {
             ESP_LOGI(TAG, "GY95 Echo Succeed");
@@ -352,7 +351,7 @@ void gy95_read(gy95_t* p_gy) {
             }
             break;
         case 1:
-            if (p_gy->buf[p_gy->cursor] != GY95_READ_OP) {
+            if (p_gy->buf[p_gy->cursor] != CONFIG_GY95_READ_OP) {
                 failed_bytes += p_gy->cursor + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
@@ -360,7 +359,7 @@ void gy95_read(gy95_t* p_gy) {
             }
             break;
         case 2:
-            if (p_gy->buf[p_gy->cursor] < GY95_REG_THRESH) {
+            if (p_gy->buf[p_gy->cursor] < CONFIG_GY95_REG_THRESH) {
                 p_gy->start_reg = p_gy->buf[p_gy->cursor];
             } else {
                 failed_bytes += p_gy->cursor + 1;
@@ -370,7 +369,7 @@ void gy95_read(gy95_t* p_gy) {
             }
             break;
         case 3:
-            if (p_gy->start_reg + (p_gy->buf[p_gy->cursor]) < GY95_REG_THRESH) {
+            if (p_gy->start_reg + (p_gy->buf[p_gy->cursor]) < CONFIG_GY95_REG_THRESH) {
                 p_gy->length = p_gy->buf[p_gy->cursor];
             } else {
                 failed_bytes += p_gy->cursor + 1;
@@ -413,7 +412,7 @@ void gy95_read(gy95_t* p_gy) {
     /** Failed to read gy95 **/
 }
 
-void gy95_safe_read(gy95_t* p_gy) {
+void gy95_imm(gy95_t* p_gy) {
     ESP_LOGD(TAG, "Safe Reading from gy95");
 
     /** Manually flush input **/
@@ -422,7 +421,7 @@ void gy95_safe_read(gy95_t* p_gy) {
 
     if (buffer_len > CONFIG_UART_RX_BUF_LEN / 4) {
         ESP_LOGW(TAG, "BUFFER: %d", buffer_len);
-        for (int i = 0; i < (buffer_len / GY95_PAYLOAD_LEN) / 2; ++i) {
+        for (int i = 0; i < (buffer_len / CONFIG_GY95_PAYLOAD_LEN) / 2; ++i) {
             gy95_read(p_gy);
             esp_delay_ms(10);
         }

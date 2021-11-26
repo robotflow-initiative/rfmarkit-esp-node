@@ -6,7 +6,6 @@
 #include "freertos/FreeRTOS.h"
 #include "cJSON.h"
 
-#include "types.h"
 #include "settings.h"
 #include "globals.h"
 
@@ -63,7 +62,7 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
 
 #if CONFIG_EN_PARSER_DEBUG
     ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
-    for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {
+    for (int idx = 0; idx < sizeof(p_reading->data); ++idx) {
         printf("0x%02x, ", p_reading->data[idx]);
     };
     ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
@@ -151,13 +150,13 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
 
 /** Tag imu_reading with device id **/
 /** @warning must guarentee the payload_buffer length **/
-int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) { // TODO: add gy_scale information, read_start_time, uart queue len
+int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     int offset = 0;
 
     ESP_LOGD(TAG, "Tagging imu readings");
 #if CONFIG_EN_PARSER_DEBUG
     ESP_LOGW(TAG, "\n# ---- Begin of raw reading ---- #\n");
-    for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {
+    for (int idx = 0; idx < sizeof(p_reading->data); ++idx) {
         printf("0x%02x, ", p_reading->data[idx]);
     };
     ESP_LOGW(TAG, "\n# ----- End of raw reading ----- #\n");
@@ -169,8 +168,8 @@ int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) { 
      * | 0xa4 | ... | chk_sum | timestamp |     id     | gy_scale | start_timestamp | uart_buffer_len | chk_sum |
      *    0              31     32  -  39   40  -  51       52         53  -  60         61  -  64         65
      */
-    memcpy(payload_buffer + offset, p_reading->data, GY95_PAYLOAD_LEN);
-    offset += GY95_PAYLOAD_LEN;
+    memcpy(payload_buffer + offset, p_reading->data, sizeof(p_reading->data));
+    offset += sizeof(p_reading->data);
 
     memcpy(payload_buffer + offset, &p_reading->time_us, sizeof(p_reading->time_us));
     offset += sizeof(p_reading->time_us);

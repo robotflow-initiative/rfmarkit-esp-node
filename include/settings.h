@@ -70,29 +70,6 @@
 #endif
 
 
-/** GY95 related settings **/
-#define GY95_CTRL_MSG_LEN 4
-#define GY95_PAYLOAD_LEN 32
-#define GY95_CTRL_PIN GPIO_NUM_5
-#define GY95_CTRL_PIN_MASK (1ULL << GY95_CTRL_PIN)
-#define GY95_ADDR 0xa4
-#define GY95_READ_OP 0x03
-#define GY95_REG_THRESH 0x2c
-#define GY95_DEFAULT_START_REG 0x14
-#define GY95_UART_PORT (1) // UART_NUM_X
-#define GY95_RX GPIO_NUM_6
-#define GY95_TX GPIO_NUM_7
-#define GY95_RTS GPIO_NUM_4
-#define GY95_CTS GPIO_NUM_8
-#define GY95_DEFAULT_FREQ 100
-#define GY95_DEFAULT_BAUDRATE 115200
-#define CONFIG_GY95_MAX_CHECK_TICKS 1024
-#define CONFIG_GY95_SCALE_NVS_TABLE_NAME "gy_scale"
-#define CONFIG_GY95_RETRY_N 10
-#define CONFIG_GY95_PAYLOAD_HEAD_IDX 4
-#define CONFIG_GY95_PAYLOAD_TAIL_IDX 31
-
-
 /** NTP settings **/
 #define CONFIG_LOCAL_TZ "CTS-8"
 #define CONFIG_NTP_SERVER_ADDR CONFIG_HOST_IP_ADDR
@@ -117,4 +94,12 @@
 /** On Board Button **/
 #define CONFIG_BUTTON_GPIO_PIN GPIO_NUM_9
 
+
+/** @brief func_command **/
+#define COMMAND_FUNCTION(name) \
+        esp_err_t command_func_##name(char* rx_buffer, \
+                       int rx_len, \
+                       char* tx_buffer, \
+                       int tx_len)
+                       
 #endif

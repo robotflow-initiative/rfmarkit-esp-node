@@ -30,7 +30,6 @@
 #include "lwip/sockets.h"
 
 #include "apps.h"
-#include "types.h"
 #include "settings.h"
 #include "functions.h"
 #include "gy95.h"
@@ -80,13 +79,13 @@ static void init() {
     }
 
     /** Cancel GPIO hold **/
-    gpio_hold_dis(GY95_CTRL_PIN);
+    gpio_hold_dis(CONFIG_IMU_CTRL_PIN);
     gpio_deep_sleep_hold_dis();
 
     /** Init global imu struct g_imu **/
     /** Setup GY95 **/
     ESP_LOGI(TAG, "Setting up gy95");
-    gy95_init(&g_imu, GY95_UART_PORT, GY95_CTRL_PIN, GY95_RX, GY95_TX, GY95_RTS, GY95_CTS, GY95_ADDR);
+    IMU_INIT(g_imu);
     gy95_msp_init(&g_imu);
     gy95_disable(&g_imu);
     gy95_enable(&g_imu);

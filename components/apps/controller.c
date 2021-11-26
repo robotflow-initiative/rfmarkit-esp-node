@@ -14,7 +14,6 @@
 #include "freertos/event_groups.h"
 
 #include "settings.h"
-#include "types.h"
 #include "functions.h"
 #include "globals.h"
 
@@ -42,12 +41,12 @@ static command_reg_t s_registration[] = {
     {.name = "cali_mag", .func=command_func_cali_mag},
     {.name = "start", .func=command_func_start},
     {.name = "stop", .func=command_func_stop},
-    {.name = "gy_enable", .func=command_func_gy_enable},
-    {.name = "gy_disable", .func=command_func_gy_disable},
-    {.name = "gy_status", .func=command_func_gy_status},
-    {.name = "gy_imm", .func=command_func_gy_imm},
-    {.name = "gy_setup", .func=command_func_gy_setup},
-    {.name = "gy_scale",.func=command_func_gy_scale},
+    {.name = "imu_enable", .func=command_func_imu_enable},
+    {.name = "imu_disable", .func=command_func_imu_disable},
+    {.name = "imu_status", .func=command_func_imu_status},
+    {.name = "imu_imm", .func=command_func_imu_imm},
+    {.name = "imu_setup", .func=command_func_imu_setup},
+    {.name = "imu_scale",.func=command_func_imu_scale},
     {.name = "id", .func=command_func_id},
     {.name = "ver", .func=command_func_ver},
     {.name = "blink_set", .func=command_func_blink_set},

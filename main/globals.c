@@ -1,6 +1,6 @@
 #include "globals.h"
 #include "settings.h"
-#include "types.h"
+
 gy95_t g_imu = { 0 };
 
 #if CONFIG_EN_DEBUG_OVER_TCP

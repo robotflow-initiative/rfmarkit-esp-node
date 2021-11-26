@@ -87,14 +87,14 @@ COMMAND_FUNCTION(stop) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(gy_enable) {
+COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
     xEventGroupSetBits(g_sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(gy_disable) {
+COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     gy95_disable(&g_imu);
     xEventGroupClearBits(g_sys_event_group, GY95_ENABLED_BIT);
@@ -102,7 +102,7 @@ COMMAND_FUNCTION(gy_disable) {
 }
 
 /** FIXME: The status of  gy is output via serial debug port **/
-COMMAND_FUNCTION(gy_status) {
+COMMAND_FUNCTION(imu_status) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
 
     int ret = gpio_get_level(g_imu.ctrl_pin);
@@ -112,20 +112,20 @@ COMMAND_FUNCTION(gy_status) {
 }
 
 
-COMMAND_FUNCTION(gy_imm) {
+COMMAND_FUNCTION(imu_imm) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
     imu_dgram_t imu_data;
     imu_res_t imu_res = { 0 };
 
-    gy95_safe_read(&g_imu);
-    memcpy(imu_data.data, g_imu.buf, GY95_PAYLOAD_LEN);
+    gy95_imm(&g_imu);
+    memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
 
     int offset = 0;
     parse_imu_reading(&g_imu, &imu_data, &imu_res, tx_buffer, tx_len);
 
     offset = strlen(tx_buffer);
     snprintf(tx_buffer + offset, tx_len - offset, "\n{\n\t\"acc_scale\":%d,\n\t\"gyro_scale\":%d,\n\t\"mag_scale\":%d\n}\n\n", g_imu.acc_scale, g_imu.gyro_scale, g_imu.mag_scale);
-    // for (int idx = 0; idx < GY95_PAYLOAD_LEN; ++idx) {
+    // for (int idx = 0; idx < sizeof(g_imu.buf); ++idx) {
     //     snprintf(tx_buffer + offset, tx_len - offset, "0x%02x, ", imu_data.data[idx]);
     //     offset = strlen(tx_buffer);
     // };
@@ -134,7 +134,7 @@ COMMAND_FUNCTION(gy_imm) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(gy_setup) {
+COMMAND_FUNCTION(imu_setup) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_SETUP");
     uint8_t ret = gy95_setup(&g_imu);
 
@@ -160,7 +160,7 @@ if ((p) != NULL) { \
         } \
     } \
 
-COMMAND_FUNCTION(gy_scale) {
+COMMAND_FUNCTION(imu_scale) {
     esp_err_t err = ESP_OK;
     ESP_LOGI(TAG, "Executing command : IMU_GY_SCALE");
     int offset = 0;
@@ -170,7 +170,7 @@ COMMAND_FUNCTION(gy_scale) {
 
     /** Open nvs table **/
     nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open(CONFIG_GY95_SCALE_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
+    ESP_ERROR_CHECK(nvs_open(CONFIG_IMU_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
 
     /**
     rx_buffer = "gy_scale {"acc":[0-3],"gyro":[0-3], "mag":[0-3]}"

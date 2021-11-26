@@ -15,7 +15,6 @@
 #include "freertos/event_groups.h"
 
 #include "settings.h"
-#include "types.h"
 #include "globals.h"
 #include "functions.h"
 

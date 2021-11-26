@@ -4,4 +4,4 @@ FILE(GLOB_RECURSE functions_sources ${CMAKE_SOURCE_DIR}/components/functions/*.c
 FILE(GLOB_RECURSE gy95_sources ${CMAKE_SOURCE_DIR}/components/gy95/*.c)
 
 idf_component_register(SRCS ${main_sources} ${apps_sources} ${functions_sources} ${gy95_sources}
-                       INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
+                       INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/components/gy95)
