@@ -1,6 +1,9 @@
-#include "apps.h"
 #include <string.h>
 #include <stdlib.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
@@ -11,9 +14,9 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 
+
+#include "apps.h"
 #include "settings.h"
 #include "globals.h"
 #include "functions.h"

@@ -1,15 +1,19 @@
-#include "apps.h"
 #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
+
 #include "esp_timer.h"
 #include "esp_err.h"
-#include "nvs_flash.h"
-#include "driver/timer.h"
-#include "cJSON.h"
 #include "esp_log.h"
 
+#include "driver/gpio.h"
+#include "driver/timer.h"
+#include "nvs_flash.h"
+
+#include "cJSON.h"
+
+#include "apps.h"
 #include "blink.h"
 #include "sys.h"
 

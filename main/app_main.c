@@ -8,10 +8,12 @@
 */
 #include <stdio.h>
 #include "sdkconfig.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
+
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_wifi.h"
@@ -20,12 +22,12 @@
 #include "esp_event.h"
 #include "esp_task_wdt.h"
 #include "esp_ota_ops.h"
+
 #include "nvs_flash.h"
 #include "soc/soc_caps.h"
 #include "soc/rtc.h"
 #include "driver/adc.h"
 #include "driver/rtc_io.h"
-
 
 #include "lwip/sockets.h"
 

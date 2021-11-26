@@ -1,10 +1,14 @@
 #ifndef _GY95_H
 #define _GY95_H
 
-#include "esp_system.h"
 #include "freertos/semphr.h"
-#include "functions.h"
+
+#include "esp_system.h"
+
 #include "cJSON.h"
+
+#include "functions.h"
+
 
 /** GY95 related settings **/
 // INTERNAL

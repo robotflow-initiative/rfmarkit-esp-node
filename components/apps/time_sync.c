@@ -1,18 +1,19 @@
-#include "apps.h"
-
 #include <string.h>
 #include <time.h>
 #include <stdbool.h>
 #include <sys/time.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+
 #include "esp_system.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_attr.h"
 #include "esp_sntp.h"
 
+#include "apps.h"
 #include "globals.h"
 #include "settings.h"
 

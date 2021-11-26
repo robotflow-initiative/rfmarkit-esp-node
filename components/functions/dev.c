@@ -1,8 +1,9 @@
-#include "functions.h"
 #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -11,17 +12,19 @@
 #include "esp_err.h"
 #include "esp_intr_alloc.h"
 #include "esp_https_ota.h"
-#include "nvs_flash.h"
+
 #include "driver/uart.h"
 #include "driver/gpio.h"
+#include "nvs_flash.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "settings.h"
 #include "blink.h"
+#include "functions.h"
 #include "globals.h"
 #include "gy95.h"
+#include "settings.h"
 
 /* FreeRTOS event group to signal when we are connected*/
 

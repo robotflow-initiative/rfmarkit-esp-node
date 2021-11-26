@@ -1,4 +1,6 @@
-#include "apps.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_wifi.h"
@@ -10,14 +12,13 @@
 #include "lwip/sys.h"
 #include "lwip/inet.h"
 #include "lwip/netdb.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 
-#include "settings.h"
+#include "apps.h"
+#include "blink.h"
 #include "controller.h"
 #include "globals.h"
-#include "blink.h"
 #include "gy95.h"
+#include "settings.h"
 
 #define RX_BUFFER_LEN 64 
 #define TX_BUFFER_LEN 512

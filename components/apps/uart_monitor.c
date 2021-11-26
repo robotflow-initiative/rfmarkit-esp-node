@@ -1,13 +1,16 @@
-#include "apps.h"
-
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
-#include "esp_log.h"
-#include "esp_task_wdt.h"
-#include "driver/uart.h"
+
+#include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
+#include "esp_log.h"
+#include "esp_task_wdt.h"
+
+#include "driver/uart.h"
+
+#include "apps.h"
 #include "settings.h"
 #include "gy95.h"
 #include "globals.h"

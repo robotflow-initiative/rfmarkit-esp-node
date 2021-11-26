@@ -1,15 +1,18 @@
-#include "apps.h"
+#include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
-#include "nvs_flash.h"
+
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "driver/rtc_io.h"
-#include <string.h>
+#include "nvs_flash.h"
 
+
+#include "apps.h"
 #include "esp_log.h"
-#include "gy95.h"
 #include "globals.h"
+#include "gy95.h"
 
 static const char* TAG = "GY95";
 // static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;

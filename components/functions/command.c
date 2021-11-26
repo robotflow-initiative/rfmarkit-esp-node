@@ -1,13 +1,17 @@
-#include "functions.h"
-
 #include "esp_err.h"
 #include "esp_log.h"
-#include "cJSON.h"
+
 #include "driver/uart.h"
 #include "nvs_flash.h"
-#include "globals.h"
-#include "blink.h"
+
+#include "cJSON.h"
+
 #include "apps.h"
+#include "blink.h"
+#include "functions.h"
+#include "globals.h"
+
+
 
 static const char* TAG = "func_command";
 
