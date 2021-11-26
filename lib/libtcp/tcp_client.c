@@ -39,10 +39,12 @@ esp_err_t client_set_timeout(tcp_client_t* client, int timeout_s) {
     return ESP_OK;
 }
 
-void client_init(tcp_client_t* client) {
+void client_init(tcp_client_t* client, int timeout) {
     client_set_destination(client, client->address, client->port);
     client_create_socket(client);
-    client_set_timeout(client, 3);
+    if (timeout > 0) {
+        client_set_timeout(client, timeout);
+    }
 }
 
 int client_connect(tcp_client_t* client) {

@@ -59,7 +59,7 @@ void server_loop(tcp_server_t* server, void (*interact)(int));
 
 void server_init(void (*pfunc)(int));
 
-void client_init(tcp_client_t* client);
+void client_init(tcp_client_t* client, int timeout);
 
 int client_connect(tcp_client_t* client);
 

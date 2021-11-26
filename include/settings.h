@@ -1,7 +1,7 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
-#define CONFIG_FIRMWARE_VERSION "2.7.2"
+#define CONFIG_FIRMWARE_VERSION "2.7.3"
 
 /** Debug options **/
 #define CONFIG_EN_DEBUG_OVER_TCP 0 // TODO： Verify or deprecate this function
@@ -62,7 +62,7 @@
 
 /** Retry limits **/
 #define CONFIG_ESP_MAXIMUM_RETRY 10
-#define CONFIG_PAYLOAD_BUFFER_LEN 40
+#define CONFIG_PAYLOAD_BUFFER_LEN 140
 
 /** NTP settings **/
 #define CONFIG_LOCAL_TZ "CTS-8"

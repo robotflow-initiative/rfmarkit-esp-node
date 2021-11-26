@@ -148,12 +148,19 @@ static esp_err_t hi229_recv(hi229_t *p_gy, uint8_t *rx_buf, size_t rx_len) {
 
 uint8_t hi229_setup(hi229_t *p_gy) {
     hi229_send(p_gy, (uint8_t *) "AT+EOUT=0\r\n", -1, NULL);
+    os_delay_ms(100);
     hi229_send(p_gy, (uint8_t *) "AT+MODE=1\r\n", -1, NULL);
+    os_delay_ms(100);
     hi229_send(p_gy, (uint8_t *) "AT+SETPTL=91\r\n", -1, NULL);
+    os_delay_ms(100);
     hi229_send(p_gy, (uint8_t *) "AT+BAUD=921600\r\n", -1, NULL);
+    os_delay_ms(100);
     hi229_send(p_gy, (uint8_t *) "AT+ODR=200\r\n", -1, NULL);
+    os_delay_ms(100);
     hi229_send(p_gy, (uint8_t *) "AT+EOUT=1\r\n", -1, NULL);
+    os_delay_ms(100);
     hi229_send(p_gy, (uint8_t *) "AT+RST\r\n", -1, NULL);
+    os_delay_ms(100);
 
     return 0b1111111;
 }

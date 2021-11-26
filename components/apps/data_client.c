@@ -53,7 +53,7 @@ void app_data_client(void* pvParameters) {
         /** TCP connection is not established **/
         clear_sys_event(EV_TCP_CONNECTED);
 
-        client_init(&client);
+        client_init(&client, 3);
 
         /** Connect socket so the IP address of node is reported **/
         int err = client_connect(&client);
@@ -89,7 +89,7 @@ void app_data_client(void* pvParameters) {
                 } else {
                     device_reset_sleep_countup();
                 }
-                ESP_LOGD(TAG, "Reading sent to %s:%d", CONFIG_DATA_HOST_IP_ADDR, CONFIG_DATA_HOST_PORT);
+                ESP_LOGD(TAG, "Sending to %s:%d, err=%d", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT, err);
                 RESET_SEND_BUFFER();
             } else {
                 taskYIELD();
