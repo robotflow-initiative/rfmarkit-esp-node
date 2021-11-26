@@ -7,12 +7,12 @@
 
 #include "cJSON.h"
 
-#include "gy95.h"
+#include "imu.h"
 #include "device.h"
 
 static const char* TAG = "func_parse";
 
-static imu_key_t default_key = {
+static gy95_key_t default_key = {
     .accel_x = 4,
     .accel_y = 6,
     .accel_z = 8,
@@ -28,7 +28,7 @@ static imu_key_t default_key = {
     .mag_z = 29,
 };
 
-static imu_multiplier_t default_multiplier = {
+static gy95_multiplier_t default_multiplier = {
     .accel_x = 0.00006103515625, // 4 / 65536
     .accel_y = 0.00006103515625, // 4 / 65536
     .accel_z = 0.00006103515625, // 4 / 65536
@@ -54,11 +54,11 @@ static imu_multiplier_t default_multiplier = {
  * @warning This function dynamically allocates memory, remember to free them
 **/
 esp_err_t gy95_parse(gy95_t* p_gy,
-                            imu_dgram_t* p_reading,
-                            imu_res_t* p_res,
-                            char* buffer, int len) {
-    imu_holder_t holder = { 0 };
-    imu_res_t res = { 0 };
+                     gy95_dgram_t* p_reading,
+                     gy95_res_t* p_res,
+                     char* buffer, int len) {
+    gy95_holder_t holder = { 0 };
+    gy95_res_t res = { 0 };
     esp_err_t err = ESP_OK;
 
 #if CONFIG_EN_PARSER_DEBUG
@@ -158,7 +158,7 @@ esp_err_t gy95_parse(gy95_t* p_gy,
  * @return int 
  * @warning must guarentee the payload_buffer length
 **/
-int gy95_tag(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
+int gy95_tag(gy95_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     int offset = 0;
 
     ESP_LOGD(TAG, "Tagging imu readings");

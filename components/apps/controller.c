@@ -16,7 +16,7 @@
 #include "apps.h"
 #include "blink.h"
 #include "device.h"
-#include "gy95.h"
+#include "imu.h"
 #include "settings.h"
 
 #define RX_BUFFER_LEN 64 

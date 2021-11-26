@@ -34,7 +34,7 @@
 #include "apps.h"
 #include "blink.h"
 #include "settings.h"
-#include "gy95.h"
+#include "imu.h"
 #include "device.h"
 
 static const char* TAG = "app_main";
@@ -89,7 +89,7 @@ static void init() { // TODO: Add BLE function
     /** Init global imu struct g_imu **/
     /** Setup GY95 **/
     ESP_LOGI(TAG, "Setting up gy95");
-    IMU_INIT(g_imu);
+    imu_init(g_imu);
 
 
     ESP_ERROR_CHECK(ret);
@@ -119,7 +119,7 @@ static void init() { // TODO: Add BLE function
     xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
     xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
 
-    if (gy95_self_test(&g_imu) != ESP_OK) {
+    if (imu_self_test(&g_imu) != ESP_OK) {
         esp_enter_deep_sleep();
     }
 

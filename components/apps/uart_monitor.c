@@ -12,8 +12,7 @@
 
 #include "apps.h"
 #include "settings.h"
-#include "gy95.h"
-#include "device.h"
+#include "imu.h"
 #include "device.h"
 
 /** pseudo data **/
@@ -67,7 +66,7 @@ void app_uart_monitor(void* pvParameters) {
                     break;
                 } else {
                     ESP_LOGI(TAG, "Enabling gy95");
-                    gy95_enable(&g_imu);
+                    imu_enable(&g_imu);
                     xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
                     break;
                 }
@@ -90,7 +89,7 @@ void app_uart_monitor(void* pvParameters) {
         gettimeofday(&tv_now, NULL);
         imu_data.start_time_us =  (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
 
-        gy95_read(&g_imu);
+        imu_read(&g_imu);
         memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
 
         /** Tag stop point **/

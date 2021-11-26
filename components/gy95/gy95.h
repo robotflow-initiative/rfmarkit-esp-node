@@ -7,9 +7,6 @@
 
 #include "cJSON.h"
 
-#include "device.h"
-#include "device.h"
-
 /** GY95 related settings **/
 // INTERNAL
 #define CONFIG_GY95_UART_RX_BUF_LEN 5120
@@ -34,19 +31,12 @@
 #define CONFIG_GY95_PAYLOAD_HEAD_IDX 4
 #define CONFIG_GY95_PAYLOAD_TAIL_IDX 31
 
-// EXTERNAL
-#define CONFIG_IMU_NAME GY95
-#define CONFIG_IMU_PAYLOAD_LEN CONFIG_GY95_PAYLOAD_LEN
-#define CONFIG_IMU_DEFAULT_FREQ CONFIG_GY95_DEFAULT_FREQ
-#define CONFIG_IMU_CTRL_PIN CONFIG_GY95_CTRL_PIN
-#define CONFIG_IMU_NVS_TABLE_NAME CONFIG_GY95_NVS_TABLE_NAME
-
 typedef struct {
-    uint8_t data[CONFIG_IMU_PAYLOAD_LEN];
+    uint8_t data[CONFIG_GY95_PAYLOAD_LEN];
     int64_t time_us;
     int64_t start_time_us;
     int uart_buffer_len;
-} imu_dgram_t; // EXTERNAL
+} gy95_dgram_t; // EXTERNAL
 
 
 typedef struct {
@@ -63,7 +53,7 @@ typedef struct {
     int32_t mag_x;
     int32_t mag_y;
     int32_t mag_z;
-} imu_holder_t;
+} gy95_holder_t;
 
 typedef struct {
     uint8_t accel_x;
@@ -79,7 +69,7 @@ typedef struct {
     uint8_t mag_x;
     uint8_t mag_y;
     uint8_t mag_z;
-} imu_key_t;
+} gy95_key_t;
 
 typedef struct {
     float accel_x;
@@ -95,7 +85,7 @@ typedef struct {
     float mag_x;
     float mag_y;
     float mag_z;
-} imu_multiplier_t, imu_res_t; // INTERNAL
+} gy95_multiplier_t, gy95_res_t; // INTERNAL
 
 typedef enum {
     GY95_OK,
@@ -126,11 +116,10 @@ typedef struct {
 
     SemaphoreHandle_t mux;
 
-    uint8_t buf[CONFIG_IMU_PAYLOAD_LEN];
+    uint8_t buf[CONFIG_GY95_PAYLOAD_LEN];
 
 } gy95_t;
 
-extern gy95_t g_imu;
 
 void gy95_msp_init(gy95_t* p_gy); // EXTERNAL
 
@@ -154,29 +143,12 @@ void gy95_disable(gy95_t* p_gy);  // EXTERNAL
 
 esp_err_t gy95_self_test(gy95_t* p_gy);  // EXTERNAL
 
-
-#define IMU_INIT(imu) \
-    gy95_init(&imu, CONFIG_GY95_UART_PORT, CONFIG_GY95_CTRL_PIN, CONFIG_GY95_RX, CONFIG_GY95_TX, CONFIG_GY95_RTS, CONFIG_GY95_CTS, CONFIG_GY95_ADDR); \
-    gy95_msp_init(&imu); \
-    gy95_disable(&imu); \
-    gy95_enable(&imu);
-
 /** @brief func_parse **/
 esp_err_t gy95_parse(gy95_t* p_gy,
-                     imu_dgram_t* p_reading,
-                     imu_res_t* p_parsed,
+                     gy95_dgram_t* p_reading,
+                     gy95_res_t* p_parsed,
                      char* buffer, int len);// EXTERNAL
-int gy95_tag(imu_dgram_t* p_reading, uint8_t* payload, int len);// EXTERNAL
+int gy95_tag(gy95_dgram_t* p_reading, uint8_t* payload, int len);// EXTERNAL
 
-COMMAND_FUNCTION(imu_cali_reset); // EXTERNAL
-COMMAND_FUNCTION(imu_cali_acc); // EXTERNAL
-COMMAND_FUNCTION(imu_cali_gyro); // EXTERNAL
-COMMAND_FUNCTION(imu_cali_mag); // EXTERNAL
-COMMAND_FUNCTION(imu_enable); // EXTERNAL
-COMMAND_FUNCTION(imu_disable); // EXTERNAL
-COMMAND_FUNCTION(imu_status); // EXTERNAL
-COMMAND_FUNCTION(imu_imm); // EXTERNAL
-COMMAND_FUNCTION(imu_setup); // EXTERNAL
-COMMAND_FUNCTION(imu_scale); // EXTERNAL
 
 #endif

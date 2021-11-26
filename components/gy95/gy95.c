@@ -12,7 +12,7 @@
 #include "apps.h"
 #include "esp_log.h"
 #include "device.h"
-#include "gy95.h"
+#include "imu.h"
 
 static const char* TAG = "GY95";
 // static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -467,7 +467,7 @@ esp_err_t gy95_self_test(gy95_t* p_gy) {
     ESP_LOGI(TAG, "Running self test");
 
     imu_dgram_t imu_data = { 0 };
-    imu_res_t imu_res = { 0 };
+    gy95_res_t imu_res = { 0 };
     double g_mod = 0;
 
     for (int i = 0; i < 3; ++i) {
@@ -541,7 +541,7 @@ COMMAND_FUNCTION(imu_enable) {
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
-    gy95_disable(&g_imu);
+    imu_disable(&g_imu);
     xEventGroupClearBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
     return ESP_OK;
 }
@@ -560,7 +560,7 @@ COMMAND_FUNCTION(imu_status) {
 COMMAND_FUNCTION(imu_imm) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
     imu_dgram_t imu_data;
-    imu_res_t imu_res = { 0 };
+    gy95_res_t imu_res = { 0 };
 
     gy95_imm(&g_imu);
     memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));

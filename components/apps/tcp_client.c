@@ -19,7 +19,7 @@
 #include "apps.h"
 #include "settings.h"
 #include "device.h"
-#include "gy95.h"
+#include "imu.h"
 
 static const char* TAG = "app_tcp_client";
 
@@ -97,7 +97,7 @@ void app_tcp_client(void* pvParameters) {
             }
             /** imu_reading is available **/
 #if CONFIG_SEND_PARSED
-            err = gy95_parse(&g_imu, &imu_reading, NULL, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
+            err = imu_parse(&g_imu, &imu_reading, NULL, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
             payload_len = strlen(payload_buffer);
 
             if (payload_len == 0 || !err) {
@@ -110,9 +110,9 @@ void app_tcp_client(void* pvParameters) {
                 payload_buffer[payload_len++] = '\n';
             }
 #else
-            s_send_buffer_tail += gy95_tag(&imu_reading,
-                                                  s_send_buffer + s_send_buffer_tail,
-                                                  sizeof(s_send_buffer) - s_send_buffer_tail);
+            s_send_buffer_tail += imu_tag(&imu_reading,
+                                          s_send_buffer + s_send_buffer_tail,
+                                          sizeof(s_send_buffer) - s_send_buffer_tail);
 #endif
             if (SEND_BUFFER_FULL()) {
                 err = send(sock, s_send_buffer, s_send_buffer_tail, 0);

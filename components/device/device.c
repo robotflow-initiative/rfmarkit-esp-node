@@ -22,7 +22,7 @@
 
 #include "blink.h"
 #include "device.h"
-#include "gy95.h"
+#include "imu.h"
 #include "settings.h"
 
 /* FreeRTOS event group to signal when we are connected*/
@@ -160,7 +160,7 @@ void esp_enter_deep_sleep() {
     ESP_LOGI(TAG, " Going to deep sleep (shutdown)");
 
     ESP_LOGI(TAG, "Disabling GY95");
-    gy95_disable(&g_imu);
+    imu_disable(&g_imu);
     xEventGroupClearBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
