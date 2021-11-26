@@ -10,7 +10,7 @@ esp_err_t esp_wifi_init_sta(void);
 void esp_enter_deep_sleep(void);
 void esp_get_device_id(void);
 void esp_button_init(void);
-esp_err_t esp_self_test();
+esp_err_t esp_self_test(void);
 #define esp_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
 
 /** @brief func_parse **/

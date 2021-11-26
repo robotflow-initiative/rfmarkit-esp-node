@@ -50,8 +50,6 @@ void gy95_init(gy95_t* p_gy,
                int addr
 );
 
-esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo);
-
 uint8_t gy95_setup(gy95_t* p_gy);
 
 esp_err_t gy95_cali_acc(gy95_t* p_gy);
@@ -60,15 +58,9 @@ void gy95_cali_mag(gy95_t* p_gy);
 
 esp_err_t gy95_cali_reset(gy95_t* p_gy);
 
-void gy95_clean(gy95_t* p_gy);
-
-bool gy95_chksum(gy95_t* p_gy);
-
 void gy95_read(gy95_t* p_gy);
 
 void gy95_safe_read(gy95_t* p_gy);
-
-size_t gy95_get_buffer_len(gy95_t* p_gy);
 
 void gy95_enable(gy95_t* p_gy);
 
