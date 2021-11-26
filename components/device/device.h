@@ -7,6 +7,20 @@
 
 #include "settings.h"
 
+typedef struct {
+    char device_id[CONFIG_DEVICE_ID_LEN];
+    int boot_count;
+    int sleep_countup;
+    EventGroupHandle_t sys_event_group;
+    EventGroupHandle_t wifi_event_group;
+    uint8_t blink_pin;
+} mcu_t;
+
+extern RTC_DATA_ATTR mcu_t g_mcu;
+
+/** Low power related **/
+#define RESET_SLEEP_COUNTUP() g_mcu.sleep_countup = (g_mcu.sleep_countup>0)?0:g_mcu.sleep_countup
+
 /** @brief TCP Debug related **/ // TODO: Complete TCP debug function
 #if CONFIG_EN_DEBUG_OVER_TCP
 #define TCP_DEBUG_BUFFER_LEN 128
@@ -31,26 +45,12 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
-/** @brief func_command **/
+/** @brief func_command related **/
 #define COMMAND_FUNCTION(name) \
         esp_err_t command_func_##name(char* rx_buffer, \
                        int rx_len, \
                        char* tx_buffer, \
                        int tx_len)
-
-typedef struct {
-    char device_id[CONFIG_DEVICE_ID_LEN];
-    int boot_count;
-    int sleep_countup;
-    EventGroupHandle_t sys_event_group;
-    EventGroupHandle_t wifi_event_group;
-    uint8_t blink_pin;
-} mcu_t;
-
-extern RTC_DATA_ATTR mcu_t g_mcu;
-
-/** Low power related **/
-#define RESET_SLEEP_COUNTUP() g_mcu.sleep_countup = (g_mcu.sleep_countup>0)?0:g_mcu.sleep_countup
 
 /** Device control functions **/
 esp_err_t esp_wifi_init_sta(void);

@@ -32,6 +32,7 @@
 #include "lwip/sockets.h"
 
 #include "apps.h"
+#include "blink.h"
 #include "settings.h"
 #include "gy95.h"
 #include "device.h"
@@ -110,7 +111,7 @@ static void init() { // TODO: Add BLE function
     gpio_deep_sleep_hold_en();
 
     /** Blink init **/
-    app_blink_init();
+    blink_init();
 
     /** Configure Events **/
     xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);

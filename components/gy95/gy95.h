@@ -48,6 +48,7 @@ typedef struct {
     int uart_buffer_len;
 } imu_dgram_t; // EXTERNAL
 
+
 typedef struct {
     int32_t accel_x;
     int32_t accel_y;
@@ -62,7 +63,7 @@ typedef struct {
     int32_t mag_x;
     int32_t mag_y;
     int32_t mag_z;
-} imu_holder_t; // INTERNAL
+} imu_holder_t;
 
 typedef struct {
     uint8_t accel_x;
@@ -78,7 +79,7 @@ typedef struct {
     uint8_t mag_x;
     uint8_t mag_y;
     uint8_t mag_z;
-} imu_key_t; // INTERNAL
+} imu_key_t;
 
 typedef struct {
     float accel_x;
@@ -101,7 +102,7 @@ typedef enum {
     GY95_RECV_COMPLETE,
     GY95_FAIL,
     GY95_READY,
-} gy95_status_t; // INTERNAL
+} gy95_status_t;
 
 typedef struct {
     int port;
@@ -127,7 +128,7 @@ typedef struct {
 
     uint8_t buf[CONFIG_IMU_PAYLOAD_LEN];
 
-} gy95_t; // INTERNAL
+} gy95_t;
 
 extern gy95_t g_imu;
 
@@ -145,15 +146,7 @@ void gy95_init(gy95_t* p_gy,
 
 uint8_t gy95_setup(gy95_t* p_gy); // EXTERNAL
 
-esp_err_t gy95_cali_acc(gy95_t* p_gy);  // INTERNAL
-
-void gy95_cali_mag(gy95_t* p_gy); // INTERNAL
-
-esp_err_t gy95_cali_reset(gy95_t* p_gy); // INTERNAL
-
 void gy95_read(gy95_t* p_gy);  // EXTERNAL
-
-void gy95_imm(gy95_t* p_gy);  // INTERNAL
 
 void gy95_enable(gy95_t* p_gy);  // EXTERNAL
 
@@ -169,14 +162,15 @@ esp_err_t gy95_self_test(gy95_t* p_gy);  // EXTERNAL
     gy95_enable(&imu);
 
 /** @brief func_parse **/
-esp_err_t parse_imu_reading(gy95_t* p_gy,
-                            imu_dgram_t* p_reading,
-                            imu_res_t* p_parsed,
-                            char* buffer, int len);// EXTERNAL
-int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload, int len);// EXTERNAL
+esp_err_t gy95_parse(gy95_t* p_gy,
+                     imu_dgram_t* p_reading,
+                     imu_res_t* p_parsed,
+                     char* buffer, int len);// EXTERNAL
+int gy95_tag(imu_dgram_t* p_reading, uint8_t* payload, int len);// EXTERNAL
 
 COMMAND_FUNCTION(imu_cali_reset); // EXTERNAL
 COMMAND_FUNCTION(imu_cali_acc); // EXTERNAL
+COMMAND_FUNCTION(imu_cali_gyro); // EXTERNAL
 COMMAND_FUNCTION(imu_cali_mag); // EXTERNAL
 COMMAND_FUNCTION(imu_enable); // EXTERNAL
 COMMAND_FUNCTION(imu_disable); // EXTERNAL

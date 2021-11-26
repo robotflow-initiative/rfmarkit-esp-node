@@ -97,7 +97,7 @@ void app_tcp_client(void* pvParameters) {
             }
             /** imu_reading is available **/
 #if CONFIG_SEND_PARSED
-            err = parse_imu_reading(&g_imu, &imu_reading, NULL, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
+            err = gy95_parse(&g_imu, &imu_reading, NULL, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
             payload_len = strlen(payload_buffer);
 
             if (payload_len == 0 || !err) {
@@ -110,7 +110,7 @@ void app_tcp_client(void* pvParameters) {
                 payload_buffer[payload_len++] = '\n';
             }
 #else
-            s_send_buffer_tail += tag_imu_reading(&imu_reading,
+            s_send_buffer_tail += gy95_tag(&imu_reading,
                                                   s_send_buffer + s_send_buffer_tail,
                                                   sizeof(s_send_buffer) - s_send_buffer_tail);
 #endif

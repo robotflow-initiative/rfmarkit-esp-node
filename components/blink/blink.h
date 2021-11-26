@@ -19,6 +19,10 @@
 #define LED_ALLOFF() gpio_set_level(CONFIG_BLINK_RED_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE);gpio_set_level(CONFIG_BLINK_GREEN_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE);gpio_set_level(CONFIG_BLINK_BLUE_PIN, !CONFIG_BLINK_LED_ENABLE_VALUE)
 
 
+void blink_init();
+void blink_start();
+void blink_stop();
+
 COMMAND_FUNCTION(blink_set);
 COMMAND_FUNCTION(blink_start);
 COMMAND_FUNCTION(blink_stop);

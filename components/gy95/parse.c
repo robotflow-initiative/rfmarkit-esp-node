@@ -53,7 +53,7 @@ static imu_multiplier_t default_multiplier = {
  * @return esp_err_t
  * @warning This function dynamically allocates memory, remember to free them
 **/
-esp_err_t parse_imu_reading(gy95_t* p_gy,
+esp_err_t gy95_parse(gy95_t* p_gy,
                             imu_dgram_t* p_reading,
                             imu_res_t* p_res,
                             char* buffer, int len) {
@@ -158,7 +158,7 @@ esp_err_t parse_imu_reading(gy95_t* p_gy,
  * @return int 
  * @warning must guarentee the payload_buffer length
 **/
-int tag_imu_reading(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
+int gy95_tag(imu_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     int offset = 0;
 
     ESP_LOGD(TAG, "Tagging imu readings");

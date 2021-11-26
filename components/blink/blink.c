@@ -50,7 +50,7 @@ static bool get_flag(uint8_t* arr, int item) {
     return (arr[item / 8] & (1 << item % 8)) >> (item % 8);
 }
 
-void app_blink_init() {
+void blink_init() {
     /** Read blink sequence from nvs **/
     nvs_handle_t blink_handle;
     uint8_t seq;
@@ -139,7 +139,7 @@ void app_blink_init() {
     timer_isr_callback_add(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, blink_timeout, NULL, ESP_INTR_FLAG_IRAM);
 }
 
-void app_blink_start() {
+void blink_start() {
     ESP_LOGI(TAG, "Timer started");
     ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");
     for (int idx = 0; idx < CONFIG_BLINK_SEQ_LEN; ++idx) {
@@ -150,7 +150,7 @@ void app_blink_start() {
     timer_start(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
 }
 
-void app_blink_stop() {
+void blink_stop() {
     ESP_LOGI(TAG, "Timer stopped");
     timer_pause(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
     LED_ON();
@@ -266,7 +266,7 @@ blink_set_cleanup:
 COMMAND_FUNCTION(blink_start) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_START");
 
-    app_blink_start();
+    blink_start();
 
     snprintf(tx_buffer, tx_len, "Blink started\n\n");
     return ESP_OK;
@@ -275,7 +275,7 @@ COMMAND_FUNCTION(blink_start) {
 COMMAND_FUNCTION(blink_stop) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_STOP");
 
-    app_blink_stop();
+    blink_stop();
 
     snprintf(tx_buffer, tx_len, "Blink stopped\n\n");
     return ESP_OK;
@@ -302,7 +302,7 @@ COMMAND_FUNCTION(blink_get) {
 COMMAND_FUNCTION(blink_off) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_OFF");
 
-    app_blink_stop();
+    blink_stop();
 
     gpio_set_level(g_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE);
 

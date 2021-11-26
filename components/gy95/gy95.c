@@ -474,7 +474,7 @@ esp_err_t gy95_self_test(gy95_t* p_gy) {
 
         for (int j = 0; j < 3; ++j) {
             gy95_imm(p_gy);
-            parse_imu_reading(p_gy, &imu_data, &imu_res, NULL, 0);
+            gy95_parse(p_gy, &imu_data, &imu_res, NULL, 0);
             memcpy(imu_data.data, p_gy->buf, sizeof(p_gy->buf));
 
             ESP_LOGI(TAG, "accel_x: %f, accel_y: %f, accel_z: %f", imu_res.accel_x, imu_res.accel_y, imu_res.accel_z);
@@ -566,7 +566,7 @@ COMMAND_FUNCTION(imu_imm) {
     memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
 
     int offset = 0;
-    parse_imu_reading(&g_imu, &imu_data, &imu_res, tx_buffer, tx_len);
+    gy95_parse(&g_imu, &imu_data, &imu_res, tx_buffer, tx_len);
 
     offset = strlen(tx_buffer);
     snprintf(tx_buffer + offset, tx_len - offset, "\n{\n\t\"acc_scale\":%d,\n\t\"gyro_scale\":%d,\n\t\"mag_scale\":%d\n}\n\n", g_imu.acc_scale, g_imu.gyro_scale, g_imu.mag_scale);
