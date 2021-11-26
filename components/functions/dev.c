@@ -64,7 +64,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
  * @brief Default Wi-Fi STA connect function from esp-idf example
  *
  */
-esp_err_t wifi_init_sta(void) {
+esp_err_t esp_wifi_init_sta(void) {
     g_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -107,7 +107,7 @@ esp_err_t wifi_init_sta(void) {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "wifi_init_sta finished.");
+    ESP_LOGI(TAG, "esp_wifi_init_sta finished.");
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by wifi_event_handler() (see above) */

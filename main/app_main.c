@@ -93,7 +93,7 @@ static void init() {
 
 
     ESP_ERROR_CHECK(ret);
-    ret = wifi_init_sta();
+    ret = esp_wifi_init_sta();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Cannot connect to AP, entering deep sleep");
         esp_enter_deep_sleep();
