@@ -78,7 +78,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
  * @brief Default Wi-Fi STA connect function from esp-idf example
  *
  */
-esp_err_t esp_wifi_init_sta(void) {
+esp_err_t device_wifi_init_sta(void) {
     g_mcu.wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -121,7 +121,7 @@ esp_err_t esp_wifi_init_sta(void) {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "esp_wifi_init_sta finished.");
+    ESP_LOGI(TAG, "device_wifi_init_sta finished.");
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by wifi_event_handler() (see above) */
@@ -153,7 +153,7 @@ esp_err_t esp_wifi_init_sta(void) {
     // vEventGroupDelete(g_wifi_event_group);
 }
 
-void esp_enter_deep_sleep() {
+void device_enter_deep_sleep() {
 
     // esp_sleep_enable_gpio_wakeup();
     /* Enter sleep mode */
@@ -161,7 +161,7 @@ void esp_enter_deep_sleep() {
 
     ESP_LOGI(TAG, "Disabling GY95");
     imu_disable(&g_imu);
-    xEventGroupClearBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
@@ -195,7 +195,7 @@ static void esp_enter_deep_sleep_from_isr(void* params) {
  * @brief Read esp mac address from chip to g_mcu.device_id
  *
 **/
-void esp_get_device_id() {
+void device_get_device_id() {
     uint8_t base_mac_addr[6];
     esp_efuse_mac_get_default(base_mac_addr);
     char buf[13];
@@ -209,10 +209,10 @@ void esp_get_device_id() {
     memcpy(g_mcu.device_id, buf, 12);
 }
 
-void esp_button_init() {
+void device_button_init(int pin) {
     /** Init GPIO **/
     gpio_config_t io_config = {
-        .pin_bit_mask = (1ull << CONFIG_BUTTON_GPIO_PIN),
+        .pin_bit_mask = (1ull << pin),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -220,11 +220,11 @@ void esp_button_init() {
     };
     gpio_config(&io_config);
     gpio_install_isr_service(0);
-    gpio_isr_handler_add(CONFIG_BUTTON_GPIO_PIN, esp_enter_deep_sleep_from_isr, NULL);
+    gpio_isr_handler_add(pin, esp_enter_deep_sleep_from_isr, NULL);
 }
 
 
-esp_err_t esp_do_ota() {
+esp_err_t device_do_ota() {
     esp_http_client_config_t config = {
             .url = CONFIG_OTA_APIHOST,
             .max_authorization_retries = CONFIG_OTA_MAXIMUM_RETRY,
@@ -238,6 +238,39 @@ esp_err_t esp_do_ota() {
             return ESP_FAIL;
         }
         return ESP_OK;
+}
+
+void device_log_chip_info() {
+    /* Print chip information */
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    ESP_LOGI("", "\n\n\n\n\n\n# -------- Begin of app log -------- #");
+    ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
+             CONFIG_IDF_TARGET,
+             chip_info.cores,
+             (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+             (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+
+    ESP_LOGI(TAG, "Silicon revision %d, ", chip_info.revision);
+
+    ESP_LOGI(TAG, "%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
+             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+
+    ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
+    ++g_mcu.boot_count;
+    ESP_LOGI(TAG, "Boot count %d", g_mcu.boot_count);
+    device_get_device_id();
+    ESP_LOGI(TAG, "Device ID: %s", g_mcu.device_id);
+
+    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
+}
+
+void device_reset_gpio(int pin) {
+    /** Cancel hold **/
+    gpio_hold_dis(pin);
+    gpio_deep_sleep_hold_dis();
+    /** Enable gpio hold in deep sleep **/
+    gpio_deep_sleep_hold_en();
 }
 
 
@@ -254,14 +287,14 @@ COMMAND_FUNCTION(ping){
 
 COMMAND_FUNCTION(shutdown) {
     ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
-    esp_enter_deep_sleep();
+    device_enter_deep_sleep();
     return ESP_OK;
 }
 
 COMMAND_FUNCTION(update) {
     ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
     xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
-    esp_err_t ret = esp_do_ota();
+    esp_err_t ret = device_do_ota();
     return ret;
 }
 

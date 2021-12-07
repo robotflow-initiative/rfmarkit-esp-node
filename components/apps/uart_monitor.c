@@ -43,7 +43,6 @@ void app_uart_monitor(void* pvParameters) {
     struct timeval tv_now = { 0 };
 
     imu_dgram_t imu_data = { 0 };
-    imu_dgram_t imu_data_trash = { 0 };
     int ret = 0;
 
     /** Wait until tcp connection is established, time synced and uart not blocked**/
@@ -57,17 +56,18 @@ void app_uart_monitor(void* pvParameters) {
         while (1) {
             bits = xEventGroupGetBits(g_mcu.sys_event_group);
             ESP_LOGD(TAG, "Bits: %x", bits);
+
             if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
-                esp_delay_ms(1000);
+                device_delay_ms(1000);
                 xEventGroupClearBits(g_mcu.sys_event_group, UART_ACTIVE_BIT); // Mark uart as inactive
                 continue;
             } else {
-                if (bits & GY95_ENABLED_BIT) {
+                if (bits & IMU_ENABLED_BIT) {
                     break;
                 } else {
-                    ESP_LOGI(TAG, "Enabling gy95");
+                    ESP_LOGI(TAG, "Enabling IMU");
                     imu_enable(&g_imu);
-                    xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
+                    xEventGroupSetBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
                     break;
                 }
             }
@@ -106,7 +106,7 @@ void app_uart_monitor(void* pvParameters) {
 #endif
         /** If queue is full, clear queue **/
         while (uxQueueSpacesAvailable(serial_queue) <= 0) {
-            xQueueReceive(serial_queue, (void*)&imu_data_trash, (TickType_t)0xF);
+            xQueueReceive(serial_queue, (void*)&imu_data, (TickType_t)0xF);
             ESP_LOGE(TAG, "Buffer full\n");
         }
 

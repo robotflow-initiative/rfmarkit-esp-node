@@ -19,7 +19,9 @@ typedef struct {
 extern RTC_DATA_ATTR mcu_t g_mcu;
 
 /** Low power related **/
-#define RESET_SLEEP_COUNTUP() g_mcu.sleep_countup = (g_mcu.sleep_countup>0)?0:g_mcu.sleep_countup
+#define device_init_sleep_countup() g_mcu.sleep_countup = 0
+#define device_reset_sleep_countup() g_mcu.sleep_countup = (g_mcu.sleep_countup>0)?0:g_mcu.sleep_countup
+#define device_incr_sleep_countup(n) g_mcu.sleep_countup += n
 
 /** @brief TCP Debug related **/ // TODO: Complete TCP debug function
 #if CONFIG_EN_DEBUG_OVER_TCP
@@ -34,10 +36,36 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 #define SET_DEBUG_SOCK(...)
 #endif
 
+/** FreeRTOS related **/
+#define launch_task(target, name, size, arg, priority, handle) \
+    TaskHandle_t handle = NULL; \
+    if (handle == NULL) { \
+        ESP_LOGI(TAG, "Launching "name" tcp client task"); \
+        xTaskCreate(target, \
+                    name, \
+                    size, \
+                    (void*)(arg), \
+                    priority, \
+                    &handle); \
+    }
+
+#define launch_task_multicore(target, name, size, arg, priority, handle, core) \
+    TaskHandle_t handle = NULL; \
+    if (handle == NULL) { \
+        ESP_LOGI(TAG, "Launching "name" tcp client task"); \
+        xTaskCreatePinnedToCore(target, \
+                                name, \
+                                size, \
+                                (void*)arg, \
+                                priority, \
+                                &handle, \
+                                core); \
+    }
+
 /** System **/
 #define TCP_CONNECTED_BIT BIT0
 #define NTP_SYNCED_BIT BIT1
-#define GY95_ENABLED_BIT BIT2
+#define IMU_ENABLED_BIT BIT2
 #define UART_BLOCK_BIT BIT3
 #define UART_ACTIVE_BIT BIT4
 
@@ -53,12 +81,16 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
                        int tx_len)
 
 /** Device control functions **/
-esp_err_t esp_wifi_init_sta(void);
-void esp_enter_deep_sleep(void);
-void esp_get_device_id(void);
-void esp_button_init(void);
-#define esp_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
-esp_err_t esp_do_ota();
+esp_err_t device_wifi_init_sta(void);
+void device_enter_deep_sleep(void);
+void device_get_device_id(void);
+void device_button_init(int);
+#define device_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
+esp_err_t device_do_ota(void);
+void device_log_chip_info(void);
+#define device_log_heap_size() \
+    ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size())
+void device_reset_gpio(int);
 
 /** Register command functions **/
 COMMAND_FUNCTION(restart); 

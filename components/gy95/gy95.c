@@ -297,7 +297,7 @@ void gy95_cali_mag(gy95_t* p_gy) {
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x58", NULL);
     ESP_LOGI(TAG, "Point the IMU to all directions in next 15 seconds");
 
-    esp_delay_ms(CONFIG_GY95_CALI_MAG_DELAY_MS);
+    device_delay_ms(CONFIG_GY95_CALI_MAG_DELAY_MS);
 
     /** Stop calibration **/
     gy95_send(p_gy, (uint8_t*)"\xa4\x06\x05\x59", NULL);
@@ -427,15 +427,15 @@ void gy95_imm(gy95_t* p_gy) {
         ESP_LOGW(TAG, "BUFFER: %d", buffer_len);
         for (int i = 0; i < (buffer_len / CONFIG_GY95_PAYLOAD_LEN) / 2; ++i) {
             gy95_read(p_gy);
-            esp_delay_ms(10);
+            device_delay_ms(10);
         }
     }
 
-    esp_delay_ms(1000);
+    device_delay_ms(1000);
 
     for (int i = 0; i < CONFIG_GY95_RETRY_N; ++i) {
         gy95_read(p_gy);
-        esp_delay_ms(10);
+        device_delay_ms(10);
         if (p_gy->status == GY95_OK) {
             int sum = 0;
             for (int i = CONFIG_GY95_PAYLOAD_HEAD_IDX; i < CONFIG_GY95_PAYLOAD_TAIL_IDX; ++i) {
@@ -484,12 +484,12 @@ esp_err_t gy95_self_test(gy95_t* p_gy) {
             } else {
                 return ESP_OK;
             }
-            esp_delay_ms(100);
+            device_delay_ms(100);
         }
 
         gy95_setup(p_gy);
-        esp_delay_ms(1000);
-        RESET_SLEEP_COUNTUP();
+        device_delay_ms(1000);
+        device_reset_sleep_countup();
 
     }
     
@@ -535,14 +535,14 @@ COMMAND_FUNCTION(imu_cali_mag) {
 COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
-    xEventGroupSetBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupSetBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
     return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     imu_disable(&g_imu);
-    xEventGroupClearBits(g_mcu.sys_event_group, GY95_ENABLED_BIT);
+    xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
     return ESP_OK;
 }
 

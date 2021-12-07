@@ -33,7 +33,7 @@ typedef struct command_reg_t {
     esp_err_t(*func)(char*, int, char*, int);
 } command_reg_t;
 
-static command_reg_t s_registration[] = {// TODO: Use linked list to store function
+static command_reg_t s_registration[] = {
     {.name = "restart", .func=command_func_restart},
     {.name = "ping", .func=command_func_ping},
     {.name = "shutdown", .func=command_func_shutdown},
@@ -74,14 +74,15 @@ command_reg_t * parse_command(char* command, int len) {
 }
 
 esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_t tx_len) {
-    command_reg_t * cmd = parse_command(rx_buffer, rx_len);
+    command_reg_t * cmd = parse_command(rx_buffer, rx_len); // TODO: Migrate another command parser
     esp_err_t ret = ESP_FAIL;
+    bzero(tx_buffer, sizeof(char) * tx_len);
+
     if (cmd == NULL) {
         /** Output error **/
         ESP_LOGE(TAG, "Got invalid command : %s", rx_buffer);
 
         /** Fill tx_buffer with 'ERROR\n' **/
-        bzero(tx_buffer, sizeof(char) * tx_len);
         strcpy(tx_buffer, "COMMAND NOT FOUND\n\n");
 
         /** Return False **/
@@ -90,7 +91,6 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         /** Output info **/
 
         /** Fill tx_buffer with '\0' **/
-        bzero(tx_buffer, sizeof(char) * tx_len);
         /** Fill tx buffer with command related context **/
         ret = cmd->func(rx_buffer, rx_len, tx_buffer, tx_len);
 
@@ -102,7 +102,6 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         /** Return False **/
         return ret;
     }
-    return true;
 };
 
 static void interact(const int sock)
@@ -119,7 +118,7 @@ static void interact(const int sock)
             s_rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
             ESP_LOGI(TAG, "Received %d bytes: %s", len, s_rx_buffer);
 
-            RESET_SLEEP_COUNTUP();
+            device_reset_sleep_countup();
             execute_command(s_rx_buffer, s_tx_buffer, RX_BUFFER_LEN, TX_BUFFER_LEN);
 
             int to_write = strlen(s_tx_buffer);
@@ -218,11 +217,11 @@ void app_controller(void* pvParameters) {
         }
 
 socket_error:
-        esp_delay_ms(100);
+        device_delay_ms(100);
         if (listen_sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(listen_sock, 0);
-            esp_delay_ms(100);
+            device_delay_ms(100);
             close(listen_sock);
         }
     }

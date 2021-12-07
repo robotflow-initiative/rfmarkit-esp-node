@@ -121,7 +121,7 @@ void app_tcp_client(void* pvParameters) {
                     xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
                     break;
                 } else {
-                    RESET_SLEEP_COUNTUP();
+                    device_reset_sleep_countup();
                 }
 
                 ESP_LOGD(TAG, "Message sent to %s:%s", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
@@ -140,11 +140,11 @@ socket_error:
             ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
             switch (errno) {
             case ECONNRESET:
-                esp_delay_ms(5000);
+                device_delay_ms(5000);
                 break;
 
             default:
-                esp_delay_ms(100);
+                device_delay_ms(100);
                 break;
             };
 
