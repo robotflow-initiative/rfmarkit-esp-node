@@ -36,6 +36,7 @@
 #include "settings.h"
 #include "imu.h"
 #include "device.h"
+#include "sys.h"
 
 static const char* TAG = "app_main";
 
@@ -75,7 +76,7 @@ static void init() { // TODO: Add BLE function
     ret = device_wifi_init_sta();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Cannot connect to AP, entering deep sleep");
-        device_enter_deep_sleep();
+        sys_enter_deep_sleep();
     }
     /** Configure wifi tx power **/
     ESP_LOGI(TAG, "Set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
@@ -90,7 +91,7 @@ static void init() { // TODO: Add BLE function
     init_events();
 
     if (imu_self_test(&g_imu) != ESP_OK) {
-        device_enter_deep_sleep();
+        sys_enter_deep_sleep();
     }
 
 }
@@ -129,7 +130,7 @@ void app_main(void) {
         bits = xEventGroupGetBits(g_mcu.wifi_event_group);
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
-            device_enter_deep_sleep();
+            sys_enter_deep_sleep();
         }
 
         /** Check other events **/
@@ -140,7 +141,7 @@ void app_main(void) {
 
         if (g_mcu.sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
             ESP_LOGI(TAG, "Operation Timeout");
-            device_enter_deep_sleep(); // TODO: Replace with WDT
+            sys_enter_deep_sleep(); // TODO: Replace with WDT
         }
     }
 }

@@ -41,10 +41,13 @@ typedef struct {
         gy95_self_test((imu_t*)(imu))
 
 #define imu_init(imu) \
-    gy95_init(&imu, CONFIG_GY95_UART_PORT, CONFIG_GY95_CTRL_PIN, CONFIG_GY95_RX, CONFIG_GY95_TX, CONFIG_GY95_RTS, CONFIG_GY95_CTS, CONFIG_GY95_ADDR); \
-    gy95_msp_init(&imu); \
-    gy95_disable(&imu); \
-    gy95_enable(&imu)
+        { \
+            gy95_init(&imu, CONFIG_GY95_UART_PORT,  CONFIG_GY95_CTRL_PIN,        CONFIG_GY95_RX, CONFIG_GY95_TX,     CONFIG_GY95_RTS, CONFIG_GY95_CTS,      CONFIG_GY95_ADDR); \
+            gy95_msp_init(&imu); \
+            gy95_disable(&imu); \
+            gy95_enable(&imu); \
+        }
+
 
 /** @brief func_parse **/
 #define imu_parse(imu, reading, res, buffer, len) \

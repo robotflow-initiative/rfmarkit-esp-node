@@ -8,7 +8,6 @@
 #include "driver/rtc_io.h"
 #include "nvs_flash.h"
 
-
 #include "apps.h"
 #include "esp_log.h"
 #include "device.h"

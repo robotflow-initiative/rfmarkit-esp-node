@@ -81,15 +81,16 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
                        int tx_len)
 
 /** Device control functions **/
-esp_err_t device_wifi_init_sta(void);
-void device_enter_deep_sleep(void);
-void device_get_device_id(void);
-void device_button_init(int);
 #define device_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
-esp_err_t device_do_ota(void);
-void device_log_chip_info(void);
+
 #define device_log_heap_size() \
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size())
+
+esp_err_t device_wifi_init_sta(void);
+void device_get_device_id(void);
+void device_button_init(int);
+esp_err_t device_do_ota(void);
+void device_log_chip_info(void);
 void device_reset_gpio(int);
 
 /** Register command functions **/

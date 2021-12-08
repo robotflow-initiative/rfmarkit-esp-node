@@ -13,18 +13,19 @@
 #include "lwip/inet.h"
 #include "lwip/netdb.h"
 
+#include "tcp_server.h"
 #include "apps.h"
 #include "blink.h"
 #include "device.h"
 #include "imu.h"
 #include "settings.h"
+#include "sys.h"
 
 #define RX_BUFFER_LEN 64 
 #define TX_BUFFER_LEN 512
 
 static const char* TAG = "app_controller";
 
-static char s_addr_str[128];
 static char s_rx_buffer[RX_BUFFER_LEN];
 static char s_tx_buffer[TX_BUFFER_LEN];
 
@@ -104,19 +105,6 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
     }
 };
 
-#define send_all(sock, buf) \
-        { \
-            int to_write = strlen(buf); \
-            while (to_write > 0) { \
-                int written = send(sock, buf, to_write, 0); \
-                if (written < 0) { \
-                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno); \
-                    break; \
-                } \
-                to_write -= written; \
-            } \
-        }
-
 static void interact(const int sock) {
     int recv_len;
     ESP_LOGI(TAG, "Interacting");
@@ -138,100 +126,12 @@ static void interact(const int sock) {
     } while (recv_len > 0);
 }
 
-#define CONFIG_KEEP_ALIVE 1
-#define CONFIG_KEEP_IDLE 5
-#define CONFIG_KEEP_COUNT 3
-#define CONFIG_KEEP_INTERVAL 5
-
 void app_controller(void* pvParameters) {
     ESP_LOGI(TAG, "app_controller started");
 
-    int addr_family = 0;
-    int ip_protocol = 0;
+    tcp_server_t server = { .port = CONFIG_LOCAL_PORT, .max_listen = 1 };
 
-    struct timeval timeout = { 0, 0 }; // UDP timeout
-
-    while (1) {
-        /** Create address struct **/
-        struct sockaddr_in dest_addr;
-        dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(CONFIG_LOCAL_PORT);
-
-        /** Create STREAM socket **/
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
-        int server_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
-        if (server_sock < 0) {
-            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-            device_delay_ms(1000);
-            goto socket_error;
-        }
-
-        /** Bind socket **/
-        int err = bind(server_sock, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-        if (err < 0) {
-            ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
-            goto socket_error;
-        }
-        ESP_LOGI(TAG, "Socket bound, port %d", CONFIG_LOCAL_PORT);
-
-        /** Start listenning **/
-        err = listen(server_sock, 1);
-        if (err != 0) {
-            ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
-            goto socket_error;
-        }
-
-        /** Set listen socket options **/
-        int opt = 1;
-        setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-        setsockopt(server_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
-
-        struct sockaddr_storage source_addr;
-        socklen_t socklen = sizeof(source_addr);
-
-        while (1) {
-            int KEEP_ALIVE = CONFIG_KEEP_ALIVE;
-            int KEEP_IDLE = CONFIG_KEEP_IDLE;
-            int KEEP_COUNT = CONFIG_KEEP_COUNT;
-            int KEEP_INTERVAL = CONFIG_KEEP_INTERVAL;
-
-            ESP_LOGD(TAG, "Socket listening");
-
-            int client_sock = accept(server_sock, (struct sockaddr*)&source_addr, &socklen);
-            if (client_sock < 0) {
-                ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
-                break;
-            }
-
-            /** Set tcp keepalive option **/
-            setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &KEEP_ALIVE, sizeof(int));
-            setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPIDLE, &KEEP_IDLE, sizeof(int));
-            setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPINTVL, &KEEP_INTERVAL, sizeof(int));
-            setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPCNT, &KEEP_COUNT, sizeof(int));
-
-            /** Convert ip address to string **/
-            if (source_addr.ss_family == PF_INET) {
-                inet_ntoa_r(((struct sockaddr_in*)&source_addr)->sin_addr, s_addr_str, sizeof(s_addr_str) - 1);
-            }
-            ESP_LOGI(TAG, "Socket accepted ip address: %s", s_addr_str);
-
-            interact(client_sock); // TODO: Add multiprocess.
-
-            shutdown(client_sock, 0);
-            close(client_sock);
-        }
-
-socket_error:
-        device_delay_ms(100);
-        if (server_sock != -1) {
-            ESP_LOGE(TAG, "Shutting down socket and restarting...");
-            shutdown(server_sock, 0);
-            device_delay_ms(100);
-            close(server_sock);
-        }
-    }
+    server_loop(&server, interact);
 
     vTaskDelete(NULL);
 }

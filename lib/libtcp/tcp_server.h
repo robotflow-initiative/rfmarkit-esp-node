@@ -1,6 +1,15 @@
 #ifndef _TCP_SERVER_H
 #define _TCP_SERVER_H
 
+typedef struct {
+    uint16_t port;
+    uint16_t max_listen;
+    struct sockaddr_in dest_addr;
+    int server_sock;
+} tcp_server_t;
+
+#define delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
+
 #define send_all(sock, buf) \
         { \
             int to_write = strlen(buf); \
@@ -25,19 +34,21 @@
         }
 
 #define handle_socket_err(sock) \
-        device_delay_ms(100);\
+        delay_ms(100);\
         if (sock != -1) { \
             ESP_LOGE(TAG, "Shutting down socket..."); \
             shutdown(sock, 0); \
-            device_delay_ms(100); \
+            delay_ms(100); \
             close(sock); \
         }
+
 
 #define CONFIG_KEEP_ALIVE 1
 #define CONFIG_KEEP_IDLE 5
 #define CONFIG_KEEP_COUNT 3
 #define CONFIG_KEEP_INTERVAL 5
 
+void server_loop(tcp_server_t * server, void (*interact)(int));
 void server_init(void (*pfunc)(int));
 
 #endif

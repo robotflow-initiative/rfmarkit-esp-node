@@ -8,7 +8,6 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "esp_sleep.h"
 #include "esp_err.h"
 #include "esp_intr_alloc.h"
 #include "esp_https_ota.h"
@@ -22,7 +21,6 @@
 
 #include "blink.h"
 #include "device.h"
-#include "imu.h"
 #include "settings.h"
 
 /* FreeRTOS event group to signal when we are connected*/
@@ -32,7 +30,7 @@
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
 
-static const char* TAG = "func_dev";
+static const char* TAG = "device";
 
 static int s_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
 
@@ -153,40 +151,6 @@ esp_err_t device_wifi_init_sta(void) {
     // vEventGroupDelete(g_wifi_event_group);
 }
 
-void device_enter_deep_sleep() {
-
-    // esp_sleep_enable_gpio_wakeup();
-    /* Enter sleep mode */
-    ESP_LOGI(TAG, " Going to deep sleep (shutdown)");
-
-    ESP_LOGI(TAG, "Disabling GY95");
-    imu_disable(&g_imu);
-    xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
-
-    vTaskDelay(200 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "GY95 ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
-
-    LED_ALLOFF();
-
-    gpio_hold_en(g_imu.ctrl_pin);
-    gpio_hold_en(CONFIG_BLINK_RED_PIN);
-    gpio_hold_en(CONFIG_BLINK_GREEN_PIN);
-    gpio_hold_en(CONFIG_BLINK_BLUE_PIN);
-
-    ESP_LOGI(TAG, "Entering deep sleep (holding pin %d)\n", g_imu.ctrl_pin);
-
-    /** If we donote disable wakeup source, then deep sleep will be waken **/
-    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
-    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
-    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD);
-
-
-    /** Begin deep sleep **/
-    esp_deep_sleep_start();
-    /** ESP shutdown **/
-
-}
-
 static void esp_enter_deep_sleep_from_isr(void* params) {
     g_mcu.sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
 }
@@ -282,12 +246,6 @@ COMMAND_FUNCTION(restart) {
 
 COMMAND_FUNCTION(ping){
     ESP_LOGI(TAG, "Executing command : IMU_PING");
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(shutdown) {
-    ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
-    device_enter_deep_sleep();
     return ESP_OK;
 }
 

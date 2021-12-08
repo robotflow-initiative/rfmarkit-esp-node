@@ -17,14 +17,6 @@
 
 static const char* TAG = "tcp_server";
 
-
-typedef struct {
-    uint16_t port;
-    uint16_t max_listen;
-    struct sockaddr_in dest_addr;
-    int server_sock;
-} tcp_server_t;
-
 void server_set_port(tcp_server_t* server, int port) {
     server->dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     server->dest_addr.sin_family = AF_INET;
@@ -37,14 +29,14 @@ esp_err_t server_create_socket(tcp_server_t* server) {
     server->server_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
     if (server->server_sock < 0) {
         ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-        device_delay_ms(1000);
+        delay_ms(1000);
         handle_socket_err(server->server_sock);
     }
     return (server->server_sock >= 0) ? ESP_OK : ESP_FAIL;
 }
 
-esp_err_t server_bind(tcp_server_t* server, int port) {
-    server_set_port(&server, port);
+esp_err_t server_bind(tcp_server_t* server) {
+    server_set_port(server, server->port);
 
     int err = bind(server->server_sock, (struct sockaddr*)&server->dest_addr, sizeof(server->dest_addr));
     if (err < 0) {
@@ -53,7 +45,7 @@ esp_err_t server_bind(tcp_server_t* server, int port) {
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Socket bound, port %d", CONFIG_LOCAL_PORT);
+    ESP_LOGI(TAG, "Socket bound, port %d", server->port);
 
     return ESP_OK;
 }
@@ -66,8 +58,8 @@ esp_err_t server_set_timeout(tcp_server_t* server, int timeout_s) {
     return ESP_OK;
 }
 
-esp_err_t server_listen(tcp_server_t* server, int n_listen) {
-    int err = listen(server->server_sock, n_listen);
+esp_err_t server_listen(tcp_server_t* server) {
+    int err = listen(server->server_sock, server->max_listen);
     if (err != 0) {
         ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
         handle_socket_err(server->server_sock);
@@ -107,29 +99,25 @@ int server_accept(tcp_server_t* server) {
 #define CONFIG_PORT 2333
 #define CONFIG_LISTEN_NUM 1
 
-void server_loop(void (*pfunc)(int)) {
-    tcp_server_t server = { .port = CONFIG_PORT, .max_listen = CONFIG_LISTEN_NUM };
+void server_loop(tcp_server_t * server, void (*interact)(int)) {
 
     while (1) {
         /** Create address struct **/
 
         /** Create STREAM socket **/
-        server_create_socket(&server);
+        server_create_socket(server);
 
         /** Bind socket **/
-        server_bind(&server, CONFIG_PORT);
+        server_bind(server);
 
         /** Start listenning **/
-        server_listen(&server, CONFIG_LISTEN_NUM);
+        server_listen(server);
         /** Set listen socket options **/
 
-        server_set_timeout(&server, 0);
-
-        struct sockaddr_storage source_addr;
-        socklen_t socklen = sizeof(source_addr);
+        server_set_timeout(server, 0);
 
         while (1) {
-            int client_sock = server_accept(&server);
+            int client_sock = server_accept(server);
             if (client_sock < 0) {
                 ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
                 break;
@@ -140,6 +128,6 @@ void server_loop(void (*pfunc)(int)) {
             shutdown(client_sock, 0);
             close(client_sock);
         }
-        handle_socket_err(server.server_sock);
+        handle_socket_err(server->server_sock);
     }
 }

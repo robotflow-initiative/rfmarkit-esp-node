@@ -13,7 +13,6 @@
 
 #include "cJSON.h"
 
-#include "apps.h"
 #include "blink.h"
 #include "device.h"
 
@@ -41,7 +40,6 @@ static bool blink_timeout(void* args) {
     if (s_blink_idx >= CONFIG_BLINK_SEQ_LEN) s_blink_idx = 0;
     gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
     s_blink_idx++;
-    // printf("%d", s_blink_seq[s_blink_idx]);
 
     return false;
 }
