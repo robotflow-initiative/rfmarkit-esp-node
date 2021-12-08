@@ -59,7 +59,7 @@ void app_uart_monitor(void* pvParameters) {
 
             if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
                 device_delay_ms(1000);
-                xEventGroupClearBits(g_mcu.sys_event_group, UART_ACTIVE_BIT); // Mark uart as inactive
+                clear_sys_event(UART_ACTIVE); // Mark uart as inactive
                 continue;
             } else {
                 if (bits & IMU_ENABLED_BIT) {
@@ -67,22 +67,15 @@ void app_uart_monitor(void* pvParameters) {
                 } else {
                     ESP_LOGI(TAG, "Enabling IMU");
                     imu_enable(&g_imu);
-                    xEventGroupSetBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
+                    set_sys_event(IMU_ENABLED);
                     break;
                 }
             }
         }
+
         if (!(bits & UART_ACTIVE_BIT)) {
-            xEventGroupSetBits(g_mcu.sys_event_group, UART_ACTIVE_BIT);
+            set_sys_event(UART_ACTIVE);
         }
-        /** Get data **/
-#if CONFIG_USE_PSEUDO_VALUE
-        bzero(imu_data.data, sizeof(imu_data.data));
-        memcpy(imu_data.data, pseudo_data1, sizeof(imu_data.data));
-        gettimeofday(&tv_now, NULL);
-        imu_data.timew_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-#else
         ESP_LOGD(TAG, "Try to read gy");
 
         /** Tag starting point */

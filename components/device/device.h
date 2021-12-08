@@ -64,10 +64,20 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 
 /** System **/
 #define TCP_CONNECTED_BIT BIT0
+#define TCP_CONNECTED // Pseodu define
 #define NTP_SYNCED_BIT BIT1
+#define NTP_SYNCED
 #define IMU_ENABLED_BIT BIT2
+#define IMU_ENABLED
 #define UART_BLOCK_BIT BIT3
+#define UART_BLOCK
 #define UART_ACTIVE_BIT BIT4
+#define UART_ACTIVE
+
+#define set_sys_event(ev) \
+        xEventGroupSetBits(g_mcu.sys_event_group, ev##_BIT);
+#define clear_sys_event(ev) \
+        xEventGroupClearBits(g_mcu.sys_event_group, ev##_BIT);
 
 /** Wi-Fi **/
 #define WIFI_CONNECTED_BIT BIT0

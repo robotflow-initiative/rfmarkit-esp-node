@@ -62,7 +62,7 @@ static esp_err_t device_wait_sync_time(const char* const posix_tz) {
 
 void app_time_sync(void* pvParameters) {
     ESP_LOGI(TAG, "app_time_sync started");
-    xEventGroupClearBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
+    clear_sys_event(NTP_SYNCED);
 
     char strftime_buf[STRTIME_BUF_LEN];
     esp_err_t ret;
@@ -77,7 +77,7 @@ void app_time_sync(void* pvParameters) {
 
             /** Set event **/
             ESP_LOGI(TAG, "Setting NTP_SYNCED_BIT");
-            xEventGroupSetBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
+            set_sys_event(NTP_SYNCED);
             /** Sleep **/
             device_delay_ms(CONFIG_NTP_UPDATE_INTERVAL_MS);
             n_retry = CONFIG_NTP_MAX_RETRY;
@@ -92,7 +92,3 @@ void app_time_sync(void* pvParameters) {
 
     vTaskDelete(NULL);
 }
-
-
-
-

@@ -251,14 +251,14 @@ COMMAND_FUNCTION(ping){
 
 COMMAND_FUNCTION(update) {
     ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
-    xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    set_sys_event(UART_BLOCK);
     esp_err_t ret = device_do_ota();
     return ret;
 }
 
 COMMAND_FUNCTION(start) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
-    xEventGroupClearBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    clear_sys_event(UART_BLOCK);
     EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, UART_ACTIVE_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_COUNT_PERIOD_MS / portTICK_PERIOD_MS);
     if (bits & UART_ACTIVE_BIT) {
         return ESP_OK;
@@ -269,7 +269,7 @@ COMMAND_FUNCTION(start) {
 
 COMMAND_FUNCTION(stop) {
     ESP_LOGI(TAG, "Executing command : IMU_STOP");
-    xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    set_sys_event(UART_BLOCK);
     return ESP_OK;
 }
 

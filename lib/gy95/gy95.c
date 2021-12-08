@@ -534,14 +534,14 @@ COMMAND_FUNCTION(imu_cali_mag) {
 COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
-    xEventGroupSetBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
+    set_sys_event(IMU_ENABLED);
     return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     imu_disable(&g_imu);
-    xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
+    clear_sys_event(IMU_ENABLED);
     return ESP_OK;
 }
 

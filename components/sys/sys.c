@@ -24,6 +24,7 @@ void sys_enter_deep_sleep() {
     ESP_LOGI(TAG, "Disabling GY95");
     imu_disable(&g_imu);
     xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
+    clear_sys_event(IMU_ENABLED);
 
     device_delay_ms(200);
     ESP_LOGI(TAG, "IMU ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));

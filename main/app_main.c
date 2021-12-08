@@ -42,10 +42,10 @@ static const char* TAG = "app_main";
 
 static void init_events() {
     /** Configure Events **/
-    xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
-    xEventGroupClearBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
-    xEventGroupSetBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
-    xEventGroupSetBits(g_mcu.sys_event_group, UART_BLOCK_BIT);
+    clear_sys_event(TCP_CONNECTED);
+    clear_sys_event(NTP_SYNCED);
+    clear_sys_event(IMU_ENABLED);
+    clear_sys_event(UART_BLOCK);
 }
 
 static void init() { // TODO: Add BLE function
