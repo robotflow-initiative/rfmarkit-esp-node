@@ -23,7 +23,18 @@ void time_sync_notification_cb(struct timeval* tv) {
     ESP_LOGI(TAG, "Notification of a time synchronization event");
 }
 
-bool esp_wait_sync_time(const char* const posix_tz) {
+#define STRTIME_BUF_LEN 64
+#define fill_strtime_buf(buf) \
+    { \
+        time_t now; \
+        struct tm timeinfo; \
+        time(&now); \
+        localtime_r(&now, &timeinfo); \
+        strftime(buf, sizeof(buf), "%c", &timeinfo); \
+        ESP_LOGI(TAG, "The current date/time in "CONFIG_LOCAL_TZ" is: %s", buf); \
+    }
+
+static esp_err_t device_wait_sync_time(const char* const posix_tz) {
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, CONFIG_NTP_SERVER_ADDR);
@@ -33,53 +44,42 @@ bool esp_wait_sync_time(const char* const posix_tz) {
 
     /** wait for time to be set **/
     int n_retry = 0;
-    const int max_retry = 20;
-    time_t now;
-    struct tm timeinfo;
-    char strftime_buf[64];
+    char strftime_buf[STRTIME_BUF_LEN];
 
-    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++n_retry < max_retry) {
-        time(&now);
-        localtime_r(&now, &timeinfo);
-        strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-        ESP_LOGI(TAG, "The current date/time in "CONFIG_LOCAL_TZ" is: %s", strftime_buf); // FIXME: Possible issue: time not synced
-        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", n_retry, max_retry);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++n_retry < CONFIG_NTP_TIMEOUT_S) {
+        fill_strtime_buf(strftime_buf);
+        // FIXME: Possible issue: time not synced
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", n_retry, CONFIG_NTP_TIMEOUT_S);
+        device_delay_ms(1000);
     }
-
 
     setenv("TZ", posix_tz, 1);
     tzset();
     sntp_stop();
 
-    return (n_retry < max_retry) ? true : false;
+    return (n_retry < CONFIG_NTP_TIMEOUT_S) ? ESP_OK : ESP_FAIL;
 }
 
 void app_time_sync(void* pvParameters) {
     ESP_LOGI(TAG, "app_time_sync started");
     xEventGroupClearBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
 
-    time_t now;
-    struct tm timeinfo;
-    char strftime_buf[64];
-    bool ret;
+    char strftime_buf[STRTIME_BUF_LEN];
+    esp_err_t ret;
     int n_retry = CONFIG_NTP_MAX_RETRY;
 
     while (1) {
         /** Set timezone to China Standard Time **/
-        ret = esp_wait_sync_time(CONFIG_LOCAL_TZ);
-        if (ret) {
+        ret = device_wait_sync_time(CONFIG_LOCAL_TZ);
+        if (ret == ESP_OK) {
             /** Update 'now' variable with current time **/
-            time(&now);
-            localtime_r(&now, &timeinfo);
-            strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-            ESP_LOGI(TAG, "The current date/time in "CONFIG_LOCAL_TZ" is: %s", strftime_buf);
+            fill_strtime_buf(strftime_buf);
 
             /** Set event **/
             ESP_LOGI(TAG, "Setting NTP_SYNCED_BIT");
             xEventGroupSetBits(g_mcu.sys_event_group, NTP_SYNCED_BIT);
             /** Sleep **/
-            vTaskDelay(CONFIG_NTP_UPDATE_INTERVAL_MS / portTICK_PERIOD_MS);
+            device_delay_ms(CONFIG_NTP_UPDATE_INTERVAL_MS);
             n_retry = CONFIG_NTP_MAX_RETRY;
         } else {
             ESP_LOGW(TAG, "Previous time sync failed");
@@ -89,7 +89,6 @@ void app_time_sync(void* pvParameters) {
             esp_restart();
         }
     }
-
 
     vTaskDelete(NULL);
 }

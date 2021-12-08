@@ -119,7 +119,7 @@ void app_main(void) {
 
     device_log_heap_size();
     device_reset_sleep_countup();
-    
+
     EventBits_t bits;
     while (1) {
         ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_mcu.sleep_countup);
