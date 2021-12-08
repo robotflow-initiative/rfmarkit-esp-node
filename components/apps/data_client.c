@@ -21,7 +21,7 @@
 #include "device.h"
 #include "imu.h"
 
-static const char* TAG = "app_tcp_client";
+static const char* TAG = "app_data_client";
 
 static uint8_t s_send_buffer[CONFIG_PAYLOAD_BUFFER_LEN * 0xF];
 static int s_send_buffer_tail = 0;
@@ -29,8 +29,8 @@ static int s_send_buffer_tail = 0;
 #define RESET_SEND_BUFFER() \
     s_send_buffer_tail = 0;
 
-void app_tcp_client(void* pvParameters) {
-    ESP_LOGI(TAG, "app_tcp_client started");
+void app_data_client(void* pvParameters) {
+    ESP_LOGI(TAG, "app_data_client started");
     int addr_family = 0;
     int ip_protocol = 0;
 
