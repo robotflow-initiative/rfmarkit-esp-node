@@ -1,5 +1,5 @@
-#ifndef _TCP_SERVER_H
-#define _TCP_SERVER_H
+#ifndef _TCP_H
+#define _TCP_H
 
 typedef struct {
     uint16_t port;
@@ -7,6 +7,13 @@ typedef struct {
     struct sockaddr_in dest_addr;
     int server_sock;
 } tcp_server_t;
+
+typedef struct {
+    uint16_t port;
+    char address[16];
+    struct sockaddr_in dest_addr;
+    int client_sock;
+} tcp_client_t;
 
 #define delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
 
@@ -51,4 +58,6 @@ typedef struct {
 void server_loop(tcp_server_t * server, void (*interact)(int));
 void server_init(void (*pfunc)(int));
 
+void client_init(tcp_client_t * client);
+int client_connect(tcp_client_t* client);
 #endif

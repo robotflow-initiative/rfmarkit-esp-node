@@ -13,7 +13,7 @@
 #include "lwip/inet.h"
 #include "lwip/netdb.h"
 
-#include "tcp_server.h"
+#include "tcp.h"
 #include "apps.h"
 #include "blink.h"
 #include "device.h"
@@ -64,7 +64,7 @@ static command_reg_t s_registration[] = {
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)
 
-command_reg_t* parse_command(char* command, int len) {
+static command_reg_t* parse_command(char* command, int len) {
     ESP_LOGI(TAG, "Got command %s from controller", command);
     for (int idx = 0; idx < sizeof(s_registration) / sizeof(command_reg_t); ++idx) {
         if (MATCH_CMD(command, s_registration[idx].name)) {
@@ -93,7 +93,7 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
 
         /** Fill tx_buffer with '\0' **/
         /** Fill tx buffer with command related context **/
-        ret = cmd->func(rx_buffer, rx_len, tx_buffer, tx_len);// TODO: add cmd to g_imu
+        ret = cmd->func(rx_buffer, rx_len, tx_buffer, tx_len);
 
         /** Command did not modify the buffer **/
         if (strlen(tx_buffer) == 0) {

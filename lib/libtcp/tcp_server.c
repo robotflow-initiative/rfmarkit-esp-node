@@ -13,7 +13,7 @@
 #include "lwip/inet.h"
 #include "lwip/netdb.h"
 
-#include "tcp_server.h"
+#include "tcp.h"
 
 static const char* TAG = "tcp_server";
 

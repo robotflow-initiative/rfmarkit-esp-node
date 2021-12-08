@@ -20,6 +20,7 @@
 #include "settings.h"
 #include "device.h"
 #include "imu.h"
+#include "tcp.h"
 
 static const char* TAG = "app_data_client";
 
@@ -31,38 +32,16 @@ static int s_send_buffer_tail = 0;
 
 void app_data_client(void* pvParameters) {
     ESP_LOGI(TAG, "app_data_client started");
-    int addr_family = 0;
-    int ip_protocol = 0;
 
-    QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
-    struct timeval timeout = { 3,0 }; // TCP timeout 
+    QueueHandle_t serial_queue = (QueueHandle_t)pvParameters; 
 
     imu_dgram_t imu_reading = { 0 };
+    tcp_client_t client = {
+        .port = CONFIG_HOST_PORT,
+        .address = CONFIG_HOST_IP_ADDR
+    };
 
     while (1) {
-        /** TCP connection is not established **/
-        xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
-
-        /** Create address struct **/
-        struct sockaddr_in dest_addr;
-        dest_addr.sin_addr.s_addr = inet_addr(CONFIG_HOST_IP_ADDR);
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(CONFIG_HOST_PORT);
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
-
-        /** Create socket **/
-        int sock = socket(addr_family, SOCK_STREAM, ip_protocol);
-        if (sock < 0) {
-            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            goto socket_error;
-        }
-        ESP_LOGI(TAG, "Socket created, sending to %s:%d", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
-
-        /** Set socket options **/
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
-
         /** Wait time sync **/
         ESP_LOGI(TAG, "Waiting for time sync");
         xEventGroupWaitBits(g_mcu.sys_event_group,
@@ -71,24 +50,25 @@ void app_data_client(void* pvParameters) {
                             pdFALSE,
                             portMAX_DELAY);
 
+        /** TCP connection is not established **/
+        clear_sys_event(TCP_CONNECTED);
+
+        client_init(&client);
+
         /** Connect socket so the IP address of node is reported **/
-        int err = connect(sock, (struct sockaddr*)&dest_addr, sizeof(struct sockaddr_in6));
+        int err = client_connect(&client);
         if (err != 0) {
             ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            device_delay_ms(1000);
             goto socket_error;
         }
-        ESP_LOGSOCKET(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
 
-        SET_DEBUG_SOCK(sock);
-
-        xEventGroupSetBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
-        RESET_SEND_BUFFER();
+        set_sys_event(TCP_CONNECTED);
+        /** TCP connection is established **/
 
         while (1) {
             ESP_LOGD(TAG, "tcp_client loop");
-            ESP_LOGSOCKET(TAG, "tcp_client loop");
             /** If the QueueIsEmpy, sleep for a while **/
             if (xQueueReceive(serial_queue, &imu_reading, (TickType_t)0x4) != pdPASS) {
                 taskYIELD();
@@ -96,61 +76,37 @@ void app_data_client(void* pvParameters) {
                 continue;
             }
             /** imu_reading is available **/
-#if CONFIG_SEND_PARSED
-            err = imu_parse(&g_imu, &imu_reading, NULL, payload_buffer, CONFIG_PAYLOAD_BUFFER_LEN);
-            payload_len = strlen(payload_buffer);
-
-            if (payload_len == 0 || !err) {
-                esp_task_wdt_reset();
-                ESP_LOGW(TAG, "Failed to parse IMU reading");
-                continue;
-            } else {
-                ESP_LOGD(TAG, "Got parsed imu reading: \n%s\n", payload_buffer);
-                /** Append '\n' at the end of payload **/
-                payload_buffer[payload_len++] = '\n';
-            }
-#else
             s_send_buffer_tail += imu_tag(&imu_reading,
                                           s_send_buffer + s_send_buffer_tail,
                                           sizeof(s_send_buffer) - s_send_buffer_tail);
-#endif
             if (SEND_BUFFER_FULL()) {
-                err = send(sock, s_send_buffer, s_send_buffer_tail, 0);
+                err =  send(client.client_sock, s_send_buffer, s_send_buffer_tail, 0);
                 if (err < 0) {
                     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                    xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
+                    clear_sys_event(TCP_CONNECTED);
                     break;
                 } else {
                     device_reset_sleep_countup();
                 }
-
-                ESP_LOGD(TAG, "Message sent to %s:%s", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
+                ESP_LOGD(TAG, "Reading sent to %s:%s", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
                 RESET_SEND_BUFFER();
             } else {
                 taskYIELD();
             }
-
-
         }
 
 socket_error:
-
-        xEventGroupClearBits(g_mcu.sys_event_group, TCP_CONNECTED_BIT);
-        if (sock != -1) {
-            ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
-            switch (errno) {
-            case ECONNRESET:
-                device_delay_ms(5000);
-                break;
-
-            default:
-                device_delay_ms(100);
-                break;
-            };
-
-            shutdown(sock, 0);
-            close(sock);
-        }
+        clear_sys_event(TCP_CONNECTED);
+        ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
+        switch (errno) {
+        case ECONNRESET:
+            device_delay_ms(5000);
+            break;
+        default:
+            device_delay_ms(100);
+            break;
+        };
+        handle_socket_err(client.client_sock)
     }
 
     vTaskDelete(NULL);
