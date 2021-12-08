@@ -1,5 +1,5 @@
-#ifndef _FUNCS_H
-#define _FUNCS_H
+#ifndef _DEVICE_H
+#define _DEVICE_H
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

@@ -217,7 +217,7 @@ COMMAND_FUNCTION(blink_set) {
         } else if (cJSON_IsNumber(pPin)) {
             pin = pPin->valueint;
             if (GPIO_IS_VALID_GPIO(pin)) {
-                snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to %d; ");
+                snprintf(tx_buffer + offset, tx_len - offset, "Blink pin set to %d; ", pin);
                 offset = strlen(tx_buffer);
                 err = ESP_FAIL;
                 goto blink_set_cleanup;

@@ -35,8 +35,6 @@ void app_uart_monitor(void* pvParameters) {
     QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
     ESP_LOGD(TAG, "\n[ Address ] %p\n", serial_queue);
 
-    struct timeval tv_now = { 0 };
-
     imu_dgram_t imu_data = { 0 };
     imu_dgram_t imu_data_trash = { 0 };
     int ret = 0;

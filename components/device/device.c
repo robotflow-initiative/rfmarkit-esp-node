@@ -151,7 +151,7 @@ esp_err_t device_wifi_init_sta(void) {
     // vEventGroupDelete(g_wifi_event_group);
 }
 
-static void esp_enter_deep_sleep_from_isr(void* params) {
+static void sys_enter_deep_sleep_from_isr(void* params) {
     g_mcu.sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
 }
 
@@ -184,7 +184,7 @@ void device_button_init(int pin) {
     };
     gpio_config(&io_config);
     gpio_install_isr_service(0);
-    gpio_isr_handler_add(pin, esp_enter_deep_sleep_from_isr, NULL);
+    gpio_isr_handler_add(pin, sys_enter_deep_sleep_from_isr, NULL);
 }
 
 

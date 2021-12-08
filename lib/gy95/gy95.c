@@ -662,10 +662,10 @@ COMMAND_FUNCTION(self_test) {
     esp_err_t err = gy95_self_test(&g_imu);
 
     if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "Self-test OK\n\n", g_mcu.blink_pin);
+        snprintf(tx_buffer, tx_len, "Self-test OK: %d\n\n", g_mcu.blink_pin);
         return err;
     } else {
-        snprintf(tx_buffer, tx_len, "Self-test FAIL\n\n", g_mcu.blink_pin);
+        snprintf(tx_buffer, tx_len, "Self-test FAIL: %d\n\n", g_mcu.blink_pin);
         return err;
     }
 

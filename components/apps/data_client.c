@@ -88,7 +88,7 @@ void app_data_client(void* pvParameters) {
                 } else {
                     device_reset_sleep_countup();
                 }
-                ESP_LOGD(TAG, "Reading sent to %s:%s", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
+                ESP_LOGD(TAG, "Reading sent to %s:%d", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
                 RESET_SEND_BUFFER();
             } else {
                 taskYIELD();
