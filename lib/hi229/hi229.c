@@ -1,2 +1,2 @@
-#include "hipnuc.h"
+#include "hi229.h"
 //TODO: Finish hipnuc adapter
