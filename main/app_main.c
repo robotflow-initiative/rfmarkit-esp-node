@@ -108,8 +108,8 @@ void app_main(void) {
     /** Launch tasks **/
 #if CONFIG_MULTI_CORE
     launch_task_multicore(app_time_sync, "app_time_sync", 2560, NULL, 2, time_sync_task, 0x1);
-    launch_task_multicore(app_data_client, "app_data_client", 4096,serial_queue, 2, tcp_task, 0x1);
-    launch_task_multicore(app_uart_monitor, "app_uart_monitor", 2560,serial_queue, 1, uart_task, 0x0);
+    launch_task_multicore(app_data_client, "app_data_client", 4096, serial_queue, 2, tcp_task, 0x1);
+    launch_task_multicore(app_uart_monitor, "app_uart_monitor", 2560, serial_queue, 1, uart_task, 0x0);
     launch_task_multicore(app_controller, "app_controller", 4096, NULL, 1, controller_task, 0x1);
 #else
     launch_task(app_time_sync, "app_time_sync", 2560, NULL, 2, time_sync_task);
