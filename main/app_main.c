@@ -68,9 +68,7 @@ static void init() { // TODO: Add BLE function
     device_reset_gpio(CONFIG_IMU_CTRL_PIN);
 
     /** Init global imu struct g_imu **/
-    /** Setup IMU **/
-    ESP_LOGI(TAG, "Setting up IMU");
-    imu_init(g_imu);
+
 
     /** Init Wi-Fi **/
     ret = device_wifi_init_sta();
@@ -90,9 +88,16 @@ static void init() { // TODO: Add BLE function
 
     init_events();
 
+#if CONFIG_ENABLE_IMU
+    /** Setup IMU **/
+    ESP_LOGI(TAG, "Setting up IMU");
+    imu_init(g_imu);
+    sys_delay_ms(500);
     if (imu_self_test(&g_imu) != ESP_OK) {
         sys_enter_deep_sleep();
     }
+#endif
+
 
 }
 

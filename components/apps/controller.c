@@ -39,6 +39,7 @@ static command_reg_t s_registration[] = {
     {.name = "ping", .func = command_func_ping},
     {.name = "shutdown", .func = command_func_shutdown},
     {.name = "update", .func = command_func_update},
+#if CONFIG_ENABLE_IMU
     {.name = "imu_cali_reset", .func = command_func_imu_cali_reset},
     {.name = "imu_cali_acc", .func = command_func_imu_cali_acc},
     {.name = "imu_cali_mag", .func = command_func_imu_cali_mag},
@@ -50,6 +51,7 @@ static command_reg_t s_registration[] = {
     {.name = "imu_imm", .func = command_func_imu_imm},
     {.name = "imu_setup", .func = command_func_imu_setup},
     {.name = "imu_scale",.func = command_func_imu_scale},
+#endif
     {.name = "id", .func = command_func_id},
     {.name = "ver", .func = command_func_ver},
     {.name = "blink_set", .func = command_func_blink_set},

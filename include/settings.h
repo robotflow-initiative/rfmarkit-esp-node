@@ -5,19 +5,20 @@
 
 #include "driver/gpio.h"
 
+/** Debug options **/
 #define CONFIG_USE_PSEUDO_VALUE 0
 #define CONFIG_EN_DEBUG_OVER_TCP 0
 #define CONFIG_EN_PARSER_DEBUG 0
 #define CONFIG_EN_GY95_DEBUG 0
 
 /** System settings **/
-
 #define CONFIG_MAIN_LOOP_COUNT_PERIOD_MS 10000
 #define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 18
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
 #define CONFIG_SERIAL_QUEUE_LEN 1024
 #define CONFIG_DEVICE_ID_LEN 12
+#define CONFIG_EN _IMU 1
 
 /** Wi-Fi environment settings**/
 #define ENV 3
@@ -49,7 +50,6 @@
 
 /** OTA debugging is not different in debug mode and non debug mode **/
 #define CONFIG_OTA_PORT "5138"
-
 #define CONFIG_OTA_APIHOST "http://"CONFIG_HOST_IP_ADDR":"CONFIG_OTA_PORT"/firmware.bin" // TODO: Upgrading via HTTP is not safe
 #define CONFIG_OTA_MAXIMUM_RETRY 1
 
@@ -77,7 +77,7 @@
 #define CONFIG_NTP_UPDATE_INTERVAL_MS 1200000
 
 /** On Board Button **/
-#define CONFIG_BUTTON_GPIO_PIN GPIO_NUM_9
+#include "pins.h"
 
                        
 #endif
