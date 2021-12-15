@@ -87,7 +87,7 @@ typedef struct {
     float mag_x;
     float mag_y;
     float mag_z;
-} gy95_multiplier_t, gy95_res_t; // INTERNAL
+} gy95_multiplier_t, gy95_data_t; // INTERNAL
 
 typedef enum {
     GY95_OK,
@@ -148,7 +148,7 @@ esp_err_t gy95_self_test(gy95_t* p_gy);  // EXTERNAL
 /** @brief func_parse **/
 esp_err_t gy95_parse(gy95_t* p_gy,
                      gy95_dgram_t* p_reading,
-                     gy95_res_t* p_parsed,
+                     gy95_data_t* p_parsed,
                      char* buffer, int len);// EXTERNAL
 int gy95_tag(gy95_dgram_t* p_reading, uint8_t* payload, int len);// EXTERNAL
 

@@ -7,6 +7,7 @@
 
 #include "cJSON.h"
 
+#include "gy95.h"
 #include "imu.h"
 #include "device.h"
 
@@ -55,10 +56,10 @@ static gy95_multiplier_t default_multiplier = {
 **/
 esp_err_t gy95_parse(gy95_t* p_gy,
                      gy95_dgram_t* p_reading,
-                     gy95_res_t* p_res,
+                     gy95_data_t* p_res,
                      char* buffer, int len) {
     gy95_holder_t holder = { 0 };
-    gy95_res_t res = { 0 };
+    gy95_data_t res = { 0 };
     esp_err_t err = ESP_OK;
 
 #if CONFIG_EN_PARSER_DEBUG
@@ -140,7 +141,7 @@ esp_err_t gy95_parse(gy95_t* p_gy,
 
         err = (cJSON_PrintPreallocated(pRoot, buffer, len, 0) == 0) ? ESP_OK : ESP_FAIL;
 #if CONFIG_EN_PARSER_DEBUG
-    ESP_LOGI(TAG, "JSON String: %s\nRes:%d\n", buffer, res);
+        ESP_LOGI(TAG, "JSON String: %s\nRes:%d\n", buffer, res);
 #endif
         cJSON_free(pRoot);
 
@@ -151,11 +152,11 @@ esp_err_t gy95_parse(gy95_t* p_gy,
 
 /**
  * @brief Tag imu_reading with device id
- * 
- * @param p_reading 
- * @param payload_buffer 
- * @param len 
- * @return int 
+ *
+ * @param p_reading
+ * @param payload_buffer
+ * @param len
+ * @return int
  * @warning must guarentee the payload_buffer length
 **/
 int gy95_tag(gy95_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
@@ -172,7 +173,7 @@ int gy95_tag(gy95_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
 
     /**
      * @brief Format of packet:
-     * 
+     *
      * | 0xa4 | ... | chk_sum | timestamp |     id     | gy_scale | start_timestamp | uart_buffer_len | chk_sum |
      *    0              31     32  -  39   40  -  51       52         53  -  60         61  -  64         65
      */
@@ -185,8 +186,13 @@ int gy95_tag(gy95_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     memcpy(payload_buffer + offset, g_mcu.device_id, sizeof(g_mcu.device_id));
     offset += CONFIG_DEVICE_ID_LEN;
 
+#if CONFIG_IMU_SUPPORT_SCALE
     payload_buffer[offset++] = g_imu.scale;
-    
+#else
+    payload_buffer[offset++] = 0;
+#endif
+
+
     memcpy(payload_buffer + offset, &p_reading->start_time_us, sizeof(p_reading->start_time_us));
     offset += sizeof(p_reading->start_time_us);
 

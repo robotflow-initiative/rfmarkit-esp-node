@@ -11,7 +11,7 @@
 #include "apps.h"
 #include "esp_log.h"
 #include "device.h"
-#include "imu.h"
+#include "gy95.h"
 
 static const char* TAG = "GY95";
 // static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -66,7 +66,7 @@ void gy95_msp_init(gy95_t* p_gy) {
 
 static void gy95_read_scale(gy95_t* p_gy) {
     nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open(CONFIG_IMU_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
+    ESP_ERROR_CHECK(nvs_open(CONFIG_GY95_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
 
     p_gy->acc_scale = 0;
     p_gy->gyro_scale = 0;
@@ -159,7 +159,7 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     while (xTaskGetTickCount() - start_tick < CONFIG_GY95_MAX_CHECK_TIMEOUT) {
 
         uart_read_bytes(p_gy->port, &rx_buf[cursor], 1, 0xF);
-#if CONFIG_EN_GY95_DEBUG
+#if CONFIG_EN_IMU_DEBUG
         printf("0x%x.", rx_buf[cursor]);
 #endif
         if (rx_buf[cursor] != msg[cursor]) {
@@ -465,8 +465,8 @@ esp_err_t gy95_self_test(gy95_t* p_gy) {
 
     ESP_LOGI(TAG, "Running self test");
 
-    imu_dgram_t imu_data = { 0 };
-    gy95_res_t imu_res = { 0 };
+    gy95_dgram_t imu_data = { 0 };
+    gy95_data_t imu_res = { 0 };
     double g_mod = 0;
 
     for (int i = 0; i < 3; ++i) {
@@ -540,7 +540,7 @@ COMMAND_FUNCTION(imu_enable) {
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
-    imu_disable(&g_imu);
+    gy95_disable(&g_imu);
     clear_sys_event(IMU_ENABLED);
     return ESP_OK;
 }
@@ -558,8 +558,8 @@ COMMAND_FUNCTION(imu_status) {
 
 COMMAND_FUNCTION(imu_imm) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_IMM");
-    imu_dgram_t imu_data;
-    gy95_res_t imu_res = { 0 };
+    gy95_dgram_t imu_data;
+    gy95_data_t imu_res = { 0 };
 
     gy95_imm(&g_imu);
     memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
@@ -614,7 +614,7 @@ COMMAND_FUNCTION(imu_scale) {
 
     /** Open nvs table **/
     nvs_handle_t gy_scale_handle;
-    ESP_ERROR_CHECK(nvs_open(CONFIG_IMU_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
+    ESP_ERROR_CHECK(nvs_open(CONFIG_GY95_NVS_TABLE_NAME, NVS_READWRITE, &gy_scale_handle));
 
     /**
     rx_buffer = "gy_scale {"acc":[0-3],"gyro":[0-3], "mag":[0-3]}"
