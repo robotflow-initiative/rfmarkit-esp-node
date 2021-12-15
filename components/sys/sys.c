@@ -21,7 +21,7 @@ void sys_enter_deep_sleep() {
     /* Enter sleep mode */
     ESP_LOGI(TAG, " Going to deep sleep (shutdown)");
 
-    ESP_LOGI(TAG, "Disabling GY95");
+    ESP_LOGI(TAG, "Disabling IMU");
     imu_disable(&g_imu);
     xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
     clear_sys_event(IMU_ENABLED);

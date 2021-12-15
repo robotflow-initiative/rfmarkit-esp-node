@@ -295,6 +295,12 @@ COMMAND_FUNCTION(always_on) {
     return ESP_OK;
 }
 
+COMMAND_FUNCTION(self_test) {
+    ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
+
+    return ESP_OK;
+}
+
 COMMAND_FUNCTION(wifi_set) { // TODO: Finish wifi set 
     ESP_LOGI(TAG, "Executing command : IMU_WIFI_SET");
 
