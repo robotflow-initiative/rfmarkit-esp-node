@@ -40,15 +40,8 @@
 
 static const char* TAG = "app_main";
 
-static void init_events() {
-    /** Configure Events **/
-    clear_sys_event(TCP_CONNECTED);
-    clear_sys_event(NTP_SYNCED);
-    clear_sys_event(IMU_ENABLED);
-    clear_sys_event(UART_BLOCK);
-}
-
-static void init() { // TODO: Add BLE function
+static void init() { 
+    // TODO: Add BLE function
     device_log_chip_info();
 
     /** Setup up g_sleep_countup **/
@@ -67,8 +60,24 @@ static void init() { // TODO: Add BLE function
     /** Cancel GPIO hold **/
     device_reset_gpio(CONFIG_IMU_CTRL_PIN);
 
+#if CONFIG_EN_IMU
     /** Init global imu struct g_imu **/
-
+    hi229_init(&g_imu,
+               CONFIG_HI229_UART_PORT,
+               CONFIG_HI229_CTRL_PIN,
+               CONFIG_HI229_RX,
+               CONFIG_HI229_TX,
+               CONFIG_HI229_RTS,
+               CONFIG_HI229_CTS,
+               CONFIG_HI229_ADDR);
+    hi229_msp_init(&g_imu);
+    hi229_disable(&g_imu);
+    hi229_enable(&g_imu);
+    sys_delay_ms(500);
+    if (imu_self_test(&g_imu) != ESP_OK) {
+        sys_enter_deep_sleep();
+    }
+#endif
 
     /** Init Wi-Fi **/
     ret = device_wifi_init_sta();
@@ -86,18 +95,10 @@ static void init() { // TODO: Add BLE function
     /** Blink init **/
     blink_init();
 
-    init_events();
-
-#if CONFIG_ENABLE_IMU
-    /** Setup IMU **/
-    ESP_LOGI(TAG, "Setting up IMU");
-    imu_init(g_imu);
-    sys_delay_ms(500);
-    if (imu_self_test(&g_imu) != ESP_OK) {
-        sys_enter_deep_sleep();
-    }
-#endif
-
+    clear_sys_event(TCP_CONNECTED);
+    clear_sys_event(NTP_SYNCED);
+    clear_sys_event(IMU_ENABLED);
+    set_sys_event(UART_BLOCK);
 
 }
 
@@ -108,7 +109,8 @@ void app_main(void) {
 
     /** Init queues **/
     QueueHandle_t serial_queue = xQueueCreate(CONFIG_SERIAL_QUEUE_LEN, sizeof(imu_dgram_t));
-    ESP_LOGD(TAG, "\nSerial Queue Addr %p\n", serial_queue);
+    ESP_LOGI(TAG, "\nSerial Queue Addr %p\n", serial_queue);
+    configASSERT(serial_queue);
 
     /** Launch tasks **/
 #if CONFIG_MULTI_CORE
@@ -119,8 +121,10 @@ void app_main(void) {
 #else
     launch_task(app_time_sync, "app_time_sync", 2560, NULL, 2, time_sync_task);
     launch_task(app_data_client, "app_data_client", 4096, serial_queue, 2, tcp_task);
-    launch_task(app_uart_monitor, "app_uart_monitor", 2560, serial_queue, 1, uart_task);
+    launch_task(app_uart_monitor, "app_uart_monitor", 4096, serial_queue, 1, uart_task);
+    // launch_task(app_playground, "app_playground", 2048, NULL, 1, playground_task);
     launch_task(app_controller, "app_controller", 4096, NULL, 1, controller_task);
+    // TODO: add Websocket server
 #endif
 
     device_log_heap_size();
@@ -131,7 +135,7 @@ void app_main(void) {
         ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_mcu.sleep_countup);
         device_delay_ms(CONFIG_MAIN_LOOP_COUNT_PERIOD_MS);
 
-        /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
+        /** If WIFI_FAIL event occurs after init, we have a ¸wifi interrupt. Going to deep sleep (shutdown)**/
         bits = xEventGroupGetBits(g_mcu.wifi_event_group);
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
@@ -146,7 +150,8 @@ void app_main(void) {
 
         if (g_mcu.sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
             ESP_LOGI(TAG, "Operation Timeout");
-            sys_enter_deep_sleep(); // TODO: Replace with WDT
+            sys_enter_deep_sleep(); 
+            // TODO: Replace this timeout function with WDT
         }
     }
 }
