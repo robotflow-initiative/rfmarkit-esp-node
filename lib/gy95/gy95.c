@@ -14,7 +14,6 @@
 #include "gy95.h"
 
 static const char* TAG = "GY95";
-// static portMUX_TYPE s_gy95_mux = portMUX_INITIALIZER_UNLOCKED;
 
 #define ENTER_CONFIGURATION(p_gy)    \
     xSemaphoreTake(p_gy->mux, portMAX_DELAY);
@@ -26,12 +25,12 @@ gy95_t g_imu = { 0 };
 
 void uart_service_init(int port, int rx, int tx, int rts, int cts) {
     uart_config_t uart_config = {
-        .baud_rate = CONFIG_GY95_DEFAULT_BAUDRATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 0,
+            .baud_rate = CONFIG_GY95_DEFAULT_BAUDRATE,
+            .data_bits = UART_DATA_8_BITS,
+            .parity = UART_PARITY_DISABLE,
+            .stop_bits = UART_STOP_BITS_1,
+            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+            .rx_flow_ctrl_thresh = 0,
 
     };
     int intr_alloc_flags = 0;
@@ -47,11 +46,11 @@ void gy95_msp_init(gy95_t* p_gy) {
     uart_service_init(p_gy->port, p_gy->rx_pin, p_gy->tx_pin, p_gy->rts_pin, p_gy->cts_pin);
 
     gpio_config_t io_conf = {
-        .intr_type = GPIO_PIN_INTR_DISABLE,
-        .mode = GPIO_MODE_INPUT_OUTPUT,
-        .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
-        .pull_down_en = 0,
-        .pull_up_en = 0,
+            .intr_type = GPIO_PIN_INTR_DISABLE,
+            .mode = GPIO_MODE_INPUT_OUTPUT,
+            .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
+            .pull_down_en = 0,
+            .pull_up_en = 0,
     };
 
     gpio_config(&io_conf);
@@ -84,7 +83,7 @@ static void gy95_read_scale(gy95_t* p_gy) {
         scale |= p_gy->gyro_scale;
         ESP_LOGI(TAG, "Setting gyro scale to %d", p_gy->gyro_scale);
     }
-    
+
     if (p_gy->acc_scale <= 3) {
         scale |= p_gy->acc_scale << 2;
         ESP_LOGI(TAG, "Setting acc scale to %d", p_gy->acc_scale);
@@ -119,7 +118,7 @@ void gy95_init(gy95_t* p_gy,
     p_gy->cts_pin = cts_pin;
 
     p_gy->addr = addr;
-    p_gy->cursor = 0;
+    p_gy->n_bytes = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
     p_gy->status = GY95_READY;
@@ -143,13 +142,14 @@ void gy95_init(gy95_t* p_gy,
  */
 static void gy95_clean(gy95_t* p_gy) {
     bzero(p_gy->buf, CONFIG_GY95_PAYLOAD_LEN);
-    p_gy->cursor = 0;
+    p_gy->n_bytes = 0;
     p_gy->start_reg = 0;
     p_gy->length = 0;
     p_gy->status = GY95_READY;
 }
 
 #define CONFIG_GY95_MAX_CHECK_TIMEOUT 2000 / portTICK_PERIOD_MS
+
 static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
     /** Clean old message **/
     uint8_t rx_buf[CONFIG_GY95_CTRL_MSG_LEN] = { 0 };
@@ -182,6 +182,7 @@ static esp_err_t gy95_check_echo(gy95_t* p_gy, uint8_t* msg, int len) {
  * @param ctrl_msg
  */
 #define CONFIG_GY95_CHECK_ECHO_N_RERY 2
+
 static esp_err_t gy95_send(gy95_t* p_gy, uint8_t ctrl_msg[4], uint8_t* echo) {
     uint8_t ctrl_msg_with_chksum[CONFIG_GY95_CTRL_MSG_LEN + 1] = { 0 };
 
@@ -231,14 +232,14 @@ uint8_t gy95_setup(gy95_t* p_gy) {
         ret |= BIT0;
     }
 
-    // ESP_LOGI(TAG, "Set calibration method"); // TODO: Test this function
+    // ESP_LOGI(TAG, "Set calibration method");
     // err = gy95_send(p_gy, (uint8_t*)"\xa4\x06\x06\x13", 4));
     // if (err != ESP_OK) return err;
 
     ESP_LOGI(TAG, "Set mount to horizontal and sensibility: %x", p_gy->scale);
     uint8_t msg[4] = { 0xa4, 0x06, 0x07, p_gy->scale };
     err = gy95_send(p_gy, msg, NULL);
-        if (err == ESP_OK) {
+    if (err == ESP_OK) {
         ret |= BIT1;
     }
 
@@ -288,6 +289,7 @@ esp_err_t gy95_cali_acc(gy95_t* p_gy) {
 //     time.sleep(7)
 
 #define CONFIG_GY95_CALI_MAG_DELAY_MS 15000
+
 void gy95_cali_mag(gy95_t* p_gy) {
     ENTER_CONFIGURATION(p_gy);
 
@@ -325,13 +327,14 @@ esp_err_t gy95_cali_reset(gy95_t* p_gy) {
 
 static bool gy95_chksum(gy95_t* p_gy) {
     long int sum = 0;
-    for (int idx = 0; idx < p_gy->cursor; ++idx) {
+    for (int idx = 0; idx < p_gy->n_bytes; ++idx) {
         sum += p_gy->buf[idx];
     }
-    return (sum % 0x100 == p_gy->buf[p_gy->cursor]) ? true : false;
+    return (sum % 0x100 == p_gy->buf[p_gy->n_bytes]) ? true : false;
 }
 
 #define CONFIG_GY95_MAXFAILED_BYTES 48
+
 void gy95_read(gy95_t* p_gy) {
     /** Acqurie lock **/
     // ESP_LOGI(TAG, "Acquiring Lock");
@@ -341,48 +344,48 @@ void gy95_read(gy95_t* p_gy) {
     gy95_clean(p_gy);
     int failed_bytes = 0;
     while (failed_bytes < CONFIG_GY95_MAXFAILED_BYTES) {
-        uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->cursor], 1, 0xF);
-        ESP_LOGD(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->cursor], p_gy->cursor);
+        uart_read_bytes(p_gy->port, &p_gy->buf[p_gy->n_bytes], 1, 0xF);
+        ESP_LOGD(TAG, "%d:%d:%d\t", p_gy->port, p_gy->buf[p_gy->n_bytes], p_gy->n_bytes);
 
-        switch (p_gy->cursor) {
+        switch (p_gy->n_bytes) {
         case 0:
-            if (p_gy->buf[p_gy->cursor] != p_gy->addr) {
-                failed_bytes += p_gy->cursor + 1;
+            if (p_gy->buf[p_gy->n_bytes] != p_gy->addr) {
+                failed_bytes += p_gy->n_bytes + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
             break;
         case 1:
-            if (p_gy->buf[p_gy->cursor] != CONFIG_GY95_READ_OP) {
-                failed_bytes += p_gy->cursor + 1;
+            if (p_gy->buf[p_gy->n_bytes] != CONFIG_GY95_READ_OP) {
+                failed_bytes += p_gy->n_bytes + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
             break;
         case 2:
-            if (p_gy->buf[p_gy->cursor] < CONFIG_GY95_REG_THRESH) {
-                p_gy->start_reg = p_gy->buf[p_gy->cursor];
+            if (p_gy->buf[p_gy->n_bytes] < CONFIG_GY95_REG_THRESH) {
+                p_gy->start_reg = p_gy->buf[p_gy->n_bytes];
             } else {
-                failed_bytes += p_gy->cursor + 1;
+                failed_bytes += p_gy->n_bytes + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
             break;
         case 3:
-            if (p_gy->start_reg + (p_gy->buf[p_gy->cursor]) < CONFIG_GY95_REG_THRESH) {
-                p_gy->length = p_gy->buf[p_gy->cursor];
+            if (p_gy->start_reg + (p_gy->buf[p_gy->n_bytes]) < CONFIG_GY95_REG_THRESH) {
+                p_gy->length = p_gy->buf[p_gy->n_bytes];
             } else {
-                failed_bytes += p_gy->cursor + 1;
+                failed_bytes += p_gy->n_bytes + 1;
                 gy95_clean(p_gy);
                 ESP_LOGD(TAG, "GYT95 reset buffer");
                 continue;
             }
             break;
         default:
-            if (p_gy->length + 4 == p_gy->cursor) {
+            if (p_gy->length + 4 == p_gy->n_bytes) {
                 p_gy->status = GY95_RECV_COMPLETE;
             }
         }
@@ -394,11 +397,11 @@ void gy95_read(gy95_t* p_gy) {
             } else {
                 p_gy->status = GY95_READY;
                 ESP_LOGI(TAG, "GYT95 reset buffer");
-                failed_bytes += p_gy->cursor;
+                failed_bytes += p_gy->n_bytes;
                 gy95_clean(p_gy);
             }
         } else {
-            ++p_gy->cursor;
+            ++p_gy->n_bytes;
         }
 
     }
@@ -491,10 +494,9 @@ esp_err_t gy95_self_test(gy95_t* p_gy) {
         device_reset_sleep_countup();
 
     }
-    
+
     return ESP_FAIL;
 }
-
 
 
 COMMAND_FUNCTION(imu_cali_reset) {
@@ -656,10 +658,10 @@ gy_scale_cleanup:
     return err;
 }
 
-COMMAND_FUNCTION(self_test) {
+COMMAND_FUNCTION(imu_self_test) {
     ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
 
-    esp_err_t err = gy95_self_test(&g_imu);
+    esp_err_t err = imu_self_test(&g_imu);
 
     if (err == ESP_OK) {
         snprintf(tx_buffer, tx_len, "Self-test OK: %d\n\n", g_mcu.blink_pin);

@@ -48,7 +48,6 @@ static esp_err_t device_wait_sync_time(const char* const posix_tz) {
 
     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++n_retry < CONFIG_NTP_TIMEOUT_S) {
         fill_strtime_buf(strftime_buf);
-        // FIXME: Possible issue: time not synced
         ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", n_retry, CONFIG_NTP_TIMEOUT_S);
         device_delay_ms(1000);
     }

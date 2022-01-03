@@ -21,7 +21,7 @@
 #include "settings.h"
 #include "sys.h"
 
-#define RX_BUFFER_LEN 64 
+#define RX_BUFFER_LEN 64
 #define TX_BUFFER_LEN 512
 
 static const char* TAG = "app_controller";
@@ -31,37 +31,38 @@ static char s_tx_buffer[TX_BUFFER_LEN];
 
 typedef struct command_reg_t {
     char name[16];
+
     esp_err_t(*func)(char*, int, char*, int);
 } command_reg_t;
 
 static command_reg_t s_registration[] = {
-    {.name = "restart", .func = command_func_restart},
-    {.name = "ping", .func = command_func_ping},
-    {.name = "shutdown", .func = command_func_shutdown},
-    {.name = "update", .func = command_func_update},
-#if CONFIG_ENABLE_IMU
-    {.name = "imu_cali_reset", .func = command_func_imu_cali_reset},
-    {.name = "imu_cali_acc", .func = command_func_imu_cali_acc},
-    {.name = "imu_cali_mag", .func = command_func_imu_cali_mag},
-    {.name = "start", .func = command_func_start},
-    {.name = "stop", .func = command_func_stop},
-    {.name = "imu_enable", .func = command_func_imu_enable},
-    {.name = "imu_disable", .func = command_func_imu_disable},
-    {.name = "imu_status", .func = command_func_imu_status},
-    {.name = "imu_imm", .func = command_func_imu_imm},
-    {.name = "imu_setup", .func = command_func_imu_setup},
-    {.name = "imu_scale",.func = command_func_imu_scale},
+        {.name = "restart", .func = command_func_restart},
+        {.name = "ping", .func = command_func_ping},
+        {.name = "shutdown", .func = command_func_shutdown},
+        {.name = "update", .func = command_func_update},
+#if CONFIG_EN_IMU
+        {.name = "imu_cali_reset", .func = command_func_imu_cali_reset},
+        {.name = "imu_cali_acc", .func = command_func_imu_cali_acc},
+        {.name = "imu_cali_mag", .func = command_func_imu_cali_mag},
+        {.name = "start", .func = command_func_start},
+        {.name = "stop", .func = command_func_stop},
+        {.name = "imu_enable", .func = command_func_imu_enable},
+        {.name = "imu_disable", .func = command_func_imu_disable},
+        {.name = "imu_status", .func = command_func_imu_status},
+        {.name = "imu_imm", .func = command_func_imu_imm},
+        {.name = "imu_setup", .func = command_func_imu_setup},
+        {.name = "imu_scale",.func = command_func_imu_scale},
 #endif
-    {.name = "id", .func = command_func_id},
-    {.name = "ver", .func = command_func_ver},
-    {.name = "blink_set", .func = command_func_blink_set},
-    {.name = "blink_get", .func = command_func_blink_get},
-    {.name = "blink_start", .func = command_func_blink_start},
-    {.name = "blink_stop", .func = command_func_blink_stop},
-    {.name = "blink_off",.func = command_func_blink_off},
-    {.name = "self_test", .func = command_func_self_test},
-    {.name = "always_on", .func = command_func_always_on},
-    {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func = command_func_shutdown}
+        {.name = "id", .func = command_func_id},
+        {.name = "ver", .func = command_func_ver},
+        {.name = "blink_set", .func = command_func_blink_set},
+        {.name = "blink_get", .func = command_func_blink_get},
+        {.name = "blink_start", .func = command_func_blink_start},
+        {.name = "blink_stop", .func = command_func_blink_stop},
+        {.name = "blink_off", .func = command_func_blink_off},
+        {.name = "self_test", .func = command_func_imu_self_test},
+        {.name = "always_on", .func = command_func_always_on},
+        {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func = command_func_shutdown}
 };
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)

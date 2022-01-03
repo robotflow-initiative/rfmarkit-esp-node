@@ -97,25 +97,40 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size())
 
 esp_err_t device_wifi_init_sta(void);
+
 void device_get_device_id(void);
+
 void device_button_init(int);
+
 esp_err_t device_do_ota(void);
+
 void device_log_chip_info(void);
+
 void device_reset_gpio(int);
 
 /** Register command functions **/
-COMMAND_FUNCTION(restart); 
+COMMAND_FUNCTION(restart);
+
 COMMAND_FUNCTION(ping);
+
 COMMAND_FUNCTION(sleep);
+
 COMMAND_FUNCTION(shutdown);
+
 COMMAND_FUNCTION(update);
+
 COMMAND_FUNCTION(start);
+
 COMMAND_FUNCTION(stop);
+
 COMMAND_FUNCTION(id);
+
 COMMAND_FUNCTION(ver);
-COMMAND_FUNCTION(self_test);
+
 COMMAND_FUNCTION(always_on);
+
 COMMAND_FUNCTION(wifi_set);
+
 COMMAND_FUNCTION(host_set);
 
 #endif

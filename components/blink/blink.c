@@ -24,7 +24,7 @@
 #define CONFIG_BLINK_SYNC_SEQ_LEN 4
 #ifdef CONFIG_BLINK_EN_CHKSUM
 #define CONFIG_BLINK_CHKSUM_SEQ_LEN 4
-#else 
+#else
 #define CONFIG_BLINK_CHKSUM_SEQ_LEN 0
 #endif
 
@@ -69,16 +69,16 @@ void blink_init() {
     s_blink_idx = 0;
 
     bzero(s_blink_seq, sizeof(s_blink_seq));
-    bool pattern[2] = { 1,0 };
+    bool pattern[2] = { 1, 0 };
     bool value = 0;
 
     /** Init GPIO **/
     gpio_config_t io_config = {
-        .pin_bit_mask = (1ull << CONFIG_BLINK_RED_PIN) | (1ull << CONFIG_BLINK_GREEN_PIN) | (1ull << CONFIG_BLINK_BLUE_PIN),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE
+            .pin_bit_mask = (1ull << CONFIG_BLINK_RED_PIN) | (1ull << CONFIG_BLINK_GREEN_PIN) | (1ull << CONFIG_BLINK_BLUE_PIN),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE
     };
     gpio_config(&io_config);
 
@@ -111,7 +111,7 @@ void blink_init() {
     }
 
 #ifdef CONFIG_BLINK_EN_CHKSUM
-#else 
+#else
 #endif
 
     ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");

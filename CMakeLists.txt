@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.5)
 
 # set(EXTRA_COMPONENT_DIRS ${HOMEKIT_PATH}/components/homekit ${HOMEKIT_PATH}/examples/common ${IOT_SOLUTION_PATH}/components/button)
 
-set(EXTRA_COMPONENT_DIRS ${CMAKE_SOURCE_DIR}/lib ${CMAKE_SOURCE_DIR}/components)
+set(EXTRA_COMPONENT_DIRS ${CMAKE_SOURCE_DIR}/lib/hi229 ${CMAKE_SOURCE_DIR}/lib/libtcp ${CMAKE_SOURCE_DIR}/components)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(imu-esp-node)

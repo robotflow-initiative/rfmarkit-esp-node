@@ -10,6 +10,7 @@
 #define CONFIG_BLINK_DEFAULT_PIN CONFIG_BLINK_BLUE_PIN
 #define CONFIG_BLINK_TIMER_IDX 0
 #define CONFIG_BLINK_NVS_TABLE_NAME "blink"
+
 #include "pins.h"
 
 /** @warning Dev board and product have diffenrent definition **/
@@ -18,7 +19,9 @@
 
 
 void blink_init();
+
 void blink_start();
+
 void blink_stop();
 
 COMMAND_FUNCTION(blink_set);

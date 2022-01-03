@@ -39,7 +39,7 @@ esp_err_t client_create_socket(tcp_client_t* client) {
 }
 
 esp_err_t client_set_timeout(tcp_client_t* client, int timeout_s) {
-    struct timeval timeout = { timeout_s,0 };
+    struct timeval timeout = { timeout_s, 0 };
     setsockopt(client->client_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
     return ESP_OK;
 }

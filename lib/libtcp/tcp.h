@@ -55,9 +55,12 @@ typedef struct {
 #define CONFIG_KEEP_COUNT 3
 #define CONFIG_KEEP_INTERVAL 5
 
-void server_loop(tcp_server_t * server, void (*interact)(int));
+void server_loop(tcp_server_t* server, void (*interact)(int));
+
 void server_init(void (*pfunc)(int));
 
-void client_init(tcp_client_t * client);
+void client_init(tcp_client_t* client);
+
 int client_connect(tcp_client_t* client);
+
 #endif

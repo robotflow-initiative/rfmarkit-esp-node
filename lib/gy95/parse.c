@@ -8,41 +8,40 @@
 #include "cJSON.h"
 
 #include "gy95.h"
-#include "imu.h"
 #include "device.h"
 
 static const char* TAG = "func_parse";
 
 static gy95_key_t default_key = {
-    .accel_x = 4,
-    .accel_y = 6,
-    .accel_z = 8,
-    .gyro_x = 10,
-    .gyro_y = 12,
-    .gyro_z = 14,
-    .roll = 16,
-    .pitch = 18,
-    .yaw = 20,
-    .temp = 23,
-    .mag_x = 25,
-    .mag_y = 27,
-    .mag_z = 29,
+        .accel_x = 4,
+        .accel_y = 6,
+        .accel_z = 8,
+        .gyro_x = 10,
+        .gyro_y = 12,
+        .gyro_z = 14,
+        .roll = 16,
+        .pitch = 18,
+        .yaw = 20,
+        .temp = 23,
+        .mag_x = 25,
+        .mag_y = 27,
+        .mag_z = 29,
 };
 
 static gy95_multiplier_t default_multiplier = {
-    .accel_x = 0.00006103515625, // 4 / 65536
-    .accel_y = 0.00006103515625, // 4 / 65536
-    .accel_z = 0.00006103515625, // 4 / 65536
-    .gyro_x = 0.00762939453125, // 500 / 65536
-    .gyro_y = 0.00762939453125, // 500 / 65536
-    .gyro_z = 0.00762939453125, // 500 / 65536
-    .roll = 0.01,
-    .pitch = 0.01,
-    .yaw = 0.01,
-    .temp = 0.01,
-    .mag_x = 0.00006103515625, // 4 / 65536
-    .mag_y = 0.00006103515625, // 4 / 65536
-    .mag_z = 0.00006103515625, // 4 / 65536
+        .accel_x = 0.00006103515625, // 4 / 65536
+        .accel_y = 0.00006103515625, // 4 / 65536
+        .accel_z = 0.00006103515625, // 4 / 65536
+        .gyro_x = 0.00762939453125, // 500 / 65536
+        .gyro_y = 0.00762939453125, // 500 / 65536
+        .gyro_z = 0.00762939453125, // 500 / 65536
+        .roll = 0.01,
+        .pitch = 0.01,
+        .yaw = 0.01,
+        .temp = 0.01,
+        .mag_x = 0.00006103515625, // 4 / 65536
+        .mag_y = 0.00006103515625, // 4 / 65536
+        .mag_z = 0.00006103515625, // 4 / 65536
 };
 
 /**

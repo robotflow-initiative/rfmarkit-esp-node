@@ -11,9 +11,10 @@
 
 ### tcp_server example not able to reconnect the server after disconnect
 
-and comment out the 2 break statements above, youll have to deal with the break logic better, I just didn't have the time.
-But this makes it work. You dont want to bind again, once you have already bound.
-Looks like this. （https://esp32.com/viewtopic.php?t=7791）改变while的位置
+and comment out the 2 break statements above, youll have to deal with the break logic better, I just didn't have the
+time. But this makes it work. You dont want to bind again, once you have already bound. Looks like this.
+（https://esp32.com/viewtopic.php?t=7791）改变while的位置
+
 ```c
 static void tcp_server_task(void *pvParameters)
 {
@@ -72,6 +73,7 @@ static void tcp_server_task(void *pvParameters)
 
 ## 已知的BUG/特性
 
-- v1.1.8: 如果在实验中调用`command_func_stop()`，然后关闭服务器连接。此时`app_uart_monitor`被时间`UART_BLOCK`族塞，串口队列为空。`app_tcp_client`函数会不停的尝试从串口队列中获取数据，而不会检查网络连接。此时传感器会一直等待关机命令，而不会主动进入休眠
+- v1.1.8: 如果在实验中调用`command_func_stop()`，然后关闭服务器连接。此时`app_uart_monitor`被时间`UART_BLOCK`族塞，串口队列为空。`app_tcp_client`
+  函数会不停的尝试从串口队列中获取数据，而不会检查网络连接。此时传感器会一直等待关机命令，而不会主动进入休眠
 
 - v2.0.0 TCP 发送没有实现缓冲，有数据就发送，可能会耗电
