@@ -2,3 +2,5 @@ ota/firmware.bin
 ota/version.txt
 sdkconfig.old
 .vscode/
+.idea/
+.cache
