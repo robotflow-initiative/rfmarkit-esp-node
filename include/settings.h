@@ -16,12 +16,16 @@
 #define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 18
 #define CONFIG_MAX_TX_POWER (68)
 #define CONFIG_MULTI_CORE 0
-#define CONFIG_SERIAL_QUEUE_LEN 1024
+#define CONFIG_SERIAL_QUEUE_LEN 128
 #define CONFIG_DEVICE_ID_LEN 12
-#define CONFIG_EN _IMU 1
+#define CONFIG_EN_IMU 1
+
+#define IMU_TYPE_GY95 95
+#define IMU_TYPE_HI229 229
+#define CONFIG_IMU_TYPE IMU_TYPE_HI229
 
 /** Wi-Fi environment settings**/
-#define ENV 3
+#define ENV 4
 #if ENV == 0
 #define CONFIG_ESP_WIFI_SSID "yz_ri"
 #define CONFIG_ESP_WIFI_PASSWORD "yzri@1220"
@@ -46,6 +50,12 @@
 #define CONFIG_HOST_IP_ADDR "10.52.21.125"
 #define CONFIG_HOST_PORT 18888
 #define CONFIG_LOCAL_PORT 18888
+#elif ENV == 4
+#define CONFIG_ESP_WIFI_SSID "yz_sensor"
+#define CONFIG_ESP_WIFI_PASSWORD "yzri@1220"
+#define CONFIG_HOST_IP_ADDR "192.168.50.125"
+#define CONFIG_HOST_PORT 18888
+#define CONFIG_LOCAL_PORT 18888
 #endif
 
 /** OTA debugging is not different in debug mode and non debug mode **/
@@ -64,7 +74,7 @@
 #undef CONFIG_PAYLOAD_BUFFER_LEN
 #if CONFIG_SEND_PARSED
 #define CONFIG_PAYLOAD_BUFFER_LEN 512
-#else 
+#else
 #define CONFIG_PAYLOAD_BUFFER_LEN 40
 #endif
 
@@ -79,5 +89,5 @@
 /** On Board Button **/
 #include "pins.h"
 
-                       
+
 #endif

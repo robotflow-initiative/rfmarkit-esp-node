@@ -27,6 +27,12 @@ static const char* TAG = "app_uart_monitor";
                 gettimeofday(&tv_now, NULL); \
                 time = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec; \
         }
+#define tag_buffer_len(len) \
+        { \
+            size_t uart_buffer_len = 0; \
+            uart_get_buffered_data_len(g_imu.port, &uart_buffer_len); \
+            len = uart_buffer_len; \
+        }
 
 
 void app_uart_monitor(void* pvParameters) {
@@ -75,15 +81,14 @@ void app_uart_monitor(void* pvParameters) {
         tag_time_us(imu_data.start_time_us);
 
         imu_read(&g_imu);
-        memcpy(imu_data.data, g_imu.buf, sizeof(g_imu.buf));
+        memcpy(imu_data.data, g_imu.buf, g_imu.n_bytes);
+        imu_data.n_bytes = g_imu.n_bytes;
 
         /** Tag stop point **/
         tag_time_us(imu_data.time_us);
 
         /** Count how many bits are left in the buffer **/
-        size_t uart_buffer_len = 0;
-        uart_get_buffered_data_len(g_imu.port, &uart_buffer_len);
-        imu_data.uart_buffer_len = uart_buffer_len;
+        tag_buffer_len(imu_data.uart_buffer_len);
 
         /** If queue is full, clear queue **/
         while (uxQueueSpacesAvailable(serial_queue) <= 0) {
