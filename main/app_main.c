@@ -73,7 +73,8 @@ static void init() {
     hi229_msp_init(&g_imu);
     hi229_disable(&g_imu);
     hi229_enable(&g_imu);
-    sys_delay_ms(500);
+    hi229_read(&g_imu);
+    sys_delay_ms(100);
     if (imu_self_test(&g_imu) != ESP_OK) {
         sys_enter_deep_sleep();
     }

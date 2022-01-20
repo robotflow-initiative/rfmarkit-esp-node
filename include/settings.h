@@ -53,9 +53,11 @@
 #elif ENV == 4
 #define CONFIG_ESP_WIFI_SSID "yz_sensor"
 #define CONFIG_ESP_WIFI_PASSWORD "yzri@1220"
-#define CONFIG_HOST_IP_ADDR "192.168.50.125"
+#define CONFIG_HOST_IP_ADDR "10.53.21.102"
 #define CONFIG_HOST_PORT 18888
 #define CONFIG_LOCAL_PORT 18888
+// TODO: Make wifi configurable
+// TODO: Remove redandent settings
 #endif
 
 /** OTA debugging is not different in debug mode and non debug mode **/

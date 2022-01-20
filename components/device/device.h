@@ -96,6 +96,31 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 #define device_log_heap_size() \
     ESP_LOGW(TAG, "Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size())
 
+/** Variable manager **/
+
+#define CONFIG_MAX_VAR_NAME_LEN 16
+#define CONFIG_VAR_NVS_TABLE_NAME "var"
+#define CONFIG_VAR_STR_MAX_LEN 32
+typedef enum {
+    VAR_INT32,
+    VAR_FLOAT32,
+    VAR_STR,
+    VAR_UINT8,
+} mcu_var_type_t;
+
+typedef union {
+    u_int8_t uint8;
+    int32_t int32;
+    float float32;
+    char * str;
+} mcu_var_data_t;
+
+typedef struct {
+    char name[CONFIG_MAX_VAR_NAME_LEN];
+    mcu_var_type_t type;
+} mcu_var_t;
+
+
 esp_err_t device_wifi_init_sta(void);
 
 void device_get_device_id(void);
@@ -129,8 +154,8 @@ COMMAND_FUNCTION(ver);
 
 COMMAND_FUNCTION(always_on);
 
-COMMAND_FUNCTION(wifi_set);
+COMMAND_FUNCTION(var_set);
 
-COMMAND_FUNCTION(host_set);
+COMMAND_FUNCTION(var_set);
 
 #endif

@@ -13,8 +13,9 @@
 
 #define CONFIG_BLINK_RED_PIN GPIO_NUM_2
 #define CONFIG_BLINK_GREEN_PIN GPIO_NUM_2
-#define CONFIG_BLINK_BLUE_PIN GPIO_NUM_2 // TODO: Remove redundeant pins
+#define CONFIG_BLINK_BLUE_PIN GPIO_NUM_2 // TODO: Remove redundant pins
 
+// TODO: finally remove this file
 #elif CONFIG_ESP_C3_TYPE == TYPE_ESP_C3_12F
 
 #endif

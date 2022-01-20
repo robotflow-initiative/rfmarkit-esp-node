@@ -148,6 +148,7 @@ void hi229_disable(hi229_t* p_gy) {
 }
 
 esp_err_t hi229_self_test(hi229_t* p_gy) {
+    // TODO: Finish test
     return ESP_OK;
 }
 
@@ -182,7 +183,7 @@ int hi229_tag(hi229_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     /**
      * @brief Format of packet:
      *
-     * | 0xa4 | ... | chk_sum | timestamp |     id     | gy_scale | start_timestamp | uart_buffer_len | chk_sum |
+     * | g_imu.addr | ... | chk_sum | timestamp |     id     | gy_scale | start_timestamp | uart_buffer_len | chk_sum |
      */
     ADD_DATA(payload_buffer, len, &g_imu.addr, 1);
 

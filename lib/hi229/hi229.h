@@ -14,9 +14,8 @@
 #define CONFIG_HI229_UART_RX_BUF_LEN 4096
 #define CONFIG_HI229_ADDR 0xe5
 
-
 /** Modify this section to adapt different board **/
-#define CONFIG_HI229_CTRL_PIN GPIO_NUM_4// FIXME: GPIO_NUM_5 cause reset, should be GPIO_NUM_4
+#define CONFIG_HI229_CTRL_PIN GPIO_NUM_5// FIXME: GPIO_NUM_5 not rtc pin, should be GPIO_NUM_4
 #define CONFIG_HI229_CTRL_PIN_MASK (1ULL << CONFIG_HI229_CTRL_PIN)
 #define CONFIG_HI229_RX GPIO_NUM_17
 #define CONFIG_HI229_TX GPIO_NUM_16

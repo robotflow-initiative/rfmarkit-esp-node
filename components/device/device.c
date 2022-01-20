@@ -297,16 +297,168 @@ COMMAND_FUNCTION(always_on) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(wifi_set) { // TODO: Finish wifi set 
-    ESP_LOGI(TAG, "Executing command : IMU_WIFI_SET");
 
-    return ESP_FAIL;
+static mcu_var_t s_mcu_vars[] = {
+        {.name = "WIFI_SSID", .type = VAR_STR},
+        {.name = "WIFI_PSK", .type = VAR_STR},
+        {.name = "BLINK_SEQ", .type = VAR_STR},
+
+};
+
+static mcu_var_t* device_find_var(char* name, size_t len) {
+    for (int idx = 0; idx < (sizeof(s_mcu_vars) / sizeof(mcu_var_t)); ++idx) {
+        if (strncmp(name, s_mcu_vars[idx].name, len) == 0) {
+            return &s_mcu_vars[idx];
+        }
+    }
+    return NULL;
+}
+static esp_err_t device_set_nvs_var(mcu_var_t* p_var, char* value, size_t len) {
+
+    if (p_var == NULL) {
+        return ESP_FAIL;
+    }
+    nvs_handle_t var_handle;
+    ESP_ERROR_CHECK(nvs_open(CONFIG_VAR_NVS_TABLE_NAME, NVS_READWRITE, &var_handle));
+    mcu_var_data_t data = {0};
+
+    switch (p_var->type) {
+    case VAR_INT32:
+        data.int32 = (int32_t) strtol(value, NULL, 10);
+        nvs_set_i32(var_handle, p_var->name, data.int32);
+        nvs_commit(var_handle);
+        break;
+    case VAR_FLOAT32:
+        data.float32 = (float) strtold(value, NULL);
+        nvs_set_blob(var_handle, p_var->name, &data.float32, sizeof(float));
+        nvs_commit(var_handle);
+        break;
+    case VAR_STR:
+        nvs_set_str(var_handle, p_var->name, value);
+        nvs_commit(var_handle);
+        break;
+    case VAR_UINT8:
+        data.uint8 = (uint8_t) strtol(value, NULL, 10);
+        nvs_set_u8(var_handle, p_var->name, data.uint8);
+        nvs_commit(var_handle);
+        break;
+    }
+    nvs_close(var_handle);
+    return ESP_OK;
 }
 
-COMMAND_FUNCTION(host_set) { // TODO: Finish host set 
-    ESP_LOGI(TAG, "Executing command : IMU_HOST_SET");
+static esp_err_t device_get_nvs_var(mcu_var_t* p_var, mcu_var_data_t * out, char* value_buffer, size_t len) {
 
-    g_mcu.sleep_countup = INT32_MIN;
+    if (p_var == NULL) {
+        return ESP_FAIL;
+    }
+    nvs_handle_t var_handle;
+    ESP_ERROR_CHECK(nvs_open(CONFIG_VAR_NVS_TABLE_NAME, NVS_READWRITE, &var_handle));
+    mcu_var_data_t data = {0};
+
+    switch (p_var->type) {
+    case VAR_INT32:
+        nvs_get_i32(var_handle, p_var->name, (void *)&data);
+        snprintf(value_buffer, len, "%d", (int32_t)data.int32);
+        break;
+    case VAR_FLOAT32:
+        nvs_get_blob(var_handle, p_var->name, (void *)&data, NULL);
+        snprintf(value_buffer, len, "%f", (double)data.float32);
+        break;
+    case VAR_STR:
+        nvs_get_str(var_handle, p_var->name, value_buffer, NULL);
+        break;
+    case VAR_UINT8:
+        nvs_get_u8(var_handle, p_var->name, (void *)&data);
+        snprintf(value_buffer, len, "%d", (uint8_t)data.uint8);
+        break;
+    }
+
+    if (out != NULL) {
+        memcpy(out, &data, sizeof(data));
+    }
+
+    nvs_close(var_handle);
+    return ESP_OK;
+}
+
+
+COMMAND_FUNCTION(var_set) {
+    ESP_LOGI(TAG, "Executing command : IMU_VAR_SET");
+
+    mcu_var_t* p_var = NULL;
+    char* var_name = NULL;
+    size_t var_name_len = 0;
+    char* var_value = NULL;
+    size_t var_value_len = 0;
+
+    {
+        for (int idx = 7; idx < rx_len; ++idx) {
+            if (rx_buffer[idx] != ' ' && !var_name) {
+                var_name = &rx_buffer[idx];
+            }
+            if (rx_buffer[idx] == '=' && !var_value) {
+                var_name_len = &rx_buffer[idx] - var_name;
+                var_value = &rx_buffer[idx + 1];
+            }
+            if ((rx_buffer[idx] == ' ' || rx_buffer[idx] == '\n' || rx_buffer[idx] == 0) && var_value) {
+                var_value_len = &rx_buffer[idx] - var_value;
+            }
+        }
+        if (var_value && var_value_len <= 0) {
+            var_value_len = rx_len - (var_value - rx_buffer);
+        }
+        if (var_name && var_name_len > 0 && var_value && var_value_len > 0) {
+            p_var = device_find_var(var_name, var_name_len);
+        } else {
+            p_var = NULL;
+        }
+    }
+
+    if (p_var) {
+        device_set_nvs_var(p_var, var_value, var_value_len);
+        return ESP_OK;
+    } else {
+        snprintf(tx_buffer, tx_len, "Cannot set value for \"%s\"", rx_buffer);
+        return ESP_FAIL;
+    }
+}
+
+COMMAND_FUNCTION(var_get) { // TODO: Finish host set 
+    ESP_LOGI(TAG, "Executing command : IMU_VAR_GET");
+
+    ESP_LOGI(TAG, "Executing command : IMU_VAR_SET");
+    
+    mcu_var_t* p_var = NULL;
+    char* var_name = NULL;
+    size_t var_name_len = 0;
+
+    {
+        for (int idx = 7; idx < rx_len; ++idx) {
+            if (rx_buffer[idx] != ' ' && !var_name) {
+                var_name = &rx_buffer[idx];
+            }
+            if (rx_buffer[idx] == '?' && !var_name) {
+                var_name_len = &rx_buffer[idx] - var_name;
+            }
+        }
+
+        if (var_name && var_name_len > 0) {
+            p_var = device_find_var(var_name, var_name_len);
+        } else {
+            p_var = NULL;
+        }
+    }
+
+    if (p_var) {
+        mcu_var_data_t data;
+        device_get_nvs_var(p_var, &data, tx_buffer, tx_len);
+        return ESP_OK;
+    } else {
+        snprintf(tx_buffer, tx_len, "Cannot getvalue for \"%s\"", rx_buffer);
+        return ESP_FAIL;
+    }
+
 
     return ESP_FAIL;
 }
