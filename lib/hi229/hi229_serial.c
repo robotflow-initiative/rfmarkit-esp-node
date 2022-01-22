@@ -222,9 +222,7 @@ static int decode_ch(raw_t* raw) {
         return -1;
     }
 
-    return parse_data(raw);// FIXME: Temporarily disable parse
-    // return 1;
-
+    return parse_data(raw);
 }
 
 /* sync code */

@@ -3,8 +3,6 @@
 
 #define CONFIG_FIRMWARE_VERSION "2.6.0"
 
-#include "driver/gpio.h"
-
 /** Debug options **/
 #define CONFIG_USE_PSEUDO_VALUE 0
 #define CONFIG_EN_DEBUG_OVER_TCP 0
@@ -12,9 +10,10 @@
 #define CONFIG_EN_IMU_DEBUG 0
 
 /** System settings **/
-#define CONFIG_MAIN_LOOP_COUNT_PERIOD_MS 10000
-#define CONFIG_MAIN_LOOP_MAX_COUNT_NUM 18
-#define CONFIG_MAX_TX_POWER (68)
+#define CONFIG_MAIN_LOOP_DUTY_PERIOD_MS 10000 // Duty cycle of main loop, the main loop checks system events
+#define CONFIG_MAIN_LOOP_MAX_LOOP_NUM 18  // The system goes to sleep after CONFIG_MAIN_LOOP_MAX_LOOP_NUM cycles
+
+/** Hardware related settings **/
 #define CONFIG_MULTI_CORE 0
 #define CONFIG_SERIAL_QUEUE_LEN 128
 #define CONFIG_DEVICE_ID_LEN 12
@@ -25,6 +24,7 @@
 #define CONFIG_IMU_TYPE IMU_TYPE_HI229
 
 /** Wi-Fi environment settings**/
+#define CONFIG_MAX_TX_POWER (68)
 #define ENV 4
 #if ENV == 0
 #define CONFIG_ESP_WIFI_SSID "yz_ri"

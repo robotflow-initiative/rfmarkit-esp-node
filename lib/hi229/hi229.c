@@ -63,7 +63,7 @@ void hi229_msp_init(hi229_t* p_gy) {
 
     gpio_config(&io_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
-    // bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin); TODO: After PCB mod, re-enable this feature
+    // bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin); FIXME: After PCB mod, re-enable this feature
     bool ret = false;
     if (ret) {
         ESP_LOGI(TAG, "GPIO: %d is valid rtc gpio", p_gy->ctrl_pin);
@@ -110,17 +110,21 @@ uint8_t hi229_setup(hi229_t* p_gy) {
     hi229_send(p_gy, (uint8_t*)"AT+EOUT=1\r\n", (uint8_t*)"AT+OK");
     hi229_send(p_gy, (uint8_t*)"AT+MODE=1\r\n", (uint8_t*)"AT+OK");
     hi229_send(p_gy, (uint8_t*)"AT+SETPTL=91\r\n", (uint8_t*)"AT+OK");
+    // FIXME: Check this part
 
     return 0b11111;
 }
 
+#define CONFIG_HI299_MAX_READ_NUM 0xff
 esp_err_t hi229_read(hi229_t* p_gy) {
     uint8_t data = 0x0;
-    while (1) {
+    size_t count = 0;
+    while (count < CONFIG_HI299_MAX_READ_NUM) {
         uart_read_bytes(p_gy->port, &data, 1, 0xF);
+        ++count;
         // printf("0x%x.", data);
         if (ch_serial_input(&p_gy->raw, data) == 1) {
-            // TODO Re-Write this part
+            // TODO: [MID] Re-Write this part and speed up
             p_gy->n_bytes = sizeof(ch_imu_data_t); // FIXME: Only support 1 IMU !!!
             memcpy(&p_gy->buf, &p_gy->raw.imu, p_gy->n_bytes);
             // for (int i = 0;i < p_gy->n_bytes; ++i) {
@@ -148,7 +152,7 @@ void hi229_disable(hi229_t* p_gy) {
 }
 
 esp_err_t hi229_self_test(hi229_t* p_gy) {
-    // TODO: Finish test
+    // FIXME: Finish test
     return ESP_OK;
 }
 

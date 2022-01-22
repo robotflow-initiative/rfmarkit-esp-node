@@ -13,7 +13,7 @@ index 2290382..0824f1f 100644
  
 @@ -74,6 +74,17 @@ void app_time_sync(void* pvParameters) {
              strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-             ESP_LOGI(TAG, "The current date/time in Shanghai is: %s", strftime_buf); // TODO: Magic City Shanghai
+             ESP_LOGI(TAG, "The current date/time in Shanghai is: %s", strftime_buf);
  
 +            if (sntp_get_sync_mode() == SNTP_SYNC_MODE_SMOOTH) {
 +                struct timeval outdelta;

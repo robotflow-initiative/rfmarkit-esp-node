@@ -125,7 +125,7 @@ void app_main(void) {
     launch_task(app_uart_monitor, "app_uart_monitor", 4096, serial_queue, 1, uart_task);
     // launch_task(app_playground, "app_playground", 2048, NULL, 1, playground_task);
     launch_task(app_controller, "app_controller", 4096, NULL, 1, controller_task);
-    // TODO: add Websocket server
+    // TODO: [LOW] add Websocket server
 #endif
 
     device_log_heap_size();
@@ -134,7 +134,7 @@ void app_main(void) {
     EventBits_t bits;
     while (1) {
         ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_mcu.sleep_countup);
-        device_delay_ms(CONFIG_MAIN_LOOP_COUNT_PERIOD_MS);
+        device_delay_ms(CONFIG_MAIN_LOOP_DUTY_PERIOD_MS);
 
         /** If WIFI_FAIL event occurs after init, we have a ¸wifi interrupt. Going to deep sleep (shutdown)**/
         bits = xEventGroupGetBits(g_mcu.wifi_event_group);
@@ -149,10 +149,10 @@ void app_main(void) {
             device_incr_sleep_countup(1);
         }
 
-        if (g_mcu.sleep_countup > CONFIG_MAIN_LOOP_MAX_COUNT_NUM) {
+        if (g_mcu.sleep_countup > CONFIG_MAIN_LOOP_MAX_LOOP_NUM) {
             ESP_LOGI(TAG, "Operation Timeout");
             sys_enter_deep_sleep(); 
-            // TODO: Replace this timeout function with WDT
+            // TODO: [LOW] Replace this timeout function with WDT
         }
     }
 }

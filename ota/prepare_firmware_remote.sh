@@ -10,7 +10,7 @@ REMOTE_HOST=liyutong@10.52.21.125
 REMOTE_DIR=/home/liyutong/Tasks/imu-node-deploy/ota/
 REMOTE_PYTHON=/home/liyutong/miniconda3/envs/default/bin/python
 # Remote python must have http module
-# TODO: Use apache image to serve firmware
+# TODO: [LOW] Use apache image to serve firmware
 
 set -e
 

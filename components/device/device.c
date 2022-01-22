@@ -154,7 +154,7 @@ esp_err_t device_wifi_init_sta(void) {
 }
 
 static void sys_enter_deep_sleep_from_isr(void* params) {
-    g_mcu.sleep_countup += CONFIG_MAIN_LOOP_MAX_COUNT_NUM;
+    g_mcu.sleep_countup += CONFIG_MAIN_LOOP_MAX_LOOP_NUM;
 }
 
 /**
@@ -261,7 +261,7 @@ COMMAND_FUNCTION(update) {
 COMMAND_FUNCTION(start) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
     clear_sys_event(UART_BLOCK);
-    EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, UART_ACTIVE_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_COUNT_PERIOD_MS / portTICK_PERIOD_MS);
+    EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, UART_ACTIVE_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_DUTY_PERIOD_MS / portTICK_PERIOD_MS);
     if (bits & UART_ACTIVE_BIT) {
         return ESP_OK;
     } else {

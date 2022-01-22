@@ -92,5 +92,4 @@ void app_time_sync(void* pvParameters) {
     vTaskDelete(NULL);
 }
 
-// TODO: Add backup time sync service
-// TODO: Make server configurable
+// TODO: Add backup time sync service / Make server configurable
