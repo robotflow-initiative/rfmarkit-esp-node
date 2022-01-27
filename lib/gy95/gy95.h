@@ -1,5 +1,5 @@
-#ifndef _GY95_H
-#define _GY95_H
+#ifndef GY95_H_
+#define GY95_H_
 
 #include "freertos/semphr.h"
 
@@ -7,7 +7,7 @@
 
 #include "cJSON.h"
 
-#include "device.h"
+#include "sys.h"
 
 /** GY95 related settings **/
 #define CONFIG_GY95_UART_RX_BUF_LEN 5120

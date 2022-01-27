@@ -8,7 +8,7 @@
 #include "cJSON.h"
 
 #include "gy95.h"
-#include "device.h"
+#include "sys.h"
 
 static const char* TAG = "func_parse";
 

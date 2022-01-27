@@ -18,7 +18,7 @@
 
 #include "apps.h"
 #include "settings.h"
-#include "device.h"
+#include "sys.h"
 #include "imu.h"
 #include "tcp.h"
 
@@ -37,8 +37,8 @@ void app_data_client(void* pvParameters) {
 
     imu_dgram_t imu_reading = { 0 };
     tcp_client_t client = {
-            .port = CONFIG_HOST_PORT,
-            .address = CONFIG_HOST_IP_ADDR
+            .port = CONFIG_DATA_HOST_PORT,
+            .address = CONFIG_DATA_HOST_IP_ADDR
     };
 
     while (1) {
@@ -59,7 +59,7 @@ void app_data_client(void* pvParameters) {
         int err = client_connect(&client);
         if (err != 0) {
             ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
-            device_delay_ms(1000);
+            os_delay_ms(1000);
             goto socket_error;
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
@@ -89,7 +89,7 @@ void app_data_client(void* pvParameters) {
                 } else {
                     device_reset_sleep_countup();
                 }
-                ESP_LOGD(TAG, "Reading sent to %s:%d", CONFIG_HOST_IP_ADDR, CONFIG_HOST_PORT);
+                ESP_LOGD(TAG, "Reading sent to %s:%d", CONFIG_DATA_HOST_IP_ADDR, CONFIG_DATA_HOST_PORT);
                 RESET_SEND_BUFFER();
             } else {
                 taskYIELD();
@@ -101,10 +101,10 @@ socket_error:
         ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
         switch (errno) {
         case ECONNRESET:
-            device_delay_ms(5000);
+            os_delay_ms(5000);
             break;
         default:
-            device_delay_ms(100);
+            os_delay_ms(100);
             break;
         };
         handle_socket_err(client.client_sock)

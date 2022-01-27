@@ -10,27 +10,24 @@
 #include "driver/rtc_io.h"
 #include "nvs_flash.h"
 
-#include "apps.h"
-#include "device.h"
+#include "sys.h"
 #include "hi229.h"
 #include "hi229_serial.h"
 
-//TODO: Finish hipnuc adapter
-
-static const char* TAG = "hi229";
+static const char *TAG = "hi229";
 
 
 #define ENTER_CONFIGURATION(p_imu)    \
-    xSemaphoreTake(p_imu->mux, portMAX_DELAY);
+    xSemaphoreTake((p_imu)->mux, portMAX_DELAY);
 
 #define EXIT_CONFIGURATION(p_imu)    \
-    xSemaphoreGive(p_imu->mux);
+    xSemaphoreGive((p_imu)->mux);
 
-#define hi229_delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS);
-hi229_t g_imu = { 0 };
+#define hi229_delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS);
+hi229_t g_imu = {0};
 
 
-void hi229_msp_init(hi229_t* p_gy) {
+void hi229_msp_init(hi229_t *p_gy) {
     ESP_LOGI(TAG, "UART .port=%d, .rx_pin=%d, .tx_pin=%d, .rts_pin=%d, .cts_pin=%d", p_gy->port, p_gy->rx_pin, p_gy->tx_pin, p_gy->rts_pin, p_gy->cts_pin);
     // uart_service_init(p_gy->port, p_gy->rx_pin, p_gy->tx_pin, p_gy->rts_pin, p_gy->cts_pin);
 
@@ -39,7 +36,7 @@ void hi229_msp_init(hi229_t* p_gy) {
     int tx = p_gy->tx_pin;
 
     uart_config_t uart_config = {
-            .baud_rate = CONFIG_HI229_DEFAULT_BAUDRATE,
+            .baud_rate = p_gy->baud,
             .data_bits = UART_DATA_8_BITS,
             .parity = UART_PARITY_DISABLE,
             .stop_bits = UART_STOP_BITS_1,
@@ -54,7 +51,7 @@ void hi229_msp_init(hi229_t* p_gy) {
     ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
     gpio_config_t io_conf = {
-            .intr_type = GPIO_PIN_INTR_DISABLE,
+            .intr_type = (gpio_int_type_t) GPIO_PIN_INTR_DISABLE,
             .mode = GPIO_MODE_OUTPUT,
             .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
             .pull_down_en = 1,
@@ -63,8 +60,7 @@ void hi229_msp_init(hi229_t* p_gy) {
 
     gpio_config(&io_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
-    // bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin); FIXME: After PCB mod, re-enable this feature
-    bool ret = false;
+    bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin);
     if (ret) {
         ESP_LOGI(TAG, "GPIO: %d is valid rtc gpio", p_gy->ctrl_pin);
     } else {
@@ -72,16 +68,16 @@ void hi229_msp_init(hi229_t* p_gy) {
     }
 }
 
-void hi229_init(hi229_t* p_gy,
+void hi229_init(hi229_t *p_gy,
                 int port,
+                int baud,
                 int ctrl_pin,
                 int rx_pin,
                 int tx_pin,
-                int rts_pin,
-                int cts_pin,
                 int addr
 ) {
     p_gy->port = port;
+    p_gy->baud = baud;
     p_gy->ctrl_pin = ctrl_pin;
     p_gy->rx_pin = rx_pin;
     p_gy->tx_pin = tx_pin;
@@ -100,23 +96,68 @@ void hi229_init(hi229_t* p_gy,
     bzero(p_gy->buf, CONFIG_HI229_PAYLOAD_LEN);
 }
 
-static esp_err_t hi229_send(hi229_t* p_gy, uint8_t* ctrl_msg, uint8_t* echo) {
+static esp_err_t hi229_check_echo(hi229_t *p_gy, const uint8_t *echo, size_t len) {
+    /** Clean old message **/
+    uint8_t rx_buf = 0;
+    int cursor = 0;
+
+    TickType_t start_tick = xTaskGetTickCount();
+    while (xTaskGetTickCount() - start_tick < CONFIG_HI229_MAX_CHECK_TICKS) {
+        uart_read_bytes(p_gy->port, &rx_buf, 1, 0xF);
+#if CONFIG_EN_IMU_DEBUG
+        printf("0x%x.", rx_buf[cursor]);
+#endif
+        if (rx_buf != echo[cursor]) {
+            rx_buf = 0;
+            cursor = 0;
+            continue;
+        }
+        cursor++;
+        if (cursor >= len) {
+            return ESP_OK;
+        }
+    }
     return ESP_FAIL;
 }
 
-uint8_t hi229_setup(hi229_t* p_gy) {
-    hi229_send(p_gy, (uint8_t*)"AT+ODR=200\r\n", (uint8_t*)"AT+OK");
-    hi229_send(p_gy, (uint8_t*)"AT+BAUD=115200\r\n", (uint8_t*)"AT+OK");
-    hi229_send(p_gy, (uint8_t*)"AT+EOUT=1\r\n", (uint8_t*)"AT+OK");
-    hi229_send(p_gy, (uint8_t*)"AT+MODE=1\r\n", (uint8_t*)"AT+OK");
-    hi229_send(p_gy, (uint8_t*)"AT+SETPTL=91\r\n", (uint8_t*)"AT+OK");
+static esp_err_t hi229_send(hi229_t *p_gy, uint8_t *ctrl_msg, int len, const uint8_t *echo) {
+    len = len <= 0 ? (int)strlen((char *) ctrl_msg) : len;
+    ESP_LOGI(TAG,"hi229 send : %s, num: %d", (char*) ctrl_msg, len);
+    uart_write_bytes((p_gy->port), ctrl_msg, len);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+
+    esp_err_t err = ESP_OK;
+    if (echo != NULL) {
+        err = hi229_check_echo(p_gy, echo, strlen((char *) echo)); // Compare with custom echo message
+    }
+    return err;
+}
+
+static esp_err_t hi229_recv(hi229_t *p_gy, uint8_t *rx_buf, size_t rx_len) {
+    size_t len;
+    uart_get_buffered_data_len(p_gy->port, &len);
+    
+    for (int idx = 0; idx < len; ++idx) {
+        uart_read_bytes(p_gy->port, &rx_buf[idx], 1, 0xF);
+        if (idx >= rx_len - 2) {
+            break;
+        }
+    }
+    return ESP_OK;
+}
+
+uint8_t hi229_setup(hi229_t *p_gy) {
+    hi229_send(p_gy, (uint8_t *) "AT+ODR=200\r\n", -1, (uint8_t *) "AT+OK");
+    hi229_send(p_gy, (uint8_t *) "AT+BAUD=921600\r\n", -1, (uint8_t *) "AT+OK");
+    hi229_send(p_gy, (uint8_t *) "AT+EOUT=1\r\n", -1, (uint8_t *) "AT+OK");
+    hi229_send(p_gy, (uint8_t *) "AT+MODE=1\r\n", -1, (uint8_t *) "AT+OK");
+    hi229_send(p_gy, (uint8_t *) "AT+SETPTL=91\r\n", -1, (uint8_t *) "AT+OK");
     // FIXME: Check this part
 
     return 0b11111;
 }
 
-#define CONFIG_HI299_MAX_READ_NUM 0xff
-esp_err_t hi229_read(hi229_t* p_gy) {
+esp_err_t hi229_read(hi229_t *p_gy) {
     uint8_t data = 0x0;
     size_t count = 0;
     while (count < CONFIG_HI299_MAX_READ_NUM) {
@@ -137,29 +178,29 @@ esp_err_t hi229_read(hi229_t* p_gy) {
 }
 
 
-void hi229_enable(hi229_t* p_gy) {
+void hi229_enable(hi229_t *p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 0);
     hi229_delay_ms(200);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "HI229 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
-void hi229_disable(hi229_t* p_gy) {
+void hi229_disable(hi229_t *p_gy) {
     gpio_set_level(p_gy->ctrl_pin, 1);
     hi229_delay_ms(200);
     int ret = gpio_get_level(p_gy->ctrl_pin);
     ESP_LOGI(TAG, "HI229 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
-esp_err_t hi229_self_test(hi229_t* p_gy) {
+esp_err_t hi229_self_test(hi229_t *p_gy) {
     // FIXME: Finish test
     return ESP_OK;
 }
 
-esp_err_t hi229_parse(hi229_t* p_gy,
-                      hi229_dgram_t* p_reading,
-                      hi229_data_t* p_parsed,
-                      char* buffer, int len) {
+esp_err_t hi229_parse(hi229_t *p_gy,
+                      hi229_dgram_t *p_reading,
+                      hi229_data_t *p_parsed,
+                      char *buffer, int len) {
     return ESP_FAIL;
 }
 
@@ -167,14 +208,14 @@ esp_err_t hi229_parse(hi229_t* p_gy,
         int dest##_offset = 0
 
 #define ADD_DATA(dest, dest_limit, src, src_len) \
-        if (((dest##_offset) + (src_len)) <= dest_limit) { \
+        if (((dest##_offset) + (src_len)) <= (dest_limit)) { \
             memcpy((dest) + (dest##_offset), (src), (src_len)); \
             dest##_offset += (src_len); \
         } \
 
 #define GET_OFFSET(dest) dest##_offset
 
-static uint8_t compute_chksum(uint8_t* data, size_t len) {
+static uint8_t compute_chksum(const uint8_t *data, size_t len) {
     uint32_t sum = 0;
     for (int idx = 0; idx < len; ++idx) {
         sum += data[idx];
@@ -182,7 +223,7 @@ static uint8_t compute_chksum(uint8_t* data, size_t len) {
     return sum % 0x100;
 }
 
-int hi229_tag(hi229_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
+int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
     INIT_DATA(payload_buffer);
     /**
      * @brief Format of packet:
@@ -213,64 +254,105 @@ int hi229_tag(hi229_dgram_t* p_reading, uint8_t* payload_buffer, int len) {
     return GET_OFFSET(payload_buffer);
 }
 
-static void hi229_reset(hi229_t* p_gy) {
-    hi229_send(p_gy, (uint8_t*)"AT+RST\r\n", (uint8_t*)"AT+OK");
+static void hi229_reset(hi229_t *p_gy) {
+    hi229_send(p_gy, (uint8_t *) "AT+RST\r\n", -1, (uint8_t *) "AT+OK");
 }
 
 COMMAND_FUNCTION(imu_cali_reset) {
-    ESP_LOGI(TAG, "Executing command : IMU_RESET");
+    ESP_LOGI(TAG, "Executing command : IMU_CALI_RESET");
     hi229_reset(&g_imu);
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_cali_acc) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     hi229_reset(&g_imu);
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_cali_gyro) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_GYRO");
     hi229_reset(&g_imu);
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_cali_mag) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     hi229_reset(&g_imu);
 
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     hi229_enable(&g_imu);
     set_sys_event(IMU_ENABLED);
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     hi229_disable(&g_imu);
     clear_sys_event(IMU_ENABLED);
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_status) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
+    ESP_LOGI(TAG, "Executing command : IMU_IMU_STATUS");
     int ret = gpio_get_level(g_imu.ctrl_pin);
     ESP_LOGI(TAG, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
     snprintf(tx_buffer, tx_len, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_imm) {
-    return ESP_FAIL;
+    imu_read(&g_imu);
+    snprintf(tx_buffer, tx_len, "acc=[%f, %f, %f], rpy=[%f, %f, %f],\n\n", 
+             g_imu.raw.imu[0].acc[0], g_imu.raw.imu[0].acc[1], g_imu.raw.imu[0].acc[2],
+             g_imu.raw.imu[0].eul[0], g_imu.raw.imu[0].eul[1], g_imu.raw.imu[0].eul[2]);
+    return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_setup) {
-    ESP_LOGI(TAG, "Executing command : IMU_GY_SETUP");
+    ESP_LOGI(TAG, "Executing command : IMU_IMU_SETUP");
     uint8_t ret = hi229_setup(&g_imu);
 
     snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
 
     return ESP_OK;
 }
+
 COMMAND_FUNCTION(imu_scale) {
-    snprintf(tx_buffer, tx_len, "IMU does not suport scale setting\n\n");
+    ESP_LOGI(TAG, "Executing command : IMU_IMU_SCALE");
+
+    snprintf(tx_buffer, tx_len, "IMU does not support scale setting\n\n");
+    return ESP_FAIL;
+}
+
+#define IMU_DEBUG_OFFSET 10
+COMMAND_FUNCTION(imu_debug) {
+    ESP_LOGI(TAG, "Executing command : IMU_IMU_DEBUG");
+    rx_buffer[strlen(rx_buffer) - 1] = '\0'; // Remove '\n' tail
+    
+    char serial_send_buffer[CONFIG_CTRL_RX_LEN] = {0};
+    snprintf(serial_send_buffer, CONFIG_CTRL_RX_LEN, "%s\r\n", &rx_buffer[IMU_DEBUG_OFFSET]);
+
+    printf("\n");
+    for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
+        printf("0x%x, ", serial_send_buffer[idx]);
+    }
+    printf("\n");
+    for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
+        printf("%c, ", serial_send_buffer[idx]);
+    }
+    printf("\n");
+
+    uart_flush(g_imu.port);
+    hi229_send(&g_imu, (uint8_t *) serial_send_buffer, (int)strlen(serial_send_buffer), NULL);
+    uint8_t buf[CONFIG_HI299_MAX_READ_NUM] = {0};
+    os_delay_ms(200);
+    hi229_recv(&g_imu, buf, CONFIG_HI299_MAX_READ_NUM);
+    ESP_LOGI(TAG, "IMU: %s", (char *) buf);
     return ESP_FAIL;
 }
 
@@ -278,13 +360,6 @@ COMMAND_FUNCTION(imu_self_test) {
     ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
 
     esp_err_t err = imu_self_test(&g_imu);
-
-    if (err == ESP_OK) {
-        snprintf(tx_buffer, tx_len, "Self-test OK: %d\n\n", g_mcu.blink_pin);
-        return err;
-    } else {
-        snprintf(tx_buffer, tx_len, "Self-test FAIL: %d\n\n", g_mcu.blink_pin);
-        return err;
-    }
+    return ESP_FAIL;
 
 }

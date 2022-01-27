@@ -10,7 +10,7 @@
 
 #include "apps.h"
 #include "esp_log.h"
-#include "device.h"
+#include "sys.h"
 #include "gy95.h"
 
 static const char* TAG = "GY95";
@@ -547,7 +547,6 @@ COMMAND_FUNCTION(imu_disable) {
     return ESP_OK;
 }
 
-/** FIXME: The status of  gy is output via serial debug port **/
 COMMAND_FUNCTION(imu_status) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_STATUS");
 

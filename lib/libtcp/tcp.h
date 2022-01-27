@@ -15,7 +15,7 @@ typedef struct {
     int client_sock;
 } tcp_client_t;
 
-#define delay_ms(x) vTaskDelay(x / portTICK_PERIOD_MS)
+#define delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS)
 
 #define send_all(sock, buf) \
         { \
@@ -34,15 +34,15 @@ typedef struct {
 #define log_source_addr(source_addr) \
         { \
             char addr_str[128]; \
-            if (source_addr.ss_family == PF_INET) { \
-                inet_ntoa_r(((struct sockaddr_in*)&source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1); \
+            if ((source_addr).ss_family == PF_INET) { \
+                inet_ntoa_r(((struct sockaddr_in*)&(source_addr))->sin_addr, addr_str, sizeof(addr_str) - 1); \
             } \
             ESP_LOGI(TAG, "Socket accepted ip address: %s", addr_str); \
         }
 
 #define handle_socket_err(sock) \
         delay_ms(100);\
-        if (sock != -1) { \
+        if ((sock) != -1) { \
             ESP_LOGE(TAG, "Shutting down socket..."); \
             shutdown(sock, 0); \
             delay_ms(100); \

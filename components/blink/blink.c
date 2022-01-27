@@ -6,63 +6,137 @@
 #include "esp_timer.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_attr.h"
 
 #include "driver/gpio.h"
 #include "driver/timer.h"
+#include "driver/ledc.h"
 #include "nvs_flash.h"
 
 #include "cJSON.h"
 
 #include "blink.h"
-#include "device.h"
+#include "sys.h"
 
-#define TIMER_DIVIDER         16  //  Hardware timer clock divider
-#define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define LED_ON() gpio_set_level(g_blink_pin, CONFIG_BLINK_LED_ENABLE_VALUE)
-#define LED_OFF() gpio_set_level(g_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE)
 
-#define CONFIG_BLINK_SYNC_SEQ_LEN 4
-#ifdef CONFIG_BLINK_EN_CHKSUM
-#define CONFIG_BLINK_CHKSUM_SEQ_LEN 4
-#else
-#define CONFIG_BLINK_CHKSUM_SEQ_LEN 0
-#endif
 
-static char s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + CONFIG_BLINK_SEQ_LEN + CONFIG_BLINK_CHKSUM_SEQ_LEN];
-// [ 4bit sync | 16 bit data | 4 bit chksum]
+static uint8_t s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + CONFIG_BLINK_SEQ_LEN + CONFIG_BLINK_CHKSUM_SEQ_LEN];
+// [ 4bit sync | 16 bit data | n bit chksum]
 
 static int s_blink_idx;
 uint8_t g_blink_pin;
 
 static const char* TAG = "app_blink";
 
-static bool blink_timeout(void* args) {
-    if (s_blink_idx >= CONFIG_BLINK_SEQ_LEN) s_blink_idx = 0;
-    gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
-    s_blink_idx++;
-
-    return false;
+void blink_led_off(blink_led_t* p_led) {
+    if (p_led->is_mono) {
+        gpio_set_level(p_led->pins.mono, !p_led->en_val);
+    } else {
+        for (int idx = 0; idx < sizeof(p_led->pins.rgb) / sizeof(p_led->pins.rgb[0]); ++idx) {
+            gpio_set_level(p_led->pins.rgb[idx], !p_led->en_val);
+        }
+    }
 }
 
-static bool get_flag(uint8_t* arr, int item) {
+void blink_led_on(blink_led_t* p_led) {
+    if (p_led->is_mono) {
+        gpio_set_level(p_led->pins.mono, p_led->en_val);
+    } else {
+        for (int idx = 0; idx < sizeof(p_led->pins.rgb) / sizeof(p_led->pins.rgb[0]); ++idx) {
+            gpio_set_level(p_led->pins.rgb[idx], p_led->en_val);
+        }
+    }
+}
+
+static bool get_flag(const uint8_t* arr, int item) {
     return (arr[item / 8] & (1 << item % 8)) >> (item % 8);
 }
 
+
+void blink_gpio_msp_init() {
+    /** Init GPIO **/
+    gpio_config_t io_config = {
+            .pin_bit_mask = (1ull << CONFIG_BLINK_PIN),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&io_config);
+}
+
+
+#define CONFIG_LEDC_HS_TIMER          LEDC_TIMER_0
+#define CONFIG_LEDC_HS_CH0_CHANNEL    LEDC_CHANNEL_0
+
+/*
+ * Prepare individual configuration
+ * for each channel of LED Controller
+ * by selecting:
+ * - controller's channel number
+ * - output duty cycle, set initially to 0
+ * - GPIO number where LED is connected to
+ * - speed mode, either high or low
+ * - timer servicing selected channel
+ *   Note: if different channels use one timer,
+ *         then frequency and bit_num of these channels
+ *         will be the same
+ */
+ledc_channel_config_t g_ledc_channel = {
+        .channel = CONFIG_LEDC_HS_CH0_CHANNEL,
+        .duty = 0,
+        .gpio_num = CONFIG_BLINK_PIN,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .hpoint = 0,
+        .timer_sel = CONFIG_LEDC_HS_TIMER
+};
+
+
+void blink_pwm_msp_init() {
+    static ledc_timer_config_t s_ledc_timer = {
+        .duty_resolution = LEDC_TIMER_13_BIT,
+        .freq_hz = CONFIG_BLINK_MAX_DUTY,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .timer_num = CONFIG_LEDC_HS_TIMER,
+        .clk_cfg = LEDC_AUTO_CLK,
+    };
+    // Set configuration of timer0 for high speed channels
+    ledc_timer_config(&s_ledc_timer);
+    ledc_channel_config(&g_ledc_channel);
+}
+
+
+static bool blink_timeout(void* args) {
+    if (s_blink_idx >= CONFIG_BLINK_SEQ_LEN) s_blink_idx = 0;
+#if CONFIG_BLINK_NO_PWM
+    gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
+#else
+    ledc_set_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel, s_blink_seq[s_blink_idx] ? CONFIG_BLINK_MAX_DUTY : CONFIG_BLINK_MIN_DUTY);
+    ledc_update_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel);
+#endif
+    s_blink_idx++;
+    return true;
+}
+
+
 void blink_init() {
+
+#if CONFIG_BLINK_NO_PWM
+    blink_gpio_msp_init();
+#else
+    blink_pwm_msp_init();
+#endif
+
+    /** After init, test up the led **/
+    CONFIG_LED_OFF();
+    os_delay_ms(1000);
+    CONFIG_LED_ON();
+
     /** Read blink sequence from nvs **/
     nvs_handle_t blink_handle;
     uint8_t seq;
     nvs_open(CONFIG_BLINK_NVS_TABLE_NAME, NVS_READWRITE, &blink_handle);
 
-    /** FIXME: Temporarily suppress pin config
-    nvs_get_u8(blink_handle, "pin", &g_blink_pin);
-    if (g_blink_pin != CONFIG_BLINK_BLUE_PIN && g_blink_pin != CONFIG_BLINK_GREEN_PIN && g_blink_pin != CONFIG_BLINK_RED_PIN) {
-        g_blink_pin = CONFIG_BLINK_DEFAULT_PIN;
-        nvs_set_u8(blink_handle, "pin", g_blink_pin);
-        nvs_commit(blink_handle);
-    }
-    **/
-   // TODO: The goal is to generalize pin configuration
     g_blink_pin = CONFIG_BLINK_DEFAULT_PIN;
     nvs_get_u8(blink_handle, "seq", &seq);
     ESP_LOGI(TAG, "Blinking pin: %d", g_blink_pin);
@@ -70,22 +144,8 @@ void blink_init() {
     s_blink_idx = 0;
 
     bzero(s_blink_seq, sizeof(s_blink_seq));
-    bool pattern[2] = { 1, 0 };
+    uint8_t pattern[2] = { 1, 0 };
     bool value = 0;
-
-    /** Init GPIO **/
-    gpio_config_t io_config = {
-            .pin_bit_mask = (1ull << CONFIG_BLINK_RED_PIN) | (1ull << CONFIG_BLINK_GREEN_PIN) | (1ull << CONFIG_BLINK_BLUE_PIN),
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE
-    };
-    gpio_config(&io_config);
-
-    /** After init, light up the led **/
-    LED_ALLOFF();
-    LED_ON();
 
     ESP_LOGI(TAG, "Sequence Number: %d", seq);
 
@@ -134,9 +194,16 @@ void blink_init() {
     timer_set_counter_value(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, 0x00ull);
     timer_set_alarm_value(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, TIMER_SCALE * CONFIG_BLINK_INTERVAL_MS / 1000);
     timer_enable_intr(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
-
     timer_isr_callback_add(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, blink_timeout, NULL, ESP_INTR_FLAG_IRAM);
 }
+
+
+void blink_init_task(void * vParameters) {
+    blink_init();
+    blink_start();
+    vTaskDelete(NULL);
+}
+
 
 void blink_start() {
     ESP_LOGI(TAG, "Timer started");
@@ -147,19 +214,20 @@ void blink_start() {
     printf("\n");
     ESP_LOGW(TAG, "# --------- End of blink sequence --------- #");
     timer_start(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
+    deice_always_on();
 }
 
 void blink_stop() {
     ESP_LOGI(TAG, "Timer stopped");
     timer_pause(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
-    LED_ON();
+    CONFIG_LED_ON();
+    device_reset_sleep_countup();
 }
 
+#define BLINK_SET_OFFSET 10
 COMMAND_FUNCTION(blink_set) {
-    esp_err_t err = ESP_OK;
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_SET");
     uint8_t seq = 0;
-    uint8_t pin = CONFIG_BLINK_DEFAULT_PIN;
     int offset = 0;
 
     /** Open nvs table **/
@@ -169,45 +237,28 @@ COMMAND_FUNCTION(blink_set) {
     /**
     rx_buffer = "blink_set {"seq":"[0-255]"}
     **/
+    char* end_ptr = NULL;
+    seq = (int)strtol(&rx_buffer[BLINK_SET_OFFSET], &end_ptr, 10);
 
-    cJSON* pRoot = cJSON_Parse(rx_buffer + sizeof("blink_set"));
-    cJSON* pSeq = NULL;
-    if (pRoot == NULL) {
-        ESP_LOGE(TAG, "Parse failed");
-        err = ESP_FAIL;
-        goto blink_set_cleanup;
-    } else {
-        pSeq = cJSON_GetObjectItem(pRoot, "seq");
-        if ((pSeq == NULL)) {
-            ESP_LOGE(TAG, "Parse failed, invalid keys");
-            err = ESP_FAIL;
-            goto blink_set_cleanup;
-        }
-    }
-
-    if (cJSON_IsNumber(pSeq)) {
-        seq = pSeq->valueint % 0x100;
+    if (end_ptr > &rx_buffer[BLINK_SET_OFFSET]) {
+        seq = seq % 0x100;
         snprintf(tx_buffer + offset, tx_len - offset, "Blink seq set to %d, reboot to make effective\n\n", seq);
     } else {
         snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed, invalid seq\n\n");
-        offset = strlen(tx_buffer);
-        err = ESP_FAIL;
         goto blink_set_cleanup;
     }
     nvs_set_u8(blink_handle, "seq", seq);
     nvs_commit(blink_handle);
+    nvs_close(blink_handle);
 
-    err = ESP_OK;
+    return ESP_OK;
 
 blink_set_cleanup:
 
     nvs_commit(blink_handle);
     nvs_close(blink_handle);
 
-    if (pRoot != NULL) {
-        cJSON_free(pRoot);
-    }
-    return err;
+    return ESP_FAIL;
 }
 
 COMMAND_FUNCTION(blink_start) {
@@ -231,16 +282,14 @@ COMMAND_FUNCTION(blink_stop) {
 COMMAND_FUNCTION(blink_get) {
     ESP_LOGI(TAG, "Executing command : IMU_BLINK_GET");
     uint8_t seq = 0;
-    uint8_t pin = 0;
 
     /** Open nvs table **/
     nvs_handle_t blink_handle;
     nvs_open("blink", NVS_READWRITE, &blink_handle);
 
-    nvs_get_u8(blink_handle, "pin", &pin);
     nvs_get_u8(blink_handle, "seq", &seq);
 
-    snprintf(tx_buffer, tx_len, "Blink pin is %d, seq is %d, \n\n", pin, seq);
+    snprintf(tx_buffer, tx_len, "Blink seq is %d, \n\n", seq);
 
     nvs_close(blink_handle);
     return ESP_OK;
@@ -251,7 +300,7 @@ COMMAND_FUNCTION(blink_off) {
 
     blink_stop();
 
-    gpio_set_level(g_blink_pin, !CONFIG_BLINK_LED_ENABLE_VALUE);
+    CONFIG_LED_OFF();
 
     snprintf(tx_buffer, tx_len, "Blink pin %d set to OFF\n\n", g_blink_pin);
 

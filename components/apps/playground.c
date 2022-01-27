@@ -22,7 +22,6 @@
 
 #include "apps.h"
 #include "settings.h"
-#include "device.h"
 #include "imu.h"
 #include "sys.h"
 #include "tcp.h"

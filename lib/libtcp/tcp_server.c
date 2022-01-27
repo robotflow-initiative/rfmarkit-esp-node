@@ -1,17 +1,12 @@
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 
 #include "esp_log.h"
 #include "esp_sleep.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
 #include "esp_task_wdt.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
-#include "lwip/sys.h"
 #include "lwip/inet.h"
-#include "lwip/netdb.h"
 
 #include "tcp.h"
 

@@ -16,13 +16,12 @@
 #include "tcp.h"
 #include "apps.h"
 #include "blink.h"
-#include "device.h"
+#include "sys.h"
 #include "imu.h"
 #include "settings.h"
-#include "sys.h"
 
-#define RX_BUFFER_LEN 64
-#define TX_BUFFER_LEN 512
+#define RX_BUFFER_LEN CONFIG_CTRL_RX_LEN
+#define TX_BUFFER_LEN CONFIG_CTRL_TX_LEN
 
 static const char* TAG = "app_controller";
 
@@ -32,7 +31,7 @@ static char s_tx_buffer[TX_BUFFER_LEN];
 typedef struct command_reg_t {
     char name[16];
 
-    esp_err_t(*func)(char*, int, char*, int);
+    esp_err_t(*func)(char*, size_t, char*, size_t);
 } command_reg_t;
 
 static command_reg_t s_registration[] = {
@@ -40,7 +39,6 @@ static command_reg_t s_registration[] = {
         {.name = "ping", .func = command_func_ping},
         {.name = "shutdown", .func = command_func_shutdown},
         {.name = "update", .func = command_func_update},
-#if CONFIG_EN_IMU
         {.name = "imu_cali_reset", .func = command_func_imu_cali_reset},
         {.name = "imu_cali_acc", .func = command_func_imu_cali_acc},
         {.name = "imu_cali_mag", .func = command_func_imu_cali_mag},
@@ -52,7 +50,7 @@ static command_reg_t s_registration[] = {
         {.name = "imu_imm", .func = command_func_imu_imm},
         {.name = "imu_setup", .func = command_func_imu_setup},
         {.name = "imu_scale",.func = command_func_imu_scale},
-#endif
+        {.name = "imu_debug", .func = command_func_imu_debug},
         {.name = "id", .func = command_func_id},
         {.name = "ver", .func = command_func_ver},
         {.name = "blink_set", .func = command_func_blink_set},
@@ -62,12 +60,14 @@ static command_reg_t s_registration[] = {
         {.name = "blink_off", .func = command_func_blink_off},
         {.name = "self_test", .func = command_func_imu_self_test},
         {.name = "always_on", .func = command_func_always_on},
+        {.name = "varset", .func = command_func_varset},
+        {.name = "varget", .func = command_func_varget},
         {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func = command_func_shutdown}
 };
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)
 
-static command_reg_t* parse_command(char* command, int len) {
+static command_reg_t* parse_command(char* command, size_t len) {
     ESP_LOGI(TAG, "Got command %s from controller", command);
     for (int idx = 0; idx < sizeof(s_registration) / sizeof(command_reg_t); ++idx) {
         if (MATCH_CMD(command, s_registration[idx].name)) {
@@ -78,7 +78,7 @@ static command_reg_t* parse_command(char* command, int len) {
 }
 
 esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_t tx_len) {
-    command_reg_t* cmd = parse_command(rx_buffer, rx_len); // TODO: Migrate another command parser
+    command_reg_t* cmd = parse_command(rx_buffer, rx_len);
     esp_err_t ret = ESP_FAIL;
     bzero(tx_buffer, sizeof(char) * tx_len);
 
@@ -87,8 +87,11 @@ esp_err_t execute_command(char* rx_buffer, char* tx_buffer, size_t rx_len, size_
         ESP_LOGE(TAG, "Got invalid command : %s", rx_buffer);
 
         /** Fill tx_buffer with 'ERROR\n' **/
-        strcpy(tx_buffer, "COMMAND NOT FOUND\n\n");
-
+        if (rx_buffer[0] == '\n') {
+            strcpy(tx_buffer, "\n");
+        } else {
+            strcpy(tx_buffer, "COMMAND NOT FOUND\n\n");
+        }
         /** Return False **/
         return ESP_FAIL;
     } else {
@@ -126,6 +129,7 @@ static void interact(const int sock) {
 
             send_all(sock, s_tx_buffer);
         }
+        bzero(s_rx_buffer, sizeof(s_rx_buffer));
     } while (recv_len > 0);
 }
 

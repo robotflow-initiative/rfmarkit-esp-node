@@ -13,7 +13,7 @@
 #include "apps.h"
 #include "settings.h"
 #include "imu.h"
-#include "device.h"
+#include "sys.h"
 
 static const char* TAG = "app_uart_monitor";
 
@@ -57,7 +57,7 @@ void app_uart_monitor(void* pvParameters) {
                 ESP_LOGD(TAG, "Bits: %x", bits);
 
                 if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
-                    device_delay_ms(1000);
+                    os_delay_ms(1000);
                     clear_sys_event(UART_ACTIVE); // Mark uart as inactive
                     continue;
                 } else {

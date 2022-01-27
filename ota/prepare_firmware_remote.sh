@@ -1,16 +1,15 @@
 #!/bin/bash
-PROJECT_NAME=esp32-imu-node
+PROJECT_NAME=imu-esp-node
 PWD=$(pwd)
-PORT=5138
 ROOT_DIR=..
 BUILD_DIR=$ROOT_DIR/build/
 
 # Remote deployment
-REMOTE_HOST=liyutong@10.52.21.125
-REMOTE_DIR=/home/liyutong/Tasks/imu-node-deploy/ota/
-REMOTE_PYTHON=/home/liyutong/miniconda3/envs/default/bin/python
+REMOTE_HOST=speit@10.53.21.164
+REMOTE_PORT=5138
+REMOTE_DIR=/home/speit/imu-node-deploy/ota/
+REMOTE_PYTHON=/usr/bin/python3
 # Remote python must have http module
-# TODO: [LOW] Use apache image to serve firmware
 
 set -e
 
@@ -36,17 +35,19 @@ cd $DIR
 fi
 
 # Copy & Rename
+echo "Cache firmware"
 cp $BUILD_DIR/$PROJECT_NAME.bin ./firmware.bin
 cp $ROOT_DIR/version.txt ./version.txt
 
 # Upload to remote
+echo "Uploading to remote"
 scp ./firmware.bin ./version.txt $REMOTE_HOST:$REMOTE_DIR
 
 # Start python http server on the remote
+echo "Uploading to remote"
+ssh $REMOTE_HOST -t "cd $REMOTE_DIR; $REMOTE_PYTHON -m http.server $REMOTE_PORT"
 
-ssh $REMOTE_HOST -t "cd $REMOTE_DIR; $REMOTE_PYTHON -m http.server $PORT"
-
-# python -m http.server $PORT
+# python -m http.server $REMOTE_PORT
 
 # Change back to previous directory
 cd $PWD
