@@ -76,10 +76,10 @@ static void init() {
     /** Create system event group **/
     g_mcu.sys_event_group = xEventGroupCreate();
 
-    clear_sys_event(TCP_CONNECTED);
-    clear_sys_event(NTP_SYNCED);
-    clear_sys_event(IMU_ENABLED);
-    set_sys_event(UART_BLOCK);
+    clear_sys_event(EV_TCP_CONNECTED);
+    clear_sys_event(EV_NTP_SYNCED);
+    clear_sys_event(EV_IMU_ENABLED);
+    set_sys_event(EV_UART_MANUAL_BLOCK);
 
 }
 
@@ -118,7 +118,7 @@ void app_main(void) {
         ESP_LOGI(TAG, "Main loop, g_sleep_countup: %d", g_mcu.sleep_countup);
         os_delay_ms(CONFIG_MAIN_LOOP_DUTY_PERIOD_MS);
 
-        /** If WIFI_FAIL event occurs after init, we have a ¸wifi interrupt. Going to deep sleep (shutdown)**/
+        /** If WIFI_FAIL event occurs after init, we have a wifi interrupt. Going to deep sleep (shutdown)**/
         bits = xEventGroupGetBits(g_mcu.wifi_event_group);
         if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Wi-Fi interrupt, going to deep sleep");
@@ -127,7 +127,7 @@ void app_main(void) {
 
         /** Check other events **/
         bits = xEventGroupGetBits(g_mcu.sys_event_group);
-        if ((bits & UART_BLOCK_BIT)) {
+        if ((bits & EV_UART_MANUAL_BLOCK_BIT)) {
             device_incr_sleep_countup(1);
         }
 

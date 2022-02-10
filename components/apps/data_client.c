@@ -38,20 +38,20 @@ void app_data_client(void* pvParameters) {
     imu_dgram_t imu_reading = { 0 };
     tcp_client_t client = {
             .port = CONFIG_DATA_HOST_PORT,
-            .address = CONFIG_DATA_HOST_IP_ADDR
+            .address = g_mcu.data_host_ip_addr,
     };
 
     while (1) {
         /** Wait time sync **/
         ESP_LOGI(TAG, "Waiting for time sync");
         xEventGroupWaitBits(g_mcu.sys_event_group,
-                            NTP_SYNCED_BIT,
+                            EV_NTP_SYNCED_BIT,
                             pdFALSE,
                             pdFALSE,
                             portMAX_DELAY);
 
         /** TCP connection is not established **/
-        clear_sys_event(TCP_CONNECTED);
+        clear_sys_event(EV_TCP_CONNECTED);
 
         client_init(&client);
 
@@ -64,7 +64,7 @@ void app_data_client(void* pvParameters) {
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
 
-        set_sys_event(TCP_CONNECTED);
+        set_sys_event(EV_TCP_CONNECTED);
         /** TCP connection is established **/
 
         while (1) {
@@ -84,7 +84,7 @@ void app_data_client(void* pvParameters) {
                 err = send(client.client_sock, s_send_buffer, s_send_buffer_tail, 0);
                 if (err < 0) {
                     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                    clear_sys_event(TCP_CONNECTED);
+                    clear_sys_event(EV_TCP_CONNECTED);
                     break;
                 } else {
                     device_reset_sleep_countup();
@@ -97,7 +97,7 @@ void app_data_client(void* pvParameters) {
         }
 
 socket_error:
-        clear_sys_event(TCP_CONNECTED);
+        clear_sys_event(EV_TCP_CONNECTED);
         ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
         switch (errno) {
         case ECONNRESET:

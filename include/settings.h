@@ -1,7 +1,7 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
-#define CONFIG_FIRMWARE_VERSION "2.7.0"
+#define CONFIG_FIRMWARE_VERSION "2.7.2"
 
 /** Debug options **/
 #define CONFIG_EN_DEBUG_OVER_TCP 0 // TODO： Verify or deprecate this function

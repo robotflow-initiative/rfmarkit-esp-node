@@ -7,13 +7,21 @@
 - 新的OTA固件中，更新服务器是否可达？（能否再次OTA）
 - 新的OTA固件能否相应OTA指令？
 
+## 设备初始化检查清单
+
+- BLINK_ID 是否正确设置
+- Device ID 是否正确记录
+- 传感器是否已经设置200HZ输出
+- 传感器是否已经启用九轴融合
+- 传感器是否已经设置波特率921600
+- MCU是否已经设置了波特率
+
+
 ## 坑
 
 ### tcp_server example not able to reconnect the server after disconnect
 
-and comment out the 2 break statements above, youll have to deal with the break logic better, I just didn't have the
-time. But this makes it work. You dont want to bind again, once you have already bound. Looks like this.
-（https://esp32.com/viewtopic.php?t=7791）改变while的位置
+需要改变while循环的位置[https://esp32.com/viewtopic.php?t=7791](https://esp32.com/viewtopic.php?t=7791)
 
 ```c
 static void tcp_server_task(void *pvParameters)
@@ -23,7 +31,6 @@ static void tcp_server_task(void *pvParameters)
     int addr_family;
     int ip_protocol;
 
-  
 
 #ifdef CONFIG_EXAMPLE_IPV4
         struct sockaddr_in destAddr;
@@ -67,13 +74,13 @@ static void tcp_server_task(void *pvParameters)
         ESP_LOGI(TAG, "Socket listening");
 ```
 
-## NTP 时间
+### NTP 时间同步问题
 
-模块可能无法获取NTP时间，因此会愚弄服务器
+模块可能无法获取NTP时间，因此会愚弄服务器，同步
 
 ## 已知的BUG/特性
 
-- v1.1.8: 如果在实验中调用`command_func_stop()`，然后关闭服务器连接。此时`app_uart_monitor`被时间`UART_BLOCK`族塞，串口队列为空。`app_tcp_client`
+- [x] 修复情况 v1.1.8: 如果在实验中调用`command_func_stop()`，然后关闭服务器连接。此时`app_uart_monitor`被时间`EV_UART_MANUAL_BLOCK`族塞，串口队列为空。`app_tcp_client`
   函数会不停的尝试从串口队列中获取数据，而不会检查网络连接。此时传感器会一直等待关机命令，而不会主动进入休眠
 
-- v2.0.0 TCP 发送没有实现缓冲，有数据就发送，可能会耗电
+- [x] v2.0.0 TCP 发送没有实现缓冲，有数据就发送，可能会耗电

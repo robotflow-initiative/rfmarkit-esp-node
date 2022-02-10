@@ -106,8 +106,8 @@ void blink_pwm_msp_init() {
 }
 
 
-static bool blink_timeout(void* args) {
-    if (s_blink_idx >= CONFIG_BLINK_SEQ_LEN) s_blink_idx = 0;
+static void blink_timeout(void* args) {
+    if (s_blink_idx >= sizeof(s_blink_seq)) s_blink_idx = 0;
 #if CONFIG_BLINK_NO_PWM
     gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
 #else
@@ -115,7 +115,6 @@ static bool blink_timeout(void* args) {
     ledc_update_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel);
 #endif
     s_blink_idx++;
-    return true;
 }
 
 
@@ -158,7 +157,7 @@ void blink_init() {
     /** fill data bits **/
     int n_ones = 0;
     for (int idx = 0; idx < 8; ++idx) {
-        value = get_flag(&seq, 8 - idx);
+        value = get_flag(&seq, 7 - idx);
         ESP_LOGD(TAG, "value: %d\n", value);
         if (value) {
             pattern[0] = !pattern[0];
@@ -183,18 +182,16 @@ void blink_init() {
     ESP_LOGW(TAG, "# --------- End of blink sequence --------- #");
 
     // Arm timers
-    timer_config_t config = {
-            .alarm_en = 1,
-            .counter_en = 0,
-            .counter_dir = TIMER_COUNT_UP,
-            .auto_reload = 1,
-            .divider = TIMER_DIVIDER,
+    const esp_timer_create_args_t blink_timer_args = {
+            .callback = &blink_timeout,
+            /* name is optional, but may help identify the timer when debugging */
+            .name = "timeout"
     };
-    timer_init(0, 0, &config);
-    timer_set_counter_value(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, 0x00ull);
-    timer_set_alarm_value(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, TIMER_SCALE * CONFIG_BLINK_INTERVAL_MS / 1000);
-    timer_enable_intr(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
-    timer_isr_callback_add(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX, blink_timeout, NULL, ESP_INTR_FLAG_IRAM);
+
+    esp_timer_handle_t blink_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &blink_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000));
+
 }
 
 
@@ -208,7 +205,7 @@ void blink_init_task(void * vParameters) {
 void blink_start() {
     ESP_LOGI(TAG, "Timer started");
     ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");
-    for (int idx = 0; idx < CONFIG_BLINK_SEQ_LEN; ++idx) {
+    for (int idx = 0; idx < sizeof(s_blink_seq); ++idx) {
         printf("%d ", s_blink_seq[idx]);
     }
     printf("\n");

@@ -536,14 +536,14 @@ COMMAND_FUNCTION(imu_cali_mag) {
 COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_ENABLE");
     gy95_enable(&g_imu);
-    set_sys_event(IMU_ENABLED);
+    set_sys_event(EV_IMU_ENABLED);
     return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_GY_DISABLE");
     gy95_disable(&g_imu);
-    clear_sys_event(IMU_ENABLED);
+    clear_sys_event(EV_IMU_ENABLED);
     return ESP_OK;
 }
 

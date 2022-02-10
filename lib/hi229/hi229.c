@@ -147,14 +147,15 @@ static esp_err_t hi229_recv(hi229_t *p_gy, uint8_t *rx_buf, size_t rx_len) {
 }
 
 uint8_t hi229_setup(hi229_t *p_gy) {
-    hi229_send(p_gy, (uint8_t *) "AT+ODR=200\r\n", -1, (uint8_t *) "AT+OK");
-    hi229_send(p_gy, (uint8_t *) "AT+BAUD=921600\r\n", -1, (uint8_t *) "AT+OK");
-    hi229_send(p_gy, (uint8_t *) "AT+EOUT=1\r\n", -1, (uint8_t *) "AT+OK");
-    hi229_send(p_gy, (uint8_t *) "AT+MODE=1\r\n", -1, (uint8_t *) "AT+OK");
-    hi229_send(p_gy, (uint8_t *) "AT+SETPTL=91\r\n", -1, (uint8_t *) "AT+OK");
-    // FIXME: Check this part
+    hi229_send(p_gy, (uint8_t *) "AT+EOUT=0\r\n", -1, NULL);
+    hi229_send(p_gy, (uint8_t *) "AT+MODE=1\r\n", -1, NULL);
+    hi229_send(p_gy, (uint8_t *) "AT+SETPTL=91\r\n", -1, NULL);
+    hi229_send(p_gy, (uint8_t *) "AT+BAUD=921600\r\n", -1, NULL);
+    hi229_send(p_gy, (uint8_t *) "AT+ODR=200\r\n", -1, NULL);
+    hi229_send(p_gy, (uint8_t *) "AT+EOUT=1\r\n", -1, NULL);
+    hi229_send(p_gy, (uint8_t *) "AT+RST\r\n", -1, NULL);
 
-    return 0b11111;
+    return 0b1111111;
 }
 
 esp_err_t hi229_read(hi229_t *p_gy) {
@@ -245,7 +246,7 @@ int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
     ADD_DATA(payload_buffer, len, &scale, 1);
 
     ADD_DATA(payload_buffer, len, &p_reading->start_time_us, sizeof(p_reading->start_time_us));
-
+    
     ADD_DATA(payload_buffer, len, &p_reading->uart_buffer_len, sizeof(p_reading->uart_buffer_len));
 
     chksum = compute_chksum(payload_buffer, GET_OFFSET(payload_buffer));
@@ -286,14 +287,14 @@ COMMAND_FUNCTION(imu_cali_mag) {
 COMMAND_FUNCTION(imu_enable) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     hi229_enable(&g_imu);
-    set_sys_event(IMU_ENABLED);
+    set_sys_event(EV_IMU_ENABLED);
     return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_disable) {
     ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
     hi229_disable(&g_imu);
-    clear_sys_event(IMU_ENABLED);
+    clear_sys_event(EV_IMU_ENABLED);
     return ESP_OK;
 }
 
@@ -360,6 +361,6 @@ COMMAND_FUNCTION(imu_self_test) {
     ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
 
     esp_err_t err = imu_self_test(&g_imu);
-    return ESP_FAIL;
+    return err;
 
 }

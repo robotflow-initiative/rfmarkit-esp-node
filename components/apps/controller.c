@@ -53,6 +53,7 @@ static command_reg_t s_registration[] = {
         {.name = "imu_debug", .func = command_func_imu_debug},
         {.name = "id", .func = command_func_id},
         {.name = "ver", .func = command_func_ver},
+        {.name = "time", .func = command_func_time},
         {.name = "blink_set", .func = command_func_blink_set},
         {.name = "blink_get", .func = command_func_blink_get},
         {.name = "blink_start", .func = command_func_blink_start},

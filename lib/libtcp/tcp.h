@@ -10,7 +10,7 @@ typedef struct {
 
 typedef struct {
     uint16_t port;
-    char address[16];
+    char * address;
     struct sockaddr_in dest_addr;
     int client_sock;
 } tcp_client_t;

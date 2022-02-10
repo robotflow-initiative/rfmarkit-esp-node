@@ -405,8 +405,8 @@ void sys_enter_deep_sleep() {
 
     ESP_LOGI(TAG, "Disabling IMU");
     imu_disable(&g_imu);
-    xEventGroupClearBits(g_mcu.sys_event_group, IMU_ENABLED_BIT);
-    clear_sys_event(IMU_ENABLED);
+    xEventGroupClearBits(g_mcu.sys_event_group, EV_IMU_ENABLED_BIT);
+    clear_sys_event(EV_IMU_ENABLED);
 
     os_delay_ms(200);
     ESP_LOGI(TAG, "IMU ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
@@ -444,16 +444,16 @@ COMMAND_FUNCTION(ping) {
 
 COMMAND_FUNCTION(update) {
     ESP_LOGI(TAG, "Executing command : IMU_UPDATE");
-    set_sys_event(UART_BLOCK);
+    set_sys_event(EV_UART_MANUAL_BLOCK);
     esp_err_t ret = sys_do_ota();
     return ret;
 }
 
 COMMAND_FUNCTION(start) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
-    clear_sys_event(UART_BLOCK);
-    EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, UART_ACTIVE_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_DUTY_PERIOD_MS / portTICK_PERIOD_MS);
-    if (bits & UART_ACTIVE_BIT) {
+    clear_sys_event(EV_UART_MANUAL_BLOCK);
+    EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, EV_UART_ACTIVATED_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_DUTY_PERIOD_MS / portTICK_PERIOD_MS);
+    if (bits & EV_UART_ACTIVATED_BIT) {
         return ESP_OK;
     } else {
         return ESP_FAIL;
@@ -462,7 +462,7 @@ COMMAND_FUNCTION(start) {
 
 COMMAND_FUNCTION(stop) {
     ESP_LOGI(TAG, "Executing command : IMU_STOP");
-    set_sys_event(UART_BLOCK);
+    set_sys_event(EV_UART_MANUAL_BLOCK);
     return ESP_OK;
 }
 
@@ -479,6 +479,14 @@ COMMAND_FUNCTION(ver) {
     return ESP_OK;
 }
 
+COMMAND_FUNCTION(time) {
+    ESP_LOGI(TAG, "Executing command : IMU_TIME");
+    struct timeval tv_now = {0};
+    gettimeofday(&tv_now, NULL);
+    int64_t time = (int64_t) tv_now.tv_sec * 1000000L + (int64_t) tv_now.tv_usec;
+    snprintf(tx_buffer, tx_len, "{\"timestamp\": %f}\n\n", (((double) time) / 1e6));
+    return ESP_OK;
+}
 
 COMMAND_FUNCTION(always_on) {
     ESP_LOGI(TAG, "Executing command : IMU_ALWAYS_ON");
@@ -531,6 +539,8 @@ COMMAND_FUNCTION(varset) {
         snprintf(tx_buffer, tx_len, "Cannot set value for \"%s\", len: %d; value %s, len : %d\n\n", var_name, var_name_len, var_value, var_value_len);
         return ESP_FAIL;
     }
+    
+    // FIXME: Wrong format (e.g.: "varset DATA_HOST 10.53.25.21") cause reboot
 }
 
 COMMAND_FUNCTION(varget) {

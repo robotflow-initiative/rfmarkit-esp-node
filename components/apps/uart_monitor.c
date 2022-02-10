@@ -6,12 +6,10 @@
 #include "freertos/queue.h"
 
 #include "esp_log.h"
-#include "esp_task_wdt.h"
 
 #include "driver/uart.h"
 
 #include "apps.h"
-#include "settings.h"
 #include "imu.h"
 #include "sys.h"
 
@@ -25,13 +23,13 @@ static const char* TAG = "app_uart_monitor";
         { \
                 struct timeval tv_now = { 0 }; \
                 gettimeofday(&tv_now, NULL); \
-                time = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec; \
+                (time) = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec; \
         }
 #define tag_buffer_len(len) \
         { \
             size_t uart_buffer_len = 0; \
             uart_get_buffered_data_len(g_imu.port, &uart_buffer_len); \
-            len = uart_buffer_len; \
+            (len) = uart_buffer_len; \
         }
 
 
@@ -43,7 +41,7 @@ void app_uart_monitor(void* pvParameters) {
 
     imu_dgram_t imu_data = { 0 };
     imu_dgram_t imu_data_trash = { 0 };
-    int ret = 0;
+    int ret;
 
     /** Wait until tcp connection is established, time synced and uart not blocked**/
     while (1) {
@@ -56,25 +54,25 @@ void app_uart_monitor(void* pvParameters) {
                 bits = xEventGroupGetBits(g_mcu.sys_event_group);
                 ESP_LOGD(TAG, "Bits: %x", bits);
 
-                if (!(bits & TCP_CONNECTED_BIT) || !(bits & NTP_SYNCED_BIT) || (bits & UART_BLOCK_BIT)) {
-                    os_delay_ms(1000);
-                    clear_sys_event(UART_ACTIVE); // Mark uart as inactive
+                if (!(bits & EV_TCP_CONNECTED_BIT) || !(bits & EV_NTP_SYNCED_BIT) || (bits & EV_UART_MANUAL_BLOCK_BIT)) {
+                    os_delay_ms(200);
+                    clear_sys_event(EV_UART_ACTIVATED); // Mark uart as inactive
                     continue;
                 } else {
-                    if (bits & IMU_ENABLED_BIT) {
+                    if (bits & EV_IMU_ENABLED_BIT) {
                         break;
                     } else {
                         ESP_LOGI(TAG, "Enabling IMU");
                         imu_enable(&g_imu);
-                        set_sys_event(IMU_ENABLED);
+                        set_sys_event(EV_IMU_ENABLED);
                         break;
                     }
                 }
             }
-            if (!(bits & UART_ACTIVE_BIT)) {
-                set_sys_event(UART_ACTIVE);
+            if (!(bits & EV_UART_ACTIVATED_BIT)) {
+                set_sys_event(EV_UART_ACTIVATED);
+//                uart_flush(g_imu.port);
             }
-            ESP_LOGD(TAG, "Try to read gy");
         }
 
         /** Tag starting point */
@@ -104,5 +102,5 @@ void app_uart_monitor(void* pvParameters) {
             ESP_LOGD(TAG, "Enqueue message\n");
         }
     }
-    vTaskDelete(NULL);
+//    vTaskDelete(NULL);
 }

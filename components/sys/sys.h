@@ -94,16 +94,16 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
     }
 
 /** System Events**/
-#define TCP_CONNECTED_BIT BIT0
-#define TCP_CONNECTED // Pseudo define
-#define NTP_SYNCED_BIT BIT1
-#define NTP_SYNCED
-#define IMU_ENABLED_BIT BIT2
-#define IMU_ENABLED
-#define UART_BLOCK_BIT BIT3
-#define UART_BLOCK
-#define UART_ACTIVE_BIT BIT4
-#define UART_ACTIVE
+#define EV_TCP_CONNECTED_BIT BIT0
+#define EV_TCP_CONNECTED // Pseudo define
+#define EV_NTP_SYNCED_BIT BIT1
+#define EV_NTP_SYNCED
+#define EV_IMU_ENABLED_BIT BIT2
+#define EV_IMU_ENABLED
+#define EV_UART_MANUAL_BLOCK_BIT BIT3
+#define EV_UART_MANUAL_BLOCK
+#define EV_UART_ACTIVATED_BIT BIT4
+#define EV_UART_ACTIVATED
 
 #define set_sys_event(ev) \
         xEventGroupSetBits(g_mcu.sys_event_group, ev##_BIT);
@@ -173,6 +173,8 @@ COMMAND_FUNCTION(stop);
 COMMAND_FUNCTION(id);
 
 COMMAND_FUNCTION(ver);
+
+COMMAND_FUNCTION(time);
 
 COMMAND_FUNCTION(always_on);
 
