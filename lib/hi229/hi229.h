@@ -6,7 +6,7 @@
 
 #include "sys.h"
 #include "modelspec.h"
-#include "hi229_serial.h" // FIXME: Replace with custom solution
+#include "hi229_serial.h"
 
 
 /** HI229 related settings **/
@@ -29,7 +29,6 @@
 #define CONFIG_HI229_MAX_CHECK_TICKS 1024
 #define CONFIG_HI229_RETRY_N 10
 #define CONFIG_HI299_MAX_READ_NUM 512
-// TODO: VARMANAGER
 
 
 typedef struct {

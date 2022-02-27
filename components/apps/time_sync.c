@@ -17,9 +17,9 @@
 #include "sys.h"
 #include "settings.h"
 
-static const char* TAG = "app_time_sync";
+static const char *TAG = "app_time_sync";
 
-void time_sync_notification_cb(struct timeval* tv) {
+void time_sync_notification_cb(struct timeval *tv) {
     ESP_LOGI(TAG, "Notification of a time synchronization event");
 }
 
@@ -34,14 +34,13 @@ void time_sync_notification_cb(struct timeval* tv) {
         ESP_LOGI(TAG, "The current date/time in "CONFIG_LOCAL_TZ" is: %s", buf); \
     }
 
-static esp_err_t device_wait_sync_time(const char* const posix_tz) {
+static esp_err_t device_wait_sync_time(const char *const posix_tz) {
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, CONFIG_NTP_HOST_IP_ADDR_BACKUP);
     ESP_LOGD(TAG, "g_mcu.ntp_host_ip_addr=%s", g_mcu.ntp_host_ip_addr);
-    sntp_setservername(1, g_mcu.ntp_host_ip_addr);
+    sntp_setservername(0, g_mcu.ntp_host_ip_addr);
+    sntp_setservername(1, CONFIG_NTP_HOST_IP_ADDR_BACKUP);
 
-    //TODO: Make server configurable
 
     sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
@@ -64,7 +63,7 @@ static esp_err_t device_wait_sync_time(const char* const posix_tz) {
     return (n_retry < CONFIG_NTP_TIMEOUT_S) ? ESP_OK : ESP_FAIL;
 }
 
-void app_time_sync(void* pvParameters) {
+void app_time_sync(void *pvParameters) {
     ESP_LOGI(TAG, "app_time_sync started");
     clear_sys_event(EV_NTP_SYNCED);
 

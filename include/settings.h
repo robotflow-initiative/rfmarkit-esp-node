@@ -4,7 +4,7 @@
 #define CONFIG_FIRMWARE_VERSION "2.7.3"
 
 /** Debug options **/
-#define CONFIG_EN_DEBUG_OVER_TCP 0 // TODO： Verify or deprecate this function
+#define CONFIG_EN_DEBUG_OVER_TCP 0
 
 /** System settings **/
 #define CONFIG_MAIN_LOOP_DUTY_PERIOD_MS 10000 // Duty cycle of main loop, the main loop checks system events

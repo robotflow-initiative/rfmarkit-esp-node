@@ -68,6 +68,5 @@ COMMAND_FUNCTION(blink_stop);
 
 COMMAND_FUNCTION(blink_get);
 
-COMMAND_FUNCTION(blink_off); // TODO: Seperate blink functions
-
+COMMAND_FUNCTION(blink_off);
 #endif

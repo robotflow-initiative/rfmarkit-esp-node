@@ -171,14 +171,10 @@ esp_err_t hi229_read(hi229_t *p_gy) {
     while (count < CONFIG_HI299_MAX_READ_NUM) {
         uart_read_bytes(p_gy->port, &data, 1, 0xF);
         ++count;
-        // printf("0x%x.", data);
         if (ch_serial_input(&p_gy->raw, data) == 1) {
-            // TODO: [MID] Re-Write this part and speed up
-            p_gy->n_bytes = sizeof(ch_imu_data_t); // FIXME: Only support 1 IMU !!!
+            // TODO: [MID] Re-Write this part with custom solution to speed up/support multiple IMU
+            p_gy->n_bytes = sizeof(ch_imu_data_t);
             memcpy(&p_gy->buf, &p_gy->raw.imu, p_gy->n_bytes);
-            // for (int i = 0;i < p_gy->n_bytes; ++i) {
-            //     printf("0x%x. ", p_gy->buf[i]);
-            // }
             break;
         }
     }
