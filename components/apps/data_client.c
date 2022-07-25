@@ -21,6 +21,7 @@
 #include "sys.h"
 #include "imu.h"
 #include "tcp.h"
+#include "blink.h"
 
 static const char* TAG = "app_data_client";
 
@@ -63,6 +64,7 @@ void app_data_client(void* pvParameters) {
             goto socket_error;
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
+        blink_start();
 
         set_sys_event(EV_TCP_CONNECTED);
         /** TCP connection is established **/
@@ -98,6 +100,7 @@ void app_data_client(void* pvParameters) {
 
 socket_error:
         clear_sys_event(EV_TCP_CONNECTED);
+        blink_stop();
         ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
         switch (errno) {
         case ECONNRESET:

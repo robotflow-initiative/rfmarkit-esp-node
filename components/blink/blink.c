@@ -28,24 +28,14 @@ uint8_t g_blink_pin;
 
 static const char* TAG = "app_blink";
 
-void blink_led_off(blink_led_t* p_led) {
-    if (p_led->is_mono) {
-        gpio_set_level(p_led->pins.mono, !p_led->en_val);
-    } else {
-        for (int idx = 0; idx < sizeof(p_led->pins.rgb) / sizeof(p_led->pins.rgb[0]); ++idx) {
-            gpio_set_level(p_led->pins.rgb[idx], !p_led->en_val);
-        }
-    }
+void blink_led_off() {
+    ledc_set_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel, 0);
+    ledc_update_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel);
 }
 
-void blink_led_on(blink_led_t* p_led) {
-    if (p_led->is_mono) {
-        gpio_set_level(p_led->pins.mono, p_led->en_val);
-    } else {
-        for (int idx = 0; idx < sizeof(p_led->pins.rgb) / sizeof(p_led->pins.rgb[0]); ++idx) {
-            gpio_set_level(p_led->pins.rgb[idx], p_led->en_val);
-        }
-    }
+void blink_led_on() {
+    ledc_set_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel,  CONFIG_BLINK_MAX_DUTY);
+    ledc_update_duty(g_ledc_channel.speed_mode, g_ledc_channel.channel);
 }
 
 static bool get_flag(const uint8_t* arr, int item) {
@@ -117,7 +107,7 @@ static void blink_timeout(void* args) {
     s_blink_idx++;
 }
 
-
+esp_timer_handle_t g_blink_timer;
 void blink_init() {
 
 #if CONFIG_BLINK_NO_PWM
@@ -188,16 +178,17 @@ void blink_init() {
             .name = "timeout"
     };
 
-    esp_timer_handle_t blink_timer;
-    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &blink_timer));
-    ESP_ERROR_CHECK(esp_timer_start_periodic(blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000));
+//    esp_timer_handle_t g_blink_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &g_blink_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(g_blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000));
 
 }
 
 
 void blink_init_task(void * vParameters) {
     blink_init();
-    blink_start();
+//    blink_start();
+    blink_stop();
     vTaskDelete(NULL);
 }
 
@@ -210,14 +201,14 @@ void blink_start() {
     }
     printf("\n");
     ESP_LOGW(TAG, "# --------- End of blink sequence --------- #");
-    timer_start(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
+    esp_timer_start_periodic(g_blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000);
     deice_always_on();
 }
 
 void blink_stop() {
     ESP_LOGI(TAG, "Timer stopped");
-    timer_pause(CONFIG_BLINK_TIMER_GROUP, CONFIG_BLINK_TIMER_IDX);
-    CONFIG_LED_ON();
+    esp_timer_stop(g_blink_timer);
+    blink_led_on();
     device_reset_sleep_countup();
 }
 

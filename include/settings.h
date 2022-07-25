@@ -7,8 +7,8 @@
 #define CONFIG_EN_DEBUG_OVER_TCP 0
 
 /** System settings **/
-#define CONFIG_MAIN_LOOP_DUTY_PERIOD_MS 10000 // Duty cycle of main loop, the main loop checks system events
-#define CONFIG_MAIN_LOOP_MAX_LOOP_NUM 36  // The system goes to sleep after CONFIG_MAIN_LOOP_MAX_LOOP_NUM cycles
+#define CONFIG_MAIN_LOOP_DUTY_PERIOD_MS 1000 // Duty cycle of main loop, the main loop checks system events
+#define CONFIG_MAIN_LOOP_MAX_LOOP_NUM 360  // The system goes to sleep after CONFIG_MAIN_LOOP_MAX_LOOP_NUM cycles
 
 /** Hardware related settings **/
 #define CONFIG_MULTI_CORE 1

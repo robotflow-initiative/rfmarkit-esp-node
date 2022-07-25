@@ -19,7 +19,7 @@ restart
 imu_imm
 ```
 
-
+```
 blink_set 225
 varset IMU_BAUD=921600
 
@@ -32,3 +32,4 @@ imu_debug AT+EOUT=1
 imu_debug AT+RST
 restart
 imu_imm
+```

@@ -34,23 +34,23 @@ extern ledc_channel_config_t g_ledc_channel;
 #define CONFIG_BLINK_SYNC_SEQ_LEN 4
 #define CONFIG_BLINK_CHKSUM_SEQ_LEN 0
 
-typedef struct {
-    bool is_mono; // 1 - mono, only pin0, 0 - not mono, rgb
-    bool is_binary; // 1 - mono, only pin0, 0 - not mono, rgb
-    uint8_t en_val; // Value to enable, typically 0 - 1
-    union {
-        uint8_t mono;
-        uint8_t rgb[3];
-    } pins;
-    union {
-        uint8_t mono[3];
-        uint8_t rgb[3];
-    } gain;
-} blink_led_t;
+//typedef struct {
+//    bool is_mono; // 1 - mono, only pin0, 0 - not mono, rgb
+//    bool is_binary; // 1 - mono, only pin0, 0 - not mono, rgb
+//    uint8_t en_val; // Value to enable, typically 0 - 1
+//    union {
+//        uint8_t mono;
+//        uint8_t rgb[3];
+//    } pins;
+//    union {
+//        uint8_t mono[3];
+//        uint8_t rgb[3];
+//    } gain;
+//} blink_led_t;
 
-void blink_led_off(blink_led_t* led_t);
+void blink_led_off();
 
-void blink_led_on(blink_led_t* led_t);
+void blink_led_on();
 
 void blink_init();
 
