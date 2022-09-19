@@ -38,13 +38,11 @@ mcu_var_t g_mcu_vars[] = {
         {.name = "NTP_HOST", .type=VAR_STR},
         {.name ="TEST", .type =VAR_INT32},
         {.name = "IMU_BAUD", .type=VAR_INT32},
+        {.name = "USE_HAMMING", .type=VAR_INT32}
 };
 
 /** MCU structure **/
-RTC_DATA_ATTR mcu_t
-        g_mcu;
-
-
+RTC_DATA_ATTR mcu_t g_mcu = {0};
 
 /** TCP Debug  related **/
 #if CONFIG_EN_DEBUG_OVER_TCP
@@ -115,7 +113,7 @@ esp_err_t sys_wifi_init_sta(void) {
     wifi_config_t wifi_config = {
             .sta = {
                     .ssid = CONFIG_WIFI_SSID,
-                    .password = CONFIG_WIFI_PSK,
+                    .password = CONFIG_WIFI_PSK, // TODO: Replace with config
                     /* Setting a password implies station will connect to all security modes including WEP/WPA.
                      * However these modes are deprecated and not advisable to be used. Incase your Access point
                      * doesn't support WPA2, these mode can be enabled by commenting below line */
@@ -251,7 +249,7 @@ void sys_reset_gpio(int pin) {
 }
 
 
-static mcu_var_t *device_find_var(char *name, size_t len) {
+static mcu_var_t *sys_find_var(char *name, size_t len) {
     for (int idx = 0; idx < (sizeof(g_mcu_vars) / sizeof(mcu_var_t)); ++idx) {
         if (strncmp(name, g_mcu_vars[idx].name, len) == 0) {
             return &g_mcu_vars[idx];
@@ -262,15 +260,15 @@ static mcu_var_t *device_find_var(char *name, size_t len) {
 
 
 #define sys_load_str_conf(name, target, default_value) \
-        p_var = device_find_var((name), strlen(name)); \
+        p_var = sys_find_var((name), strlen(name)); \
         if (p_var != NULL) { \
-            device_get_nvs_var(p_var, &data, value_buffer); \
+            sys_get_nvs_var(p_var, &data, value_buffer); \
             if (strlen(value_buffer) > 0) { \
                 memcpy((target), value_buffer,  MIN(sizeof((target)), CONFIG_VAR_STR_MAX_LEN)); \
             } else { \
                 memcpy((target), (default_value), strlen((default_value))); \
             } \
-            ESP_LOGW(TAG, "Variable "name"=%s; size(value_buffer)=%d", (target), strlen(value_buffer)); \
+            ESP_LOGW(TAG, "Variable "name"=%s; size(value_buffer)=%d", (target), strlen(target)); \
         } else { \
           ESP_LOGW(TAG, "Variable "name"=%s is not found", (target)); \
         } \
@@ -278,17 +276,17 @@ static mcu_var_t *device_find_var(char *name, size_t len) {
         bzero(value_buffer, CONFIG_VAR_STR_MAX_LEN)
 
 #define sys_load_int32_conf(name, target, default_value) \
-        p_var = device_find_var((name), strlen(name));\
+        p_var = sys_find_var((name), strlen(name));\
         if (p_var != NULL) {\
-            device_get_nvs_var(p_var, &data, value_buffer);\
+            sys_get_nvs_var(p_var, &data, value_buffer);\
             if (data.int32 > 0) {\
                 (target) = data.int32;\
             } else {\
                 (target) = default_value;\
             }  \
-            ESP_LOGW(TAG, "Variable"name"=%d; value_stored=%d", (target), data.int32); \
+            ESP_LOGW(TAG, "Variable "name"=%d; value_stored=%d", (target), data.int32); \
         } else { \
-            ESP_LOGW(TAG, "Variable "name"=%s is not found", (target)); \
+            ESP_LOGW(TAG, "Variable "name"=%d is not found", (target)); \
         } \
         p_var = NULL; \
         bzero(value_buffer, CONFIG_VAR_STR_MAX_LEN)
@@ -298,28 +296,31 @@ void sys_load_configuration() {
     mcu_var_data_t data = {0};
     char value_buffer[CONFIG_VAR_STR_MAX_LEN];
 
+    os_delay_ms(100);
     sys_load_str_conf("WIFI_SSID", g_mcu.wifi_ssid, CONFIG_WIFI_SSID);
     sys_load_str_conf("WIFI_PSK", g_mcu.wifi_psk, CONFIG_WIFI_PSK);
     sys_load_str_conf("DATA_HOST", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_IP_ADDR);
     sys_load_str_conf("OTA_HOST", g_mcu.ota_host_ip_addr, CONFIG_OTA_HOST_IP_ADDR);
     sys_load_str_conf("NTP_HOST", g_mcu.ntp_host_ip_addr, CONFIG_NTP_HOST_IP_ADDR);
+    sys_load_int32_conf("IMU_BAUD", g_mcu.imu_baud, CONFIG_IMU_BAUD);
+    sys_load_int32_conf("USE_HAMMING", g_mcu.use_hamming, CONFIG_IMU_BAUD);
 
-    p_var = device_find_var("IMU_BAUD", sizeof("IMU_BAUD"));
-    if (p_var != NULL) {
-        device_get_nvs_var(p_var, &data, value_buffer);
-        if (data.int32 > 0) {
-            g_mcu.imu_baud = data.int32;
-        } else {
-            g_mcu.imu_baud = CONFIG_IMU_BAUD;
-        }
-    }
-    ESP_LOGW(TAG, "Variable IMU_BAUD=%d;", g_mcu.imu_baud);
-    p_var = NULL;
-    bzero(value_buffer, CONFIG_VAR_STR_MAX_LEN);
+//    p_var = sys_find_var("IMU_BAUD", sizeof("IMU_BAUD"));
+//    if (p_var != NULL) {
+//        sys_get_nvs_var(p_var, &data, value_buffer);
+//        if (data.int32 > 0) {
+//            g_mcu.imu_baud = data.int32;
+//        } else {
+//            g_mcu.imu_baud = CONFIG_IMU_BAUD;
+//        }
+//    }
+//    ESP_LOGW(TAG, "Variable IMU_BAUD=%d;", g_mcu.imu_baud);
+//    p_var = NULL;
+//    bzero(value_buffer, CONFIG_VAR_STR_MAX_LEN);
 
 }
 
-esp_err_t device_set_nvs_var(mcu_var_t *p_var, char *value) {
+esp_err_t sys_set_nvs_var(mcu_var_t *p_var, char *value) {
 
     nvs_handle_t var_handle;
     ESP_ERROR_CHECK(nvs_open(CONFIG_VAR_NVS_TABLE_NAME, NVS_READWRITE, &var_handle));
@@ -360,7 +361,7 @@ esp_err_t device_set_nvs_var(mcu_var_t *p_var, char *value) {
  * @warning value_buffer should be greateer than CONFIG_VAR_STR_MAX_LEN
  * @return 
  */
-esp_err_t device_get_nvs_var(mcu_var_t *p_var, mcu_var_data_t *out, char *value_buffer) {
+esp_err_t sys_get_nvs_var(mcu_var_t *p_var, mcu_var_data_t *out, char *value_buffer) {
 
     nvs_handle_t var_handle;
     ESP_ERROR_CHECK(nvs_open(CONFIG_VAR_NVS_TABLE_NAME, NVS_READWRITE, &var_handle));
@@ -409,10 +410,11 @@ void sys_enter_deep_sleep() {
     clear_sys_event(EV_IMU_ENABLED);
 
     os_delay_ms(200);
+    blink_stop();
     ESP_LOGI(TAG, "IMU ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
 
     blink_stop();
-    CONFIG_LED_OFF();
+    blink_gpio_off(&g_blink_cfg);
 
     gpio_hold_en(g_imu.ctrl_pin);
     gpio_hold_en(CONFIG_BLINK_PIN);
@@ -499,6 +501,14 @@ COMMAND_FUNCTION(always_on) {
     return ESP_OK;
 }
 
+COMMAND_FUNCTION(cancel_always_on) {
+    ESP_LOGI(TAG, "Executing command : IMU_CANCEL_ALWAYS_ON");
+
+    g_mcu.sleep_countup = 0;
+
+    return ESP_OK;
+}
+
 COMMAND_FUNCTION(varset) {
     ESP_LOGI(TAG, "Executing command : IMU_VAR_SET");
 
@@ -529,20 +539,20 @@ COMMAND_FUNCTION(varset) {
         var_value_len = rx_len - (var_value - rx_buffer);
     }
     if (var_name && var_name_len > 0 && var_value && var_value_len > 0) {
-        p_var = device_find_var(var_name, var_name_len);
+        p_var = sys_find_var(var_name, var_name_len);
     } else {
         p_var = NULL;
     }
 
     if (p_var) {
-        device_set_nvs_var(p_var, var_value);
+        sys_set_nvs_var(p_var, var_value);
         ESP_LOGD(TAG, "Set %s, len: %d", var_value, var_value_len);
         return ESP_OK;
     } else {
-        snprintf(tx_buffer, tx_len, "Cannot set value for \"%s\", len: %d; value %s, len : %d\n\n", var_name, var_name_len, var_value, var_value_len);
+        snprintf(tx_buffer, tx_len, "Cannot set value for \"%s\", len: %d; value %s, len : %d\n\n", var_name ? var_name : "", var_name_len, var_value ? var_value : "", var_value_len);
         return ESP_FAIL;
     }
-    
+
     // FIXME: Wrong format (e.g.: "varset DATA_HOST 10.53.25.21") cause reboot
 }
 
@@ -564,7 +574,7 @@ COMMAND_FUNCTION(varget) {
     }
 
     if (var_name && var_name_len > 0) {
-        p_var = device_find_var(var_name, var_name_len);
+        p_var = sys_find_var(var_name, var_name_len);
     } else {
         p_var = NULL;
     }
@@ -573,7 +583,7 @@ COMMAND_FUNCTION(varget) {
     if (p_var) {
         mcu_var_data_t data;
         char value_buffer[CONFIG_VAR_STR_MAX_LEN] = {0};
-        device_get_nvs_var(p_var, &data, value_buffer);
+        sys_get_nvs_var(p_var, &data, value_buffer);
         memcpy(tx_buffer, value_buffer, MIN(tx_len, CONFIG_VAR_STR_MAX_LEN));
         return ESP_OK;
     } else {
@@ -584,6 +594,8 @@ COMMAND_FUNCTION(varget) {
 
 COMMAND_FUNCTION(shutdown) {
     ESP_LOGI(TAG, "Executing command : IMU_SHUTDOWN");
+    //FIXME: Chances are led remain lighted after shutdown
     sys_enter_deep_sleep();
     return ESP_OK;
 }
+

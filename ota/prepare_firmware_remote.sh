@@ -5,9 +5,9 @@ ROOT_DIR=..
 BUILD_DIR=$ROOT_DIR/build/
 
 # Remote deployment
-REMOTE_HOST=speit@10.53.21.164
+REMOTE_HOST=pi@10.233.233.3
 REMOTE_PORT=5138
-REMOTE_DIR=/home/speit/imu-node-deploy/ota/
+REMOTE_DIR=/home/pi/imu-node-deploy/ota
 REMOTE_PYTHON=/usr/bin/python3
 # Remote python must have http module
 
