@@ -8,7 +8,7 @@
 //#define  CH_DEBUG
 
 #define MAXRAWLEN       (512)       /* max raw frame long */
-#define MAX_NODE_SIZE   (16)        /* max support node count */
+#define MAX_NODE_SIZE   (1)        /* max support node count */
 
 /* data items */
 #define kItemID                    (0x90)

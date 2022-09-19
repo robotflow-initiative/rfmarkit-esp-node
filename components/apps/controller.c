@@ -61,6 +61,7 @@ static command_reg_t s_registration[] = {
         {.name = "blink_off", .func = command_func_blink_off},
         {.name = "self_test", .func = command_func_imu_self_test},
         {.name = "always_on", .func = command_func_always_on},
+        {.name = "cancel_always_on", .func = command_func_always_on},
         {.name = "varset", .func = command_func_varset},
         {.name = "varget", .func = command_func_varget},
         {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func = command_func_shutdown}

@@ -48,6 +48,7 @@ typedef struct {
     char data_host_ip_addr[CONFIG_MAX_VAR_NAME_LEN];
     char ota_host_ip_addr[CONFIG_MAX_VAR_NAME_LEN];
     char ntp_host_ip_addr[CONFIG_MAX_VAR_NAME_LEN];
+    int32_t use_hamming;
     int32_t imu_baud;
 } mcu_t;
 
@@ -120,6 +121,7 @@ extern char g_debug_buffer[TCP_DEBUG_BUFFER_LEN];
 #define device_reset_sleep_countup() g_mcu.sleep_countup = (g_mcu.sleep_countup>0)?0:g_mcu.sleep_countup
 #define device_incr_sleep_countup(n) g_mcu.sleep_countup += n
 #define deice_always_on() g_mcu.sleep_countup = INT32_MIN
+#define deice_cancel_always_on() g_mcu.sleep_countup = 0
 
 /** @brief func_command related **/
 #define COMMAND_FUNCTION(name) \
@@ -149,9 +151,9 @@ void sys_reset_gpio(int);
 
 void sys_enter_deep_sleep(void);
 
-esp_err_t device_set_nvs_var(mcu_var_t *p_var, char *value);
+esp_err_t sys_set_nvs_var(mcu_var_t *p_var, char *value);
 
-esp_err_t device_get_nvs_var(mcu_var_t *p_var, mcu_var_data_t *out, char *value_buffer);
+esp_err_t sys_get_nvs_var(mcu_var_t *p_var, mcu_var_data_t *out, char *value_buffer);
 
 void sys_load_configuration(void);
 
@@ -177,6 +179,8 @@ COMMAND_FUNCTION(ver);
 COMMAND_FUNCTION(time);
 
 COMMAND_FUNCTION(always_on);
+
+COMMAND_FUNCTION(cancel_always_on);
 
 COMMAND_FUNCTION(varset);
 

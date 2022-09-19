@@ -56,6 +56,15 @@ static void init() {
     /** Cancel GPIO hold **/
     sys_reset_gpio(CONFIG_IMU_CTRL_PIN);
 
+    /** During init, test up the led **/
+    blink_gpio_on(&g_blink_cfg);
+    os_delay_ms(1000);
+    blink_gpio_off(&g_blink_cfg);
+    os_delay_ms(500);
+    blink_gpio_on(&g_blink_cfg);
+    os_delay_ms(1000);
+    blink_gpio_off(&g_blink_cfg);
+
     /** Init global imu struct g_imu **/
     imu_init(g_imu);
     sys_delay_ms(500);
@@ -80,7 +89,7 @@ static void init() {
     clear_sys_event(EV_NTP_SYNCED);
     clear_sys_event(EV_IMU_ENABLED);
     set_sys_event(EV_UART_MANUAL_BLOCK);
-
+    blink_stop();
 }
 
 void app_main(void) {

@@ -19,3 +19,4 @@ set(EXTRA_COMPONENT_DIRS ${CMAKE_SOURCE_DIR}/lib/hi229 ${CMAKE_SOURCE_DIR}/lib/l
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(imu-esp-node)
 
+#idf_build_set_property(COMPILE_OPTIONS "-O3" APPEND)
