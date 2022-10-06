@@ -234,7 +234,7 @@ void blink_init() {
 
 void blink_init_task(void *vParameters) {
     blink_init();
-//    blink_start();
+    // blink_start();
     blink_stop();
     vTaskDelete(NULL);
 }

@@ -89,7 +89,7 @@ static void init() {
     clear_sys_event(EV_NTP_SYNCED);
     clear_sys_event(EV_IMU_ENABLED);
     set_sys_event(EV_UART_MANUAL_BLOCK);
-
+    blink_stop();
 }
 
 void app_main(void) {

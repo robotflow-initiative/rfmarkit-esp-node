@@ -64,7 +64,7 @@ void app_data_client(void* pvParameters) {
             goto socket_error;
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
-        blink_start();
+        // blink_start();
 
         set_sys_event(EV_TCP_CONNECTED);
         /** TCP connection is established **/
