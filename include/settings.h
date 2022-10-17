@@ -1,7 +1,7 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
-#define CONFIG_FIRMWARE_VERSION "2.7.4"
+#include "../VERSION"
 
 /** Debug options **/
 #define CONFIG_EN_DEBUG_OVER_TCP 0

@@ -354,10 +354,10 @@ COMMAND_FUNCTION(imu_debug) {
     uart_flush(g_imu.port);
     hi229_send(&g_imu, (uint8_t *) serial_send_buffer, (int)strlen(serial_send_buffer), NULL);
     uint8_t buf[CONFIG_HI299_MAX_READ_NUM] = {0};
-    os_delay_ms(200);
-    hi229_recv(&g_imu, buf, CONFIG_HI299_MAX_READ_NUM);
+    os_delay_ms(400);
+    hi229_recv(&g_imu, (uint8_t *)tx_buffer, CONFIG_CTRL_TX_LEN);
     ESP_LOGI(TAG, "IMU: %s", (char *) buf);
-    return ESP_FAIL;
+    return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_self_test) {

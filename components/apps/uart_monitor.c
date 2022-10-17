@@ -59,7 +59,7 @@ void app_uart_monitor(void* pvParameters) {
                     clear_sys_event(EV_UART_ACTIVATED); // Mark uart as inactive
                     continue;
                 } else {
-                    if (bits & EV_IMU_ENABLED_BIT) {
+                    if (bits & EV_IMU_ENABLED_BIT) { // TODO: remove this judgement by always enable imu
                         break;
                     } else {
                         ESP_LOGI(TAG, "Enabling IMU");

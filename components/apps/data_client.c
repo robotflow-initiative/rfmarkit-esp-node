@@ -101,6 +101,7 @@ void app_data_client(void* pvParameters) {
 socket_error:
         clear_sys_event(EV_TCP_CONNECTED);
         blink_stop();
+        uart_flush(g_imu.port);
         ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
         switch (errno) {
         case ECONNRESET:

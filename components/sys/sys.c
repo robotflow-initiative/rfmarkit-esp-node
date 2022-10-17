@@ -468,6 +468,7 @@ COMMAND_FUNCTION(stop) {
     ESP_LOGI(TAG, "Executing command : IMU_STOP");
     set_sys_event(EV_UART_MANUAL_BLOCK);
     blink_stop();
+    uart_flush(g_imu.port);
     return ESP_OK;
 }
 
