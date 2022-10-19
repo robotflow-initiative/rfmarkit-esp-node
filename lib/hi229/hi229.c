@@ -121,8 +121,8 @@ static esp_err_t hi229_check_echo(hi229_t *p_gy, const uint8_t *echo, size_t len
 }
 
 static esp_err_t hi229_send(hi229_t *p_gy, uint8_t *ctrl_msg, int len, const uint8_t *echo) {
-    len = len <= 0 ? (int)strlen((char *) ctrl_msg) : len;
-    ESP_LOGI(TAG,"hi229 send : %s, num: %d", (char*) ctrl_msg, len);
+    len = len <= 0 ? (int) strlen((char *) ctrl_msg) : len;
+    ESP_LOGI(TAG, "hi229 send : %s, num: %d", (char *) ctrl_msg, len);
     uart_write_bytes((p_gy->port), ctrl_msg, len);
     uart_wait_tx_done((p_gy->port), portMAX_DELAY);
 
@@ -136,7 +136,7 @@ static esp_err_t hi229_send(hi229_t *p_gy, uint8_t *ctrl_msg, int len, const uin
 static esp_err_t hi229_recv(hi229_t *p_gy, uint8_t *rx_buf, size_t rx_len) {
     size_t len;
     uart_get_buffered_data_len(p_gy->port, &len);
-    
+
     for (int idx = 0; idx < len; ++idx) {
         uart_read_bytes(p_gy->port, &rx_buf[idx], 1, 0xF);
         if (idx >= rx_len - 2) {
@@ -249,7 +249,7 @@ int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
     ADD_DATA(payload_buffer, len, &scale, 1);
 
     ADD_DATA(payload_buffer, len, &p_reading->start_time_us, sizeof(p_reading->start_time_us));
-    
+
     ADD_DATA(payload_buffer, len, &p_reading->uart_buffer_len, sizeof(p_reading->uart_buffer_len));
 
     chksum = compute_chksum(payload_buffer, GET_OFFSET(payload_buffer));
@@ -263,93 +263,94 @@ static void hi229_reset(hi229_t *p_gy) {
 }
 
 COMMAND_FUNCTION(imu_cali_reset) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_RESET");
-    hi229_reset(&g_imu);
-    return ESP_OK;
+        ESP_LOGI(TAG, "Executing command : IMU_CALI_RESET");
+        hi229_reset(&g_imu);
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_cali_acc) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-    hi229_reset(&g_imu);
-    return ESP_OK;
+        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
+        hi229_reset(&g_imu);
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_cali_gyro) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_GYRO");
-    hi229_reset(&g_imu);
-    return ESP_OK;
+        ESP_LOGI(TAG, "Executing command : IMU_CALI_GYRO");
+        hi229_reset(&g_imu);
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_cali_mag) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-    hi229_reset(&g_imu);
+        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
+        hi229_reset(&g_imu);
 
-    return ESP_OK;
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_enable) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-    hi229_enable(&g_imu);
-    set_sys_event(EV_IMU_ENABLED);
-    return ESP_OK;
+        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
+        hi229_enable(&g_imu);
+        set_sys_event(EV_IMU_ENABLED);
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_disable) {
-    ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-    hi229_disable(&g_imu);
-    clear_sys_event(EV_IMU_ENABLED);
-    return ESP_OK;
+        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
+        hi229_disable(&g_imu);
+        clear_sys_event(EV_IMU_ENABLED);
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_status) {
-    ESP_LOGI(TAG, "Executing command : IMU_IMU_STATUS");
-    int ret = gpio_get_level(g_imu.ctrl_pin);
-    ESP_LOGI(TAG, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
-    snprintf(tx_buffer, tx_len, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
-    return ESP_OK;
+        ESP_LOGI(TAG, "Executing command : IMU_IMU_STATUS");
+        int ret = gpio_get_level(g_imu.ctrl_pin);
+        ESP_LOGI(TAG, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
+        snprintf(tx_buffer, tx_len, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_imm) {
-    imu_read(&g_imu);
-    snprintf(tx_buffer, tx_len, "acc=[%f, %f, %f], rpy=[%f, %f, %f],\n\n", 
-             g_imu.raw.imu[0].acc[0], g_imu.raw.imu[0].acc[1], g_imu.raw.imu[0].acc[2],
-             g_imu.raw.imu[0].eul[0], g_imu.raw.imu[0].eul[1], g_imu.raw.imu[0].eul[2]);
-    return ESP_OK;
+        hi229_soft_flush(&g_imu);
+        imu_read(&g_imu);
+        snprintf(tx_buffer, tx_len, "acc=[%f, %f, %f], rpy=[%f, %f, %f],\n\n",
+        g_imu.raw.imu[0].acc[0], g_imu.raw.imu[0].acc[1], g_imu.raw.imu[0].acc[2],
+        g_imu.raw.imu[0].eul[0], g_imu.raw.imu[0].eul[1], g_imu.raw.imu[0].eul[2]);
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_setup) {
-    ESP_LOGI(TAG, "Executing command : IMU_IMU_SETUP");
-    uint8_t ret = hi229_setup(&g_imu);
+        ESP_LOGI(TAG, "Executing command : IMU_IMU_SETUP");
+        uint8_t ret = hi229_setup(&g_imu);
 
-    snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
+        snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
 
-    return ESP_OK;
+        return ESP_OK;
 }
 
 COMMAND_FUNCTION(imu_scale) {
-    ESP_LOGI(TAG, "Executing command : IMU_IMU_SCALE");
+        ESP_LOGI(TAG, "Executing command : IMU_IMU_SCALE");
 
-    snprintf(tx_buffer, tx_len, "IMU does not support scale setting\n\n");
-    return ESP_FAIL;
+        snprintf(tx_buffer, tx_len, "IMU does not support scale setting\n\n");
+        return ESP_FAIL;
 }
 
 #define IMU_DEBUG_OFFSET 10
 COMMAND_FUNCTION(imu_debug) {
-    ESP_LOGI(TAG, "Executing command : IMU_IMU_DEBUG");
-    rx_buffer[strlen(rx_buffer) - 1] = '\0'; // Remove '\n' tail
-    
-    char serial_send_buffer[CONFIG_CTRL_RX_LEN] = {0};
-    snprintf(serial_send_buffer, CONFIG_CTRL_RX_LEN, "%s\r\n", &rx_buffer[IMU_DEBUG_OFFSET]);
+        ESP_LOGI(TAG, "Executing command : IMU_IMU_DEBUG");
+        rx_buffer[strlen(rx_buffer) - 1] = '\0'; // Remove '\n' tail
 
-    printf("\n");
-    for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
-        printf("0x%x, ", serial_send_buffer[idx]);
-    }
-    printf("\n");
-    for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
-        printf("%c, ", serial_send_buffer[idx]);
-    }
-    printf("\n");
+        char serial_send_buffer[CONFIG_CTRL_RX_LEN] = { 0 };
+        snprintf(serial_send_buffer, CONFIG_CTRL_RX_LEN, "%s\r\n", &rx_buffer[IMU_DEBUG_OFFSET]);
+
+        printf("\n");
+        for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
+            printf("0x%x, ", serial_send_buffer[idx]);
+        }
+        printf("\n");
+        for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
+            printf("%c, ", serial_send_buffer[idx]);
+        }
+        printf("\n");
 
     uart_flush(g_imu.port);
     hi229_send(&g_imu, (uint8_t *) serial_send_buffer, (int)strlen(serial_send_buffer), NULL);
@@ -361,9 +362,9 @@ COMMAND_FUNCTION(imu_debug) {
 }
 
 COMMAND_FUNCTION(imu_self_test) {
-    ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
+        ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
 
-    esp_err_t err = imu_self_test(&g_imu);
-    return err;
+        esp_err_t err = imu_self_test(&g_imu);
+        return err;
 
 }

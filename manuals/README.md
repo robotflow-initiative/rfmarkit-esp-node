@@ -151,6 +151,13 @@ restart
 imu_imm
 ```
 
+
+```
+varset OTA_HOST=10.233.233.3
+varset DATA_HOST=10.233.234.1
+varset NTP_HOST=10.233.233.3
+```
+
 ## 默认设置
 
 IMU 默认有以下配置
