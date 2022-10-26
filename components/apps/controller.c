@@ -58,7 +58,7 @@ static command_reg_t s_registration[] = {
         {.name = "blink_get", .func = command_func_blink_get},
         {.name = "blink_start", .func = command_func_blink_start},
         {.name = "blink_stop", .func = command_func_blink_stop},
-        {.name = "blink_off", .func = command_func_blink_off},
+        {.name = "blink_mute", .func = command_func_blink_mute},
         {.name = "self_test", .func = command_func_imu_self_test},
         {.name = "always_on", .func = command_func_always_on},
         {.name = "cancel_always_on", .func = command_func_always_on},

@@ -94,7 +94,7 @@ int server_accept(tcp_server_t* server) {
 #define CONFIG_PORT 2333
 #define CONFIG_LISTEN_NUM 1
 
-void server_loop(tcp_server_t* server, void (*interact)(int)) {
+_Noreturn void server_loop(tcp_server_t* server, void (*interact)(int)) {
 
     while (1) {
         /** Create address struct **/

@@ -414,7 +414,7 @@ void sys_enter_deep_sleep() {
     ESP_LOGI(TAG, "IMU ctrl_pin is set to %d", gpio_get_level(g_imu.ctrl_pin));
 
     blink_stop();
-    blink_gpio_off(&g_blink_cfg);
+    blink_off(&g_blink_cfg);
 
     gpio_hold_en(g_imu.ctrl_pin);
     gpio_hold_en(CONFIG_BLINK_PIN);
@@ -455,7 +455,6 @@ COMMAND_FUNCTION(update) {
 COMMAND_FUNCTION(start) {
     ESP_LOGI(TAG, "Executing command : IMU_START");
     clear_sys_event(EV_UART_MANUAL_BLOCK);
-    blink_start();
     EventBits_t bits = xEventGroupWaitBits(g_mcu.sys_event_group, EV_UART_ACTIVATED_BIT, pdFALSE, pdFALSE, CONFIG_MAIN_LOOP_DUTY_PERIOD_MS / portTICK_PERIOD_MS);
     if (bits & EV_UART_ACTIVATED_BIT) {
         return ESP_OK;
@@ -467,7 +466,6 @@ COMMAND_FUNCTION(start) {
 COMMAND_FUNCTION(stop) {
     ESP_LOGI(TAG, "Executing command : IMU_STOP");
     set_sys_event(EV_UART_MANUAL_BLOCK);
-    blink_stop();
     uart_flush(g_imu.port);
     return ESP_OK;
 }

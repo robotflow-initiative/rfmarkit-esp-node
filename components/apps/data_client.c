@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -31,7 +32,7 @@ static int s_send_buffer_tail = 0;
 #define RESET_SEND_BUFFER() \
     s_send_buffer_tail = 0;
 
-void app_data_client(void* pvParameters) {
+_Noreturn void app_data_client(void* pvParameters) {
     ESP_LOGI(TAG, "app_data_client started");
 
     QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
@@ -64,7 +65,6 @@ void app_data_client(void* pvParameters) {
             goto socket_error;
         }
         ESP_LOGI(TAG, "Successfully connected, setting TCP_CONNECTED_BIT");
-        // blink_start();
 
         set_sys_event(EV_TCP_CONNECTED);
         /** TCP connection is established **/
@@ -107,7 +107,6 @@ socket_error:
             os_delay_ms(5000);
             break;
         default:
-            os_delay_ms(100);
             break;
         };
         handle_socket_err(client.client_sock)

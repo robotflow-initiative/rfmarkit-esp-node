@@ -49,21 +49,20 @@ static void init() {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
-    
     sys_load_configuration();
-
 
     /** Cancel GPIO hold **/
     sys_reset_gpio(CONFIG_IMU_CTRL_PIN);
 
     /** During init, test up the led **/
-    blink_gpio_on(&g_blink_cfg);
+    blink_msp_init();
+    blink_on(&g_blink_cfg);
     os_delay_ms(1000);
-    blink_gpio_off(&g_blink_cfg);
+    blink_off(&g_blink_cfg);
     os_delay_ms(500);
-    blink_gpio_on(&g_blink_cfg);
+    blink_on(&g_blink_cfg);
     os_delay_ms(1000);
-    blink_gpio_off(&g_blink_cfg);
+    blink_off(&g_blink_cfg);
 
     /** Init global imu struct g_imu **/
     imu_init(g_imu);
@@ -108,14 +107,14 @@ void app_main(void) {
     launch_task_multicore(app_data_client, "app_data_client", 4096, serial_queue, 2, tcp_task, 0x0);
     launch_task_multicore(app_uart_monitor, "app_uart_monitor", 4096, serial_queue, 1, uart_task, 0x0);
     launch_task_multicore(app_controller, "app_controller", 4096, NULL, 1, controller_task, 0x1);
-    launch_task_multicore(blink_init_task, "blink_init", 2048, NULL, 1, blink_task, 0x1);
+    launch_task_multicore(blink_init_task_1, "blink_init", 2048, NULL, 1, blink_task, 0x1);
 #else
     launch_task(app_time_sync, "app_time_sync", 2560, NULL, 2, time_sync_task);
     launch_task(app_data_client, "app_data_client", 4096, serial_queue, 2, tcp_task);
     launch_task(app_uart_monitor, "app_uart_monitor", 4096, serial_queue, 1, uart_task);
     // launch_task(app_playground, "app_playground", 2048, NULL, 1, playground_task);
     launch_task(app_controller, "app_controller", 4096, NULL, 1, controller_task);
-    launch_task(blink_init_task, "blink_init", 2048, NULL, 1, blink_task);
+    launch_task(blink_init_task_1, "blink_init", 2048, NULL, 1, blink_task);
     // TODO: Add Websocket server
 #endif
 

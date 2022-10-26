@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -24,13 +25,10 @@ static uint8_t *s_blink_seq;
 static int s_blink_seq_len;
 static int s_blink_idx; // Used in interrupt
 uint8_t g_blink_pin; // Used in interrupt
+
 static const char *TAG = "app_blink";
 blink_config_t g_blink_cfg = {
-        .is_mono = false,
-        .is_binary = true,
-        .en_val =1,
-        .pins.mono = CONFIG_BLINK_DEFAULT_PIN,
-        .gain.mono = UINT8_MAX,
+        .pin_num = CONFIG_BLINK_PIN,
         .ledc_channel = {
                 .channel = CONFIG_LEDC_HS_CH0_CHANNEL,
                 .duty = 0,
@@ -47,50 +45,24 @@ static bool get_flag(const uint8_t *arr, int item) {
     return (arr[item / 8] & (1 << item % 8)) >> (item % 8);
 }
 
-
-void blink_gpio_off(blink_config_t *p_cfg) {
-    if (p_cfg->is_mono) {
-        gpio_set_level(p_cfg->pins.mono, !p_cfg->en_val);
-    } else {
-        for (int idx = 0; idx < sizeof(p_cfg->pins.rgb) / sizeof(p_cfg->pins.rgb[0]); ++idx) {
-            gpio_set_level(p_cfg->pins.rgb[idx], !p_cfg->en_val);
-        }
-    }
-}
-
-void blink_gpio_on(blink_config_t *p_cfg) {
-    if (p_cfg->is_mono) {
-        gpio_set_level(p_cfg->pins.mono, p_cfg->en_val);
-    } else {
-        for (int idx = 0; idx < sizeof(p_cfg->pins.rgb) / sizeof(p_cfg->pins.rgb[0]); ++idx) {
-            gpio_set_level(p_cfg->pins.rgb[idx], p_cfg->en_val);
-        }
-    }
-}
-
-void blink_pwm_off(blink_config_t *p_cfg) {
+void blink_off(blink_config_t *p_cfg) {
+#if CONFIG_BLINK_USE_PWM
     ledc_set_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, 0);
     ledc_update_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel);
     ledc_stop(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, 0);
+#else
+    gpio_set_level(p_cfg->pins.mono, !p_cfg->en_val);
+#endif
 }
 
-void blink_pwm_on(blink_config_t *p_cfg) {
+void blink_on(blink_config_t *p_cfg) {
+#if CONFIG_BLINK_USE_PWM
     ledc_set_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, CONFIG_BLINK_MAX_DUTY);
     ledc_update_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel);
+#else
+    gpio_set_level(p_cfg->pins.mono, p_cfg->en_val);
+#endif
 }
-
-void blink_gpio_msp_init() {
-    /** Init GPIO **/
-    gpio_config_t io_config = {
-            .pin_bit_mask = (1ull << CONFIG_BLINK_PIN),
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE
-    };
-    gpio_config(&io_config);
-}
-
 
 /*
  * Prepare individual configuration
@@ -105,7 +77,8 @@ void blink_gpio_msp_init() {
  *         then frequency and bit_num of these channels
  *         will be the same
  */
-void blink_pwm_msp_init() {
+void blink_msp_init() {
+#if CONFIG_BLINK_USE_PWM
     static ledc_timer_config_t s_ledc_timer = {
             .duty_resolution = LEDC_TIMER_13_BIT,
             .freq_hz = CONFIG_BLINK_MAX_DUTY,
@@ -116,6 +89,17 @@ void blink_pwm_msp_init() {
     // Set configuration of timer0 for high speed channels
     ledc_timer_config(&s_ledc_timer);
     ledc_channel_config(&g_blink_cfg.ledc_channel);
+#else
+    /** Init GPIO **/
+    gpio_config_t io_config = {
+            .pin_bit_mask = (1ull << CONFIG_BLINK_PIN),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&io_config);
+#endif
 }
 
 
@@ -155,13 +139,6 @@ static void blink_fill_u8_hamming(uint8_t *send_buf, uint8_t info) {
 }
 
 void blink_init() {
-
-#if CONFIG_BLINK_NO_PWM
-    blink_gpio_msp_init();
-#else
-    blink_pwm_msp_init();
-#endif
-
     /** Read blink sequence from nvs **/
     nvs_handle_t blink_handle;
     uint8_t seq;
@@ -172,6 +149,7 @@ void blink_init() {
     ESP_LOGI(TAG, "Blinking pin: %d", g_blink_pin);
     ESP_LOGI(TAG, "Blinking sequence: %d", seq);
     s_blink_idx = 0;
+
 
     s_blink_seq_len = CONFIG_BLINK_SYNC_SEQ_LEN + (g_mcu.use_hamming ? 24 : 16) + CONFIG_BLINK_CHKSUM_SEQ_LEN;
     s_blink_seq = (uint8_t *) calloc(s_blink_seq_len, 1);
@@ -232,11 +210,28 @@ void blink_init() {
 }
 
 
-void blink_init_task(void *vParameters) {
+void blink_init_task_0(void *vParameters) {
     blink_init();
     // blink_start();
     blink_stop();
     vTaskDelete(NULL);
+}
+
+_Noreturn void blink_init_task_1(void *vParameters) {
+    EventBits_t bits;
+    bool led_on_off_state = 0;
+
+    for(;;) {
+        bits = xEventGroupGetBits(g_mcu.sys_event_group);
+        if ((bits & EV_UART_MANUAL_BLOCK_BIT)) {
+            led_on_off_state ? hal_led_on(): hal_led_off();
+            led_on_off_state = !led_on_off_state;
+        } else {
+            hal_led_on();
+        }
+        os_delay_ms(1000);
+
+    }
 }
 
 
@@ -248,7 +243,7 @@ void blink_start() {
     }
     printf("\n");
     ESP_LOGW(TAG, "# --------- End of blink sequence --------- #");
-    ESP_ERROR_CHECK(esp_timer_start_periodic(g_blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000));
+    esp_timer_start_periodic(g_blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000);
     deice_always_on();
 }
 
@@ -257,15 +252,13 @@ void blink_stop() {
     esp_timer_stop(g_blink_timer);
     hal_led_on();
     deice_cancel_always_on();
-    device_reset_sleep_countup();
 }
 
-void blink_off() {
+void blink_mute() {
     ESP_LOGI(TAG, "Timer stopped");
     esp_timer_stop(g_blink_timer);
     hal_led_off();
     deice_cancel_always_on();
-    device_reset_sleep_countup();
 }
 
 #define BLINK_SET_OFFSET 10
@@ -342,10 +335,10 @@ COMMAND_FUNCTION(blink_stop) {
     return ESP_OK;
 }
 
-COMMAND_FUNCTION(blink_off) {
-    ESP_LOGI(TAG, "Executing command : IMU_BLINK_OFF");
+COMMAND_FUNCTION(blink_mute) {
+    ESP_LOGI(TAG, "Executing command : IMU_BLINK_MUTE");
 
-    blink_off();
+    blink_mute();
 
     snprintf(tx_buffer, tx_len, "Blink pin %d set to OFF\n\n", g_blink_pin);
     return ESP_OK;

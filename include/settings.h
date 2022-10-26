@@ -75,6 +75,9 @@
 
 #define CONFIG_CTRL_RX_LEN 64
 #define CONFIG_CTRL_TX_LEN 512
+
+#define CONFIG_BLINK_USE_PWM 1
+
 /** On Board Button **/
 #include "modelspec.h"
 

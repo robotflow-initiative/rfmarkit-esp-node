@@ -172,13 +172,12 @@ esp_err_t hi229_read(hi229_t *p_gy) {
         uart_read_bytes(p_gy->port, &data, 1, 0xF);
         ++count;
         if (ch_serial_input(&p_gy->raw, data) == 1) {
-            // TODO: [MID] Re-Write this part with custom solution to speed up/support multiple IMU
-            p_gy->n_bytes = sizeof(ch_imu_data_t);
-            memcpy(&p_gy->buf, &p_gy->raw.imu, p_gy->n_bytes);
-            break;
+//            p_gy->n_bytes = sizeof(ch_imu_data_t);
+//            memcpy(&p_gy->buf, &p_gy->raw.imu, p_gy->n_bytes);
+            return ESP_OK;
         }
     }
-    return ESP_OK;
+    return ESP_FAIL;
 }
 
 
@@ -236,23 +235,16 @@ int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
      */
     ADD_DATA(payload_buffer, len, &g_imu.addr, 1);
 
-    ADD_DATA(payload_buffer, len, &p_reading->data, p_reading->n_bytes);
-
-    uint8_t chksum = compute_chksum(p_reading->data, p_reading->n_bytes);
-    ADD_DATA(payload_buffer, len, &chksum, 1);
+    ADD_DATA(payload_buffer, len, &p_reading->imu, sizeof(p_reading->imu));
 
     ADD_DATA(payload_buffer, len, &p_reading->time_us, sizeof(p_reading->time_us));
 
-    ADD_DATA(payload_buffer, len, g_mcu.device_id, CONFIG_DEVICE_ID_LEN);
-
-    const uint8_t scale = 0;
-    ADD_DATA(payload_buffer, len, &scale, 1);
-
-    ADD_DATA(payload_buffer, len, &p_reading->start_time_us, sizeof(p_reading->start_time_us));
-
     ADD_DATA(payload_buffer, len, &p_reading->uart_buffer_len, sizeof(p_reading->uart_buffer_len));
 
-    chksum = compute_chksum(payload_buffer, GET_OFFSET(payload_buffer));
+    ADD_DATA(payload_buffer, len, g_mcu.device_id, CONFIG_DEVICE_ID_LEN);
+
+    uint8_t chksum = compute_chksum(payload_buffer, GET_OFFSET(payload_buffer));
+
     ADD_DATA(payload_buffer, len, &chksum, 1);
 
     return GET_OFFSET(payload_buffer);
@@ -310,7 +302,6 @@ COMMAND_FUNCTION(imu_status) {
 }
 
 COMMAND_FUNCTION(imu_imm) {
-        hi229_soft_flush(&g_imu);
         imu_read(&g_imu);
         snprintf(tx_buffer, tx_len, "acc=[%f, %f, %f], rpy=[%f, %f, %f],\n\n",
         g_imu.raw.imu[0].acc[0], g_imu.raw.imu[0].acc[1], g_imu.raw.imu[0].acc[2],

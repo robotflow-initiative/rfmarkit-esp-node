@@ -1,3 +1,5 @@
+#include <sys/cdefs.h>
+
 #ifndef _TCP_H
 #define _TCP_H
 
@@ -55,6 +57,7 @@ typedef struct {
 #define CONFIG_KEEP_COUNT 3
 #define CONFIG_KEEP_INTERVAL 5
 
+_Noreturn
 void server_loop(tcp_server_t* server, void (*interact)(int));
 
 void server_init(void (*pfunc)(int));

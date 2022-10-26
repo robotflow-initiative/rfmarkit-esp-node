@@ -75,12 +75,9 @@ void app_uart_monitor(void* pvParameters) {
             }
         }
 
-        /** Tag starting point */
-        tag_time_us(imu_data.start_time_us);
 
         imu_read(&g_imu);
-        memcpy(imu_data.data, g_imu.buf, g_imu.n_bytes);
-        imu_data.n_bytes = g_imu.n_bytes;
+        memcpy(imu_data.imu, g_imu.raw.imu, sizeof(ch_imu_data_t));
 
         /** Tag stop point **/
         tag_time_us(imu_data.time_us);

@@ -32,10 +32,8 @@
 
 
 typedef struct {
-    size_t n_bytes;
-    uint8_t data[CONFIG_HI229_PAYLOAD_LEN];
+    ch_imu_data_t imu[1];
     int64_t time_us;
-    int64_t start_time_us;
     int uart_buffer_len;
 } hi229_dgram_t; // EXTERNAL
 
