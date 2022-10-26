@@ -151,11 +151,14 @@ restart
 imu_imm
 ```
 
-
 ```
 varset OTA_HOST=10.233.233.3
 varset DATA_HOST=10.233.234.1
 varset NTP_HOST=10.233.233.3
+```
+
+```
+imu_debug AT+INFO=HSI
 ```
 
 ## 默认设置

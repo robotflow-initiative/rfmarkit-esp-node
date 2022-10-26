@@ -121,9 +121,9 @@ static esp_err_t hi229_check_echo(hi229_t *p_gy, const uint8_t *echo, size_t len
 }
 
 static esp_err_t hi229_send(hi229_t *p_gy, uint8_t *ctrl_msg, int len, const uint8_t *echo) {
-    len = len <= 0 ? (int) strlen((char *) ctrl_msg) : len;
+    len = (len <= 0) ? (int) strlen((char *) ctrl_msg) : len;
     ESP_LOGI(TAG, "hi229 send : %s, num: %d", (char *) ctrl_msg, len);
-    uart_write_bytes((p_gy->port), ctrl_msg, len);
+    uart_write_bytes_with_break((p_gy->port), ctrl_msg, len, 0xF);
     uart_wait_tx_done((p_gy->port), portMAX_DELAY);
 
     esp_err_t err = ESP_OK;
@@ -142,6 +142,14 @@ static esp_err_t hi229_recv(hi229_t *p_gy, uint8_t *rx_buf, size_t rx_len) {
         if (idx >= rx_len - 2) {
             break;
         }
+    }
+    return ESP_OK;
+}
+
+static esp_err_t hi229_soft_flush(hi229_t *p_gy) {
+    uint8_t hole[1];
+    for (int idx = 0; idx < CONFIG_HI229_UART_RX_BUF_LEN; ++idx) {
+        uart_read_bytes(p_gy->port, hole, 1, 0x1);
     }
     return ESP_OK;
 }
