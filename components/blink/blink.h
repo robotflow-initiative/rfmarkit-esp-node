@@ -55,9 +55,9 @@ void blink_msp_init(void);
 
 void blink_init(void);
 
-void blink_init_task_0(void *);
+void blink_task_0(void *);
 
-void blink_init_task_1(void *);
+void blink_task_1(void *);
 
 void blink_start(void);
 

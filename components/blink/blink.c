@@ -51,7 +51,7 @@ void blink_off(blink_config_t *p_cfg) {
     ledc_update_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel);
     ledc_stop(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, 0);
 #else
-    gpio_set_level(p_cfg->pins.mono, !p_cfg->en_val);
+    gpio_set_level(p_cfg->pin_num, !p_cfg->en_val);
 #endif
 }
 
@@ -60,7 +60,7 @@ void blink_on(blink_config_t *p_cfg) {
     ledc_set_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, CONFIG_BLINK_MAX_DUTY);
     ledc_update_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel);
 #else
-    gpio_set_level(p_cfg->pins.mono, p_cfg->en_val);
+    gpio_set_level(p_cfg->pin_num, p_cfg->en_val);
 #endif
 }
 
@@ -105,7 +105,7 @@ void blink_msp_init() {
 
 static void blink_timeout(void *args) {
     if (s_blink_idx >= s_blink_seq_len) s_blink_idx = 0;
-#if CONFIG_BLINK_NO_PWM
+#if CONFIG_BLINK_USE_PWM
     gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
 #else
     ledc_set_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel, s_blink_seq[s_blink_idx] ? CONFIG_BLINK_MAX_DUTY : CONFIG_BLINK_MIN_DUTY);
@@ -163,7 +163,7 @@ void blink_init() {
     s_blink_seq[1] = 1;
     s_blink_seq[2] = 1;
     s_blink_seq[3] = 0;
-    
+
     uint8_t hamming_seq[12];
     blink_fill_u8_hamming(hamming_seq, seq);
 
@@ -188,7 +188,7 @@ void blink_init() {
         s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2 + 1] = pattern[1];
         ESP_LOGD(TAG, "s_blink_seq[%d]=%d\n", idx * 2 + 1, pattern[1]);
     }
-    
+
     ESP_LOGW(TAG, "USE_HAMMING=%d", g_mcu.use_hamming);
 
     ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");
@@ -204,30 +204,34 @@ void blink_init() {
             /** name is optional, but may help identify the timer when debugging */
             .name = "timeout"
     };
-    
+
     ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &g_blink_timer));
 
 }
 
 
-void blink_init_task_0(void *vParameters) {
+void blink_task_0(void *vParameters) {
     blink_init();
     // blink_start();
     blink_stop();
     vTaskDelete(NULL);
 }
 
-_Noreturn void blink_init_task_1(void *vParameters) {
+_Noreturn void blink_task_1(void *vParameters) {
     EventBits_t bits;
     bool led_on_off_state = 0;
 
-    for(;;) {
+    for (;;) {
         bits = xEventGroupGetBits(g_mcu.sys_event_group);
-        if ((bits & EV_UART_MANUAL_BLOCK_BIT)) {
-            led_on_off_state ? hal_led_on(): hal_led_off();
-            led_on_off_state = !led_on_off_state;
+        if (bits & EV_TCP_CONNECTED_BIT) {
+            if (bits & EV_UART_MANUAL_BLOCK_BIT) {
+                led_on_off_state ? hal_led_on() : hal_led_off();
+                led_on_off_state = !led_on_off_state;
+            } else {
+                hal_led_on();
+            }
         } else {
-            hal_led_on();
+            hal_led_off();
         }
         os_delay_ms(1000);
 

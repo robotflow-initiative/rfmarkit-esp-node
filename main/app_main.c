@@ -33,6 +33,15 @@
 
 static const char *TAG = "app_main";
 
+static void led_test() {
+    for (int i = 0; i < 6; i++) {
+        blink_on(&g_blink_cfg);
+        os_delay_ms(250);
+        blink_off(&g_blink_cfg);
+        os_delay_ms(250);
+    }
+
+}
 static void init() {
     // TODO: Add BLE function
     sys_log_chip_info();
@@ -56,13 +65,7 @@ static void init() {
 
     /** During init, test up the led **/
     blink_msp_init();
-    blink_on(&g_blink_cfg);
-    os_delay_ms(1000);
-    blink_off(&g_blink_cfg);
-    os_delay_ms(500);
-    blink_on(&g_blink_cfg);
-    os_delay_ms(1000);
-    blink_off(&g_blink_cfg);
+    led_test();
 
     /** Init global imu struct g_imu **/
     imu_init(g_imu);
@@ -107,7 +110,7 @@ void app_main(void) {
     launch_task_multicore(app_data_client, "app_data_client", 4096, serial_queue, 2, tcp_task, 0x0);
     launch_task_multicore(app_uart_monitor, "app_uart_monitor", 4096, serial_queue, 1, uart_task, 0x0);
     launch_task_multicore(app_controller, "app_controller", 4096, NULL, 1, controller_task, 0x1);
-    launch_task_multicore(blink_init_task_1, "blink_init", 2048, NULL, 1, blink_task, 0x1);
+    launch_task_multicore(blink_task_1, "blink_init", 2048, NULL, 1, blink_task, 0x1);
 #else
     launch_task(app_time_sync, "app_time_sync", 2560, NULL, 2, time_sync_task);
     launch_task(app_data_client, "app_data_client", 4096, serial_queue, 2, tcp_task);
