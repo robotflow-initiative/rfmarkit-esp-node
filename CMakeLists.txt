@@ -2,6 +2,14 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
+EXECUTE_PROCESS(COMMAND git describe --tags --abbrev=0
+        TIMEOUT 5
+        OUTPUT_VARIABLE GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+MESSAGE(STATUS "building from git tag ${GIT_VERSION}")
+add_definitions(-DCONFIG_FIRMWARE_VERSION=\"${GIT_VERSION}\")
+
 # if(DEFINED ENV{HOMEKIT_PATH})
 #   set(HOMEKIT_PATH $ENV{HOMEKIT_PATH})
 # else()
