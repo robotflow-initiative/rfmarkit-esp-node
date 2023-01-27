@@ -1,8 +1,6 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
-#include "../VERSION"
-
 /** Debug options **/
 #define CONFIG_EN_DEBUG_OVER_TCP 0
 

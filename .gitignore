@@ -6,3 +6,4 @@ sdkconfig.old
 .cache
 sdkconfig
 cmake-build-*
+build
