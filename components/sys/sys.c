@@ -237,7 +237,7 @@ void sys_log_chip_info() {
     sys_get_device_id();
     ESP_LOGI(TAG, "Device ID: %s", g_mcu.device_id);
 
-    ESP_LOGW(TAG, "\n-------VERSION-------\nv%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
+    ESP_LOGW(TAG, "\n-------VERSION-------\n%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
 }
 
 void sys_reset_gpio(int pin) {
