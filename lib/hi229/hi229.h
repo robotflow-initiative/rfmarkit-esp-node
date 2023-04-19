@@ -34,6 +34,8 @@
 typedef struct {
     ch_imu_data_t imu[1];
     int64_t time_us;
+    int64_t tsf_time_us;
+    uint32_t seq;
     int uart_buffer_len;
 } hi229_dgram_t; // EXTERNAL
 

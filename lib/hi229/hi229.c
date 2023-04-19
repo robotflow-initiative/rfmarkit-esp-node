@@ -180,8 +180,6 @@ esp_err_t hi229_read(hi229_t *p_gy) {
         uart_read_bytes(p_gy->port, &data, 1, 0xF);
         ++count;
         if (ch_serial_input(&p_gy->raw, data) == 1) {
-//            p_gy->n_bytes = sizeof(ch_imu_data_t);
-//            memcpy(&p_gy->buf, &p_gy->raw.imu, p_gy->n_bytes);
             return ESP_OK;
         }
     }
@@ -227,11 +225,11 @@ esp_err_t hi229_parse(hi229_t *p_gy,
 #define GET_OFFSET(dest) dest##_offset
 
 static uint8_t compute_chksum(const uint8_t *data, size_t len) {
-    uint32_t sum = 0;
+    uint8_t sum = 0;
     for (int idx = 0; idx < len; ++idx) {
-        sum += data[idx];
+        sum ^= data[idx];
     }
-    return sum % 0x100;
+    return sum;
 }
 
 int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
@@ -239,13 +237,17 @@ int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
     /**
      * @brief Format of packet:
      *
-     * | g_imu.addr | ... | chk_sum | timestamp |     id     | gy_scale | start_timestamp | uart_buffer_len | chk_sum |
+     * | g_imu.addr | imu  | seq | time_us | uart_buffer_len | device_id | chk_sum |
      */
     ADD_DATA(payload_buffer, len, &g_imu.addr, 1);
 
     ADD_DATA(payload_buffer, len, &p_reading->imu, sizeof(p_reading->imu));
 
     ADD_DATA(payload_buffer, len, &p_reading->time_us, sizeof(p_reading->time_us));
+
+    ADD_DATA(payload_buffer, len, &p_reading->tsf_time_us, sizeof(p_reading->tsf_time_us));
+
+    ADD_DATA(payload_buffer, len, &p_reading->seq, sizeof(p_reading->seq));
 
     ADD_DATA(payload_buffer, len, &p_reading->uart_buffer_len, sizeof(p_reading->uart_buffer_len));
 
