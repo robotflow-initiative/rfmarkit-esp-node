@@ -64,7 +64,7 @@ static command_reg_t s_registration[] = {
         {.name = "cancel_always_on", .func = command_func_always_on},
         {.name = "varset", .func = command_func_varset},
         {.name = "varget", .func = command_func_varget},
-        {.name = "v"CONFIG_FIRMWARE_VERSION"_shutdown", .func = command_func_shutdown}
+        {.name = ""CONFIG_FIRMWARE_VERSION"_shutdown", .func = command_func_shutdown}
 };
 
 #define MATCH_CMD(x, cmd) (strncasecmp(x, cmd, strlen(cmd)) == 0)

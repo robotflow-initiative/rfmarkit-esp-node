@@ -1,0 +1,33 @@
+Altium Designer Pick and Place Locations
+H:\RD-Doing\IMU.B_HW2.1 GY95T+HI229 双面\Project Outputs for IMU.B_HW2.1\Pick Place for PCB1.txt
+
+========================================================================================================================
+File Design Information:
+
+Date:       06/01/22
+Time:       16:24
+Revision:   Not in VersionControl
+Variant:    No variations
+Units used: mil
+
+Designator Comment      Layer       Footprint      Center-X(mil) Center-Y(mil) Rotation Description                                                                     
+U2         ESP-32S      TopLayer    ESP-32S        662.063       443.570       0        ESP32-S系列模组                                                                 
+SW1        SW-SPDT      BottomLayer SW_MSK12C01    95.017        675.699       0        "SPDT Subminiature Toggle Switch, Right Angle Mounting, Vertical Actuation" 
+R9         10K          TopLayer    0402           205.390       460.285       90       Resistor                                                                    
+R8         10K/1%       TopLayer    0402           196.520       535.285       0        Resistor                                                                    
+R7         10K/1%       TopLayer    0402           217.440       606.169       90       Resistor                                                                    
+R4         150R         BottomLayer 0402           84.836        213.371       180      Resistor                                                                    
+Q2         SI2300       TopLayer    SOT-23         162.336       347.740       180      "N-Channel Power MOSFET"                                                                                                              
+C6         1uF          TopLayer    0402C          52.233        805.513       270      Capacitor                                                                   
+U1         ME6217C33M5G TopLayer    SOT-23-5       91.020        510.285       90       "2~6V Input, 350mA output，Voltage LDO"                                      
+C5         10uF         TopLayer    0402C          138.520       667.096       0        Capacitor                                                                   
+K2         BOOT         BottomLayer KEY-SMD/2P/3*4 1004.704      137.708       0        ""                                                                          
+R3         10K          BottomLayer 0402           84.836        273.092       0        Resistor                                                                    
+Q1         SI2301       BottomLayer SOT-23         104.336       395.285       0        "P-Channel Power MOSFET"                                                                                                               
+C2         100nF        BottomLayer 0402C          281.786       367.798       90       Capacitor                                                                   
+C1         4.7uF        BottomLayer 0402C          225.314       367.798       90       Capacitor                                                                   
+K1         RESET        BottomLayer KEY-SMD/2P/3*4 281.246       716.011       180      ""                                                                          
+C3         22uF         TopLayer    0805C          121.561       833.515       90       Capacitor                                                                   
+C4         100nF        TopLayer    0402C          191.413       807.088       90       Capacitor                                                                   
+R2         10K          BottomLayer 0402           1005.437      319.551       90       Resistor                                                                    
+R1         10K          BottomLayer 0402           259.440       553.106       0        Resistor                                                                    

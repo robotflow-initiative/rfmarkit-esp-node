@@ -24,7 +24,7 @@
 #include "tcp.h"
 #include "blink.h"
 
-static const char* TAG = "app_data_client";
+static const char *TAG = "app_data_client";
 
 static uint8_t s_send_buffer[CONFIG_PAYLOAD_BUFFER_LEN * 0xF];
 static int s_send_buffer_tail = 0;
@@ -32,12 +32,12 @@ static int s_send_buffer_tail = 0;
 #define RESET_SEND_BUFFER() \
     s_send_buffer_tail = 0;
 
-_Noreturn void app_data_client(void* pvParameters) {
+_Noreturn void app_data_client(void *pvParameters) {
     ESP_LOGI(TAG, "app_data_client started");
 
-    QueueHandle_t serial_queue = (QueueHandle_t)pvParameters;
+    QueueHandle_t serial_queue = (QueueHandle_t) pvParameters;
 
-    imu_dgram_t imu_reading = { 0 };
+    imu_dgram_t imu_reading = {0};
     tcp_client_t client = {
             .port = CONFIG_DATA_HOST_PORT,
             .address = g_mcu.data_host_ip_addr,
@@ -71,9 +71,9 @@ _Noreturn void app_data_client(void* pvParameters) {
 
         while (1) {
             ESP_LOGD(TAG, "tcp_client loop");
-            /** If the QueueIsEmpy, sleep for a while **/
+            /** If the queue is empty, sleep for a while **/
             // ESP_LOGW(TAG, "serial_queue: %p", serial_queue);
-            if (xQueueReceive(serial_queue, &imu_reading, (TickType_t)0x4) != pdPASS) {
+            if (xQueueReceive(serial_queue, &imu_reading, (TickType_t) 0x4) != pdPASS) {
                 taskYIELD();
                 ESP_LOGD(TAG, "No item in queue");
                 continue;
@@ -103,11 +103,11 @@ socket_error:
         blink_stop();
         ESP_LOGE(TAG, " Shutting down socket... for %d", errno);
         switch (errno) {
-        case ECONNRESET:
-            os_delay_ms(5000);
-            break;
-        default:
-            break;
+            case ECONNRESET:
+                os_delay_ms(5000);
+                break;
+            default:
+                break;
         };
         handle_socket_err(client.client_sock)
     }
