@@ -23,7 +23,7 @@ esp_err_t server_create_socket(tcp_server_t* server) {
     int ip_protocol = IPPROTO_IP;
     server->server_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
     if (server->server_sock < 0) {
-        ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+        ESP_LOGE(TAG, "unable to create socket: errno %d", errno);
         delay_ms(1000);
         handle_socket_err(server->server_sock);
     }
@@ -35,12 +35,12 @@ esp_err_t server_bind(tcp_server_t* server) {
 
     int err = bind(server->server_sock, (struct sockaddr*)&server->dest_addr, sizeof(server->dest_addr));
     if (err < 0) {
-        ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+        ESP_LOGE(TAG, "socket unable to bind: errno %d", errno);
         handle_socket_err(server->server_sock);
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Socket bound, port %d", server->port);
+    ESP_LOGI(TAG, "socket bound, port %d", server->port);
 
     return ESP_OK;
 }
@@ -56,7 +56,7 @@ esp_err_t server_set_timeout(tcp_server_t* server, int timeout_s) {
 esp_err_t server_listen(tcp_server_t* server) {
     int err = listen(server->server_sock, server->max_listen);
     if (err != 0) {
-        ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
+        ESP_LOGE(TAG, "error occurred during listen: errno %d", errno);
         handle_socket_err(server->server_sock);
         return ESP_FAIL;
     }
@@ -80,7 +80,7 @@ int server_accept(tcp_server_t* server) {
     struct sockaddr_storage source_addr;
     socklen_t socklen = sizeof(source_addr);
 
-    ESP_LOGD(TAG, "Socket listening");
+    ESP_LOGD(TAG, "socket listening");
     int client_sock = accept(server->server_sock, (struct sockaddr*)&source_addr, &socklen);
     if (client_sock < 0) {
         return client_sock;
@@ -94,7 +94,7 @@ int server_accept(tcp_server_t* server) {
 #define CONFIG_PORT 2333
 #define CONFIG_LISTEN_NUM 1
 
-_Noreturn void server_loop(tcp_server_t* server, void (*interact)(int)) {
+_Noreturn void tcp_server_loop(tcp_server_t* server, void (*interact)(int)) {
 
     while (1) {
         /** Create address struct **/
@@ -114,7 +114,7 @@ _Noreturn void server_loop(tcp_server_t* server, void (*interact)(int)) {
         while (1) {
             int client_sock = server_accept(server);
             if (client_sock < 0) {
-                ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
+                ESP_LOGE(TAG, "unable to accept connection: errno %d", errno);
                 break;
             }
 

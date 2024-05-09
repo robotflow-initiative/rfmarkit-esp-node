@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
@@ -19,90 +20,71 @@ static const char *TAG = "app_uart_monitor";
 /**
  * @brief Compute and set timestamp with us resolution
  *
- */
-#define tag_time_us(imu_data) \
-        { \
-                struct timeval tv_now = { 0 }; \
-                gettimeofday(&tv_now, NULL); \
-                (imu_data).time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec; \
-                (imu_data).tsf_time_us = esp_wifi_get_tsf_time(WIFI_IF_STA); \
-        }
-#define tag_buffer_len(imu_data) \
-        { \
-            size_t uart_buffer_len = 0; \
-            uart_get_buffered_data_len(g_imu.port, &uart_buffer_len); \
-            (imu_data).uart_buffer_len = uart_buffer_len; \
-        }
+**/
+static void IRAM_ATTR tag_time_us(imu_dgram_t *imu_data) {
+    get_time_usec(imu_data->time_us);
+    imu_data->tsf_time_us = esp_wifi_get_tsf_time(WIFI_IF_STA);
+}
 
+static void IRAM_ATTR tag_buffer_len(imu_dgram_t *imu_data) {
+    size_t uart_buffer_len = 0;
+    uart_get_buffered_data_len(g_imu.port, &uart_buffer_len);
+    imu_data->uart_buffer_len = (int) uart_buffer_len;
+}
 
-void app_uart_monitor(void *pvParameters) {
+_Noreturn void app_uart_monitor(void *pvParameters) {
     ESP_LOGI(TAG, "app_uart_monitor started");
 
-    QueueHandle_t serial_queue = (QueueHandle_t) pvParameters;
-    ESP_LOGD(TAG, "\n[ Address ] %p\n", serial_queue);
+    /** Get a ring buffer pointer **/
+    ring_buf_t *serial_buf = &g_mcu.imu_ring_buf;
 
+    /** Create a imu data structure **/
     imu_dgram_t imu_data = {0};
-    imu_dgram_t imu_data_trash = {0};
-    int ret;
-    EventBits_t bits;
-    int32_t seq = 0;
 
-    /** Wait until tcp connection is established, time synced and uart not blocked**/
     while (1) {
-        {
-            /** @warning xEventGroupWaitBits won't work because:
-             * xEventGroupWaitBits will wait for all marked bits to be 1, but will ignore the status of unmarked bits
-            **/
-            bits = xEventGroupGetBits(g_mcu.sys_event_group);
-            ESP_LOGD(TAG, "Bits: %x", bits);
-
-            if (!(bits & EV_TCP_CONNECTED_BIT) || !(bits & EV_NTP_SYNCED_BIT) || (bits & EV_UART_MANUAL_BLOCK_BIT)) {
-                os_delay_ms(200);
-                clear_sys_event(EV_UART_ACTIVATED); // Mark uart as inactive
-                xQueueReset(serial_queue);
-                seq = 0;
-                continue;
-            }
-
-            if (!(bits & EV_IMU_ENABLED_BIT)) { // TODO: remove this judgement by always enable imu
-                ESP_LOGI(TAG, "Enabling IMU");
-                imu_enable(&g_imu);
-                set_sys_event(EV_IMU_ENABLED);
-            }
-
-            if (!(bits & EV_UART_ACTIVATED_BIT)) {
-                set_sys_event(EV_UART_ACTIVATED);
-//                uart_flush(g_imu.port);
-            }
-        }
-
-
-        imu_read(&g_imu);
-        memcpy(imu_data.imu, g_imu.raw.imu, sizeof(ch_imu_data_t));
-
-        /** Tag seq number **/
-        imu_data.seq = seq++;
-
-        /** Tag stop point **/
-        tag_time_us(imu_data);
-
-        /** Count how many bits are left in the buffer **/
-        tag_buffer_len(imu_data);
-
-        /** If queue is full, wait **/
-        if (uxQueueSpacesAvailable(serial_queue) <= 0) {
-            ESP_LOGE(TAG, "Buffer full\n");
-            taskYIELD();
+        /** Wait for the system to be active **/
+        if (!g_imu.enabled || g_imu.mux != IMU_MUX_STREAM) {
+            os_delay_ms(500);
             continue;
         }
 
-        ret = xQueueSend(serial_queue, (void *) &imu_data, (TickType_t) 0xF);
+        /** Flush the uart buffer and prepare ring_buffer **/
+        uart_flush(g_imu.port);
+        uint32_t seq = 0;
+        ring_buf_reset(serial_buf);
 
-        if (ret != pdPASS) {
-            ESP_LOGE(TAG, "Cannot enqueue message\n");
-        } else {
-            ESP_LOGD(TAG, "Enqueue message\n");
+#if CONFIG_TOGGLE_PROFILING
+        TickType_t start_tick = xTaskGetTickCount();
+        uint32_t old_seq = 0;
+#endif
+        while (g_imu.enabled && g_imu.mux == IMU_MUX_STREAM) {
+            /** Read IMU data **/
+            esp_err_t err = imu_read(&g_imu, &imu_data);
+
+            /** If the err occurs(most likely due to the empty uart buffer), wait **/
+            if (err != ESP_OK) {
+                ESP_LOGD(TAG, "IMU read error: %d", err);
+                taskYIELD();
+                continue;
+            }
+
+            /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
+            imu_data.seq = seq++;
+            tag_time_us(&imu_data);
+            tag_buffer_len(&imu_data);
+
+            /** Add the imu data to the ring buffer **/
+            ring_buf_push(serial_buf, (uint8_t *) &imu_data);
+#if CONFIG_TOGGLE_PROFILING
+            TickType_t now = xTaskGetTickCount();
+            if ( now- start_tick > pdMS_TO_TICKS(1000)) {
+                size_t buf_len;
+                uart_get_buffered_data_len(g_imu.port, &buf_len);
+                ESP_LOGI(TAG, "fps=%d, buf_len=%d", seq - old_seq, buf_len);
+                start_tick = now;
+                old_seq = seq;
+            }
+#endif
         }
     }
-//    vTaskDelete(NULL);
 }

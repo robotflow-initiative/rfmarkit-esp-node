@@ -1,5 +1,9 @@
 # Manual For IMU System
 
+```
+TODO: fix the document
+```
+
 ## 概览
 
 IMU测量系统是一套包括传感器、有关软件系统的测量系统。传感器基于ESP32和HI229，前者是一个低功耗的物联网微控制器 (MCU)，后者是MEMS惯性测量器件m (IMU)。此外，IMU传感器预留了一个插座用于连接LED灯珠，以实现主动定位。
@@ -81,7 +85,7 @@ nc 10.53.24.117 18888
 
 restart / update / shutdown / id / ver
 
-blink_set \<N\> / blink_get / blink_start / blink_stop / 
+blink_set \<N\> / blink_get / blink_start_seq_enc_pattern / blink_stop_pattern / 
 
 start / stop / imu_imm /
 
@@ -110,9 +114,9 @@ static command_reg_t s_registration[] = {
         {.name = "ver", .func = command_func_ver},
         {.name = "blink_set", .func = command_func_blink_set},
         {.name = "blink_get", .func = command_func_blink_get},
-        {.name = "blink_start", .func = command_func_blink_start},
-        {.name = "blink_stop", .func = command_func_blink_stop},
-        {.name = "blink_off", .func = command_func_blink_off},
+        {.name = "blink_start_seq_enc_pattern", .func = command_func_blink_start},
+        {.name = "blink_stop_pattern", .func = command_func_blink_stop},
+        {.name = "blink_led_off", .func = command_func_blink_off},
         {.name = "self_test", .func = command_func_imu_self_test},
         {.name = "always_on", .func = command_func_always_on},
         {.name = "varset", .func = command_func_varset},

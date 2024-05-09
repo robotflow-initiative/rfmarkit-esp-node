@@ -1,8 +1,4 @@
-#include <sys/cdefs.h>
 #include <string.h>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 #include "esp_timer.h"
 #include "esp_err.h"
@@ -10,124 +6,146 @@
 #include "esp_attr.h"
 
 #include "driver/gpio.h"
-#include "driver/timer.h"
 #include "driver/ledc.h"
-#include "nvs_flash.h"
-
-#include "cJSON.h"
 
 #include "blink.h"
 #include "sys.h"
 
+static uint8_t s_seq_enc_pattern[CONFIG_BLINK_SYNC_SEQ_LEN + CONFIG_BLINK_SEQ_LEN];
+static uint8_t s_fast_breath_pattern[16] = {0, 32, 64, 96, 128, 160, 192, 224, 255, 224, 192, 160, 128, 96, 64, 32};
+static uint8_t s_slow_breath_pattern[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255};
+static uint8_t s_fast_flash_pattern[16] = {0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255};
 
-//static uint8_t s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + CONFIG_BLINK_SEQ_LEN + CONFIG_BLINK_CHKSUM_SEQ_LEN]; // /
-static uint8_t *s_blink_seq;
-static int s_blink_seq_len;
+static uint8_t *s_selected_pattern; // Used in interrupt
+static uint8_t s_selected_pattern_len; // Used in interrupt
 static int s_blink_idx; // Used in interrupt
-uint8_t g_blink_pin; // Used in interrupt
 
-static const char *TAG = "app_blink";
-blink_config_t g_blink_cfg = {
-        .pin_num = CONFIG_BLINK_PIN,
-        .ledc_channel = {
-                .channel = CONFIG_LEDC_HS_CH0_CHANNEL,
-                .duty = 0,
-                .gpio_num = CONFIG_BLINK_PIN,
-                .speed_mode = LEDC_HIGH_SPEED_MODE,
-                .hpoint = 0,
-                .timer_sel = CONFIG_LEDC_HS_TIMER
-        }
-};
-static esp_timer_handle_t g_blink_timer;
+blink_config_t g_blink_cfg;
+static esp_timer_handle_t s_blink_timer;
 
+static const char *TAG = "blink";
 
-static bool get_flag(const uint8_t *arr, int item) {
-    return (arr[item / 8] & (1 << item % 8)) >> (item % 8);
-}
-
-void blink_off(blink_config_t *p_cfg) {
-#if CONFIG_BLINK_USE_PWM
-    ledc_set_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, 0);
-    ledc_update_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel);
-    ledc_stop(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, 0);
-#else
-    gpio_set_level(p_cfg->pin_num, !p_cfg->en_val);
-#endif
-}
-
-void blink_on(blink_config_t *p_cfg) {
-#if CONFIG_BLINK_USE_PWM
-    ledc_set_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel, CONFIG_BLINK_MAX_DUTY);
-    ledc_update_duty(p_cfg->ledc_channel.speed_mode, p_cfg->ledc_channel.channel);
-#else
-    gpio_set_level(p_cfg->pin_num, p_cfg->en_val);
-#endif
-}
-
-/*
- * Prepare individual configuration
- * for each channel of LED Controller
- * by selecting:
- * - controller's channel number
- * - output duty cycle, set initially to 0
- * - GPIO number where LED is connected to
- * - speed mode, either high or low
- * - timer servicing selected channel
- *   Note: if different channels use one timer,
- *         then frequency and bit_num of these channels
- *         will be the same
- */
-void blink_msp_init() {
-#if CONFIG_BLINK_USE_PWM
-    static ledc_timer_config_t s_ledc_timer = {
-            .duty_resolution = LEDC_TIMER_13_BIT,
-            .freq_hz = CONFIG_BLINK_MAX_DUTY,
-            .speed_mode = LEDC_HIGH_SPEED_MODE,
-            .timer_num = CONFIG_LEDC_HS_TIMER,
-            .clk_cfg = LEDC_AUTO_CLK,
-    };
-    // Set configuration of timer0 for high speed channels
-    ledc_timer_config(&s_ledc_timer);
-    ledc_channel_config(&g_blink_cfg.ledc_channel);
-#else
-    /** Init GPIO **/
-    gpio_config_t io_config = {
-            .pin_bit_mask = (1ull << CONFIG_BLINK_PIN),
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE
-    };
-    gpio_config(&io_config);
-#endif
-}
-
-
-static void blink_timeout(void *args) {
-    if (s_blink_idx >= s_blink_seq_len) s_blink_idx = 0;
-#if CONFIG_BLINK_USE_PWM
-    gpio_set_level(g_blink_pin, s_blink_seq[s_blink_idx] ? 1 : 0);
-#else
-    ledc_set_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel, s_blink_seq[s_blink_idx] ? CONFIG_BLINK_MAX_DUTY : CONFIG_BLINK_MIN_DUTY);
-    ledc_update_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel);
-#endif
-    s_blink_idx++;
+/**
+ * Function to get bit from byte array
+ * @param arr the byte array
+ * @param index the item index
+ * @return treate array as a bit array and return the value, e.g. {5,5}[6] -> {0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1}[6] = 1
+ **/
+static bool get_bit_from_byte_array(const uint8_t *arr, int index) {
+    return (arr[index / 8] & (1U << index % 8)) >> (index % 8);
 }
 
 /**
- * 
+ * Function to stop the LED
+**/
+void blink_led_off() {
+    if (g_mcu.state.led_status == LED_FAST_FLASH || g_mcu.state.led_status == LED_SLOW_BREATH || g_mcu.state.led_status == LED_FAST_BREATH ||
+        g_mcu.state.led_status == LED_SEQ_ENC) {
+        esp_timer_stop(s_blink_timer);
+    }
+    ledc_stop(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel, 0);
+    gpio_set_level(g_blink_cfg.pin_num, !g_blink_cfg.en_val);
+    g_mcu.state.led_status = LED_OFF;
+}
+
+/**
+ * Function to turn on the LED
+**/
+void blink_led_on() {
+    if (g_mcu.state.led_status == LED_FAST_FLASH || g_mcu.state.led_status == LED_SLOW_BREATH || g_mcu.state.led_status == LED_FAST_BREATH ||
+        g_mcu.state.led_status == LED_SEQ_ENC) {
+        esp_timer_stop(s_blink_timer);
+    }
+    ledc_stop(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel, 1);
+    gpio_set_level(g_blink_cfg.pin_num, g_blink_cfg.en_val);
+    g_mcu.state.led_status = LED_ON;
+}
+
+/**
+ * Function to turn on the LED and change brightness
+ * @param duty the duty cycle of the LED, 0-100
+**/
+void blink_led_set_duty(uint32_t duty) {
+    if (g_mcu.state.led_status == LED_FAST_FLASH || g_mcu.state.led_status == LED_SLOW_BREATH || g_mcu.state.led_status == LED_FAST_BREATH ||
+        g_mcu.state.led_status == LED_SEQ_ENC) {
+        esp_timer_stop(s_blink_timer);
+    }
+    if (g_mcu.state.led_status == LED_OFF || g_mcu.state.led_status == LED_ON) {
+        ledc_set_freq(g_blink_cfg.ledc_channel.speed_mode, LEDC_TIMER_0, CONFIG_BLINK_PWN_FREQ);
+    }
+    ledc_set_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel, (CONFIG_BLINK_MAX_DUTY * duty) / 100);
+    ledc_update_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel);
+    g_mcu.state.led_status = LED_DUTY;
+}
+
+/**
+ * Function to blink the LED with fast flash pattern
+**/
+void blink_led_fast_flash() {
+    if (g_mcu.state.led_status == LED_FAST_FLASH) return;
+    if (g_mcu.state.led_status == LED_SLOW_BREATH || g_mcu.state.led_status == LED_FAST_BREATH || g_mcu.state.led_status == LED_SEQ_ENC) {
+        esp_timer_stop(s_blink_timer);
+    }
+    s_selected_pattern = s_fast_flash_pattern;
+    s_selected_pattern_len = sizeof(s_fast_flash_pattern);
+    if (g_mcu.state.led_status == LED_ON || g_mcu.state.led_status == LED_OFF) {
+        ledc_set_freq(g_blink_cfg.ledc_channel.speed_mode, LEDC_TIMER_0, CONFIG_BLINK_PWN_FREQ);
+    }
+    esp_timer_start_periodic(s_blink_timer, 50 * 1000);
+    g_mcu.state.led_status = LED_FAST_FLASH;
+}
+
+/**
+ * Function to blink the LED with fast breath pattern
+**/
+void blink_led_start_fast_breath_pattern() {
+    if (g_mcu.state.led_status == LED_FAST_BREATH) {
+        return;
+    }
+    if (g_mcu.state.led_status == LED_FAST_FLASH || g_mcu.state.led_status == LED_SLOW_BREATH || g_mcu.state.led_status == LED_SEQ_ENC) {
+        esp_timer_stop(s_blink_timer);
+    }
+    s_selected_pattern = s_fast_breath_pattern;
+    s_selected_pattern_len = sizeof(s_fast_breath_pattern);
+    if (g_mcu.state.led_status == LED_ON || g_mcu.state.led_status == LED_OFF) {
+        ledc_set_freq(g_blink_cfg.ledc_channel.speed_mode, LEDC_TIMER_0, CONFIG_BLINK_PWN_FREQ);
+    }
+    esp_timer_start_periodic(s_blink_timer, 50 * 1000);
+    g_mcu.state.led_status = LED_FAST_BREATH;
+}
+
+/**
+ * Function to blink the LED with slow breath pattern
+**/
+void blink_led_start_slow_breath_pattern() {
+    if (g_mcu.state.led_status == LED_SLOW_BREATH) {
+        return;
+    }
+    if (g_mcu.state.led_status == LED_FAST_FLASH || g_mcu.state.led_status == LED_FAST_BREATH || g_mcu.state.led_status == LED_SEQ_ENC) {
+        esp_timer_stop(s_blink_timer);
+    }
+    s_selected_pattern = s_slow_breath_pattern;
+    s_selected_pattern_len = sizeof(s_slow_breath_pattern);
+    if (g_mcu.state.led_status == LED_ON || g_mcu.state.led_status == LED_OFF) {
+        ledc_set_freq(g_blink_cfg.ledc_channel.speed_mode, LEDC_TIMER_0, CONFIG_BLINK_PWN_FREQ);
+    }
+    esp_timer_start_periodic(s_blink_timer, 200 * 1000);
+    g_mcu.state.led_status = LED_SLOW_BREATH;
+}
+
+/**
+ * Fill the buffer with hamming encoded sequence number
  * @param send_buf The send buffer
- * @param info The infomation
- * 
+ * @param seq The sequence number [0-255]
+ *
  * * Parity Check Mode: Even
- */
-static void blink_fill_u8_hamming(uint8_t *send_buf, uint8_t info) {
-    /** fill sync bits **/
+**/
+static void fill_u8_hamming(uint8_t *send_buf, uint8_t seq) {
+    /** Fill sync bits **/
     uint8_t _hamming_idx[8] = {2, 4, 5, 6, 8, 9, 10, 11};
 
-
     for (int idx = 0; idx < 8; ++idx) {
-        bool value = get_flag(&info, 7 - idx);
+        bool value = get_bit_from_byte_array(&seq, 7 - idx);
         ESP_LOGD(TAG, "value: %d\n", value);
         send_buf[_hamming_idx[idx]] = value;
     }
@@ -138,212 +156,124 @@ static void blink_fill_u8_hamming(uint8_t *send_buf, uint8_t info) {
     send_buf[7] = ((send_buf[7] + send_buf[8] + send_buf[9] + send_buf[10] + send_buf[11]) % 2) ? 1 : 0;
 }
 
-void blink_init() {
-    /** Read blink sequence from nvs **/
-    nvs_handle_t blink_handle;
-    uint8_t seq;
-    nvs_open(CONFIG_BLINK_NVS_TABLE_NAME, NVS_READWRITE, &blink_handle);
+/**
+ * Blinking callback
+ * @param args
+**/
+static void IRAM_ATTR blink_timeout(void *args) {
+    if (s_blink_idx >= s_selected_pattern_len) s_blink_idx = 0;
+    ledc_set_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel,
+                  (s_selected_pattern[s_blink_idx] * CONFIG_BLINK_MAX_DUTY) / 0x100);
+    ledc_update_duty(g_blink_cfg.ledc_channel.speed_mode, g_blink_cfg.ledc_channel.channel);
+    s_blink_idx++;
+}
 
-    g_blink_pin = CONFIG_BLINK_DEFAULT_PIN;
-    nvs_get_u8(blink_handle, "seq", &seq);
-    ESP_LOGI(TAG, "Blinking pin: %d", g_blink_pin);
-    ESP_LOGI(TAG, "Blinking sequence: %d", seq);
+/**
+ * Prepare the sequence encoding pattern by filling the buffer
+**/
+static void blink_prepare_pattern() {
+    ESP_LOGI(TAG, "blinking pin: %d", CONFIG_BLINK_DEFAULT_PIN);
+    ESP_LOGI(TAG, "blinking sequence: %d", g_mcu.seq);
     s_blink_idx = 0;
 
-
-    s_blink_seq_len = CONFIG_BLINK_SYNC_SEQ_LEN + (g_mcu.use_hamming ? 24 : 16) + CONFIG_BLINK_CHKSUM_SEQ_LEN;
-    s_blink_seq = (uint8_t *) calloc(s_blink_seq_len, 1);
-    uint8_t pattern[2] = {1, 0};
-    bool value = 0;
-
-    ESP_LOGI(TAG, "Sequence Number: %d", seq);
-
     /** fill sync bits **/
-    s_blink_seq[0] = 1;
-    s_blink_seq[1] = 1;
-    s_blink_seq[2] = 1;
-    s_blink_seq[3] = 0;
-
-    uint8_t hamming_seq[12];
-    blink_fill_u8_hamming(hamming_seq, seq);
+    memcpy(s_seq_enc_pattern, (uint8_t[]) {255, 255, 255, 64}, CONFIG_BLINK_SYNC_SEQ_LEN);
 
     /** fill data bits **/
-    int n_ones = 0;
-
-    for (int idx = 0; idx < (s_blink_seq_len / 2); ++idx) {
-        if (g_mcu.use_hamming) {
-            value = hamming_seq[idx];
-        } else {
-            value = get_flag(&seq, 7 - idx);
-        }
-
-        ESP_LOGD(TAG, "value: %d\n", value);
-        if (value) {
-            pattern[0] = !pattern[0];
-            pattern[1] = !pattern[1];
-            ++n_ones;
-        }
-        s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2] = pattern[0];
-        ESP_LOGD(TAG, "s_blink_seq[%d]=%d\n", idx * 2, pattern[0]);
-        s_blink_seq[CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2 + 1] = pattern[1];
-        ESP_LOGD(TAG, "s_blink_seq[%d]=%d\n", idx * 2 + 1, pattern[1]);
+    uint8_t hamming_seq[12];
+    fill_u8_hamming(hamming_seq, g_mcu.seq);
+    for (int idx = 0; idx < (CONFIG_BLINK_SEQ_LEN / 2); ++idx) {
+        int first = CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2;
+        int second = CONFIG_BLINK_SYNC_SEQ_LEN + idx * 2 + 1;
+        s_seq_enc_pattern[first] = hamming_seq[idx] ? s_seq_enc_pattern[first - 1] : s_seq_enc_pattern[first - 2];
+        s_seq_enc_pattern[second] = hamming_seq[idx] ? s_seq_enc_pattern[second - 3] : s_seq_enc_pattern[second - 2];
     }
 
-    ESP_LOGW(TAG, "USE_HAMMING=%d", g_mcu.use_hamming);
-
     ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");
-    for (int idx = 0; idx < s_blink_seq_len; ++idx) {
-        printf("%d ", s_blink_seq[idx]);
+    for (int idx = 0; idx < sizeof(s_seq_enc_pattern); ++idx) {
+        printf("%d|", s_seq_enc_pattern[idx]);
     }
     printf("\n");
     ESP_LOGW(TAG, "# --------- End of blink sequence --------- #");
 
-    // Arm timers
+    /** Arm timers **/
     const esp_timer_create_args_t blink_timer_args = {
             .callback = &blink_timeout,
             /** name is optional, but may help identify the timer when debugging */
             .name = "timeout"
     };
 
-    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &g_blink_timer));
+    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &s_blink_timer));
 
 }
 
-
-void blink_task_0(void *vParameters) {
-    blink_init();
-    // blink_start();
-    blink_stop();
-    vTaskDelete(NULL);
-}
-
-_Noreturn void blink_task_1(void *vParameters) {
-    EventBits_t bits;
-    bool led_on_off_state = 0;
-
-    for (;;) {
-        bits = xEventGroupGetBits(g_mcu.sys_event_group);
-        if (bits & EV_TCP_CONNECTED_BIT) {
-            if (bits & EV_UART_MANUAL_BLOCK_BIT) {
-                led_on_off_state ? hal_led_on() : hal_led_off();
-                led_on_off_state = !led_on_off_state;
-            } else {
-                hal_led_on();
-            }
-        } else {
-            hal_led_off();
-        }
-        os_delay_ms(1000);
-
-    }
-}
-
-
-void blink_start() {
-    ESP_LOGI(TAG, "Timer started");
-    ESP_LOGW(TAG, "# -------- Begin of blink sequence -------- #");
-    for (int idx = 0; idx < s_blink_seq_len; ++idx) {
-        printf("%d ", s_blink_seq[idx]);
-    }
-    printf("\n");
-    ESP_LOGW(TAG, "# --------- End of blink sequence --------- #");
-    esp_timer_start_periodic(g_blink_timer, CONFIG_BLINK_INTERVAL_MS * 1000);
-    deice_always_on();
-}
-
-void blink_stop() {
-    ESP_LOGI(TAG, "Timer stopped");
-    esp_timer_stop(g_blink_timer);
-    hal_led_on();
-    deice_cancel_always_on();
-}
-
-void blink_mute() {
-    ESP_LOGI(TAG, "Timer stopped");
-    esp_timer_stop(g_blink_timer);
-    hal_led_off();
-    deice_cancel_always_on();
-}
-
-#define BLINK_SET_OFFSET 10
-
-COMMAND_FUNCTION(blink_set) {
-    ESP_LOGI(TAG, "Executing command : IMU_BLINK_SET");
-    uint8_t seq = 0;
-    int offset = 0;
-
-    /** Open nvs table **/
-    nvs_handle_t blink_handle;
-    ESP_ERROR_CHECK(nvs_open(CONFIG_BLINK_NVS_TABLE_NAME, NVS_READWRITE, &blink_handle));
-
+/**
+ * Initialize the LED controller
+**/
+void blink_msp_init() {
     /**
-    rx_buffer = "blink_set {"seq":"[0-255]"}
+     * Prepare individual configuration
+     * for each channel of LED Controller
+     * by selecting:
+     * - controller's channel number
+     * - output duty cycle, set initially to 0
+     * - GPIO number where LED is connected to
+     * - speed mode, either high or low
+     * - timer servicing selected channel
+     *   Note: if different channels use one timer,
+     *         then frequency and bit_num of these channels
+     *         will be the same
     **/
-    char *end_ptr = NULL;
-    seq = (int) strtol(&rx_buffer[BLINK_SET_OFFSET], &end_ptr, 10);
+    g_blink_cfg = (blink_config_t) {
+            .en_val = 1,
+            .pin_num = CONFIG_BLINK_PIN,
+            .ledc_channel = {
+                    .channel = CONFIG_LEDC_HS_CH0_CHANNEL,
+                    .duty = 0,
+                    .gpio_num = CONFIG_BLINK_PIN,
+                    .speed_mode = LEDC_HIGH_SPEED_MODE,
+                    .hpoint = 0,
+                    .timer_sel = CONFIG_LEDC_HS_TIMER
+            }
+    };
 
-    if (end_ptr > &rx_buffer[BLINK_SET_OFFSET]) {
-        seq = seq % 0x100;
-        snprintf(tx_buffer + offset, tx_len - offset, "Blink seq set to %d, reboot to make effective\n\n", seq);
-    } else {
-        snprintf(tx_buffer + offset, tx_len - offset, "Blink set failed, invalid seq\n\n");
-        goto blink_set_cleanup;
+    ledc_timer_config_t ledc_timer = {
+            .duty_resolution = LEDC_TIMER_13_BIT,
+            .freq_hz = CONFIG_BLINK_PWN_FREQ,
+            .speed_mode = LEDC_HIGH_SPEED_MODE,
+            .timer_num = CONFIG_LEDC_HS_TIMER,
+            .clk_cfg = LEDC_AUTO_CLK,
+    };
+
+    /** Set configuration of timer0 for high speed channels **/
+    ledc_timer_config(&ledc_timer);
+    ledc_channel_config(&g_blink_cfg.ledc_channel);
+    ledc_set_freq(g_blink_cfg.ledc_channel.speed_mode, CONFIG_BLINK_TIMER_IDX, CONFIG_BLINK_PWN_FREQ);
+
+    /** Prepare pattern **/
+    blink_prepare_pattern();
+
+    /** During init, test the led **/
+    blink_led_fast_flash();
+}
+
+/**
+ * Start the sequence encoding pattern
+**/
+void blink_start_seq_enc_pattern() {
+    ESP_LOGI(TAG, "blink timer started");
+    if (g_mcu.state.led_status == LED_SEQ_ENC) {
+        return;
     }
-    nvs_set_u8(blink_handle, "seq", seq);
-    nvs_commit(blink_handle);
-    nvs_close(blink_handle);
-
-    return ESP_OK;
-
-    blink_set_cleanup:
-
-    nvs_commit(blink_handle);
-    nvs_close(blink_handle);
-
-    return ESP_FAIL;
+    if (g_mcu.state.led_status == LED_FAST_FLASH || g_mcu.state.led_status == LED_FAST_BREATH || g_mcu.state.led_status == LED_SLOW_BREATH) {
+        esp_timer_stop(s_blink_timer);
+    }
+    s_selected_pattern = s_seq_enc_pattern;
+    s_selected_pattern_len = sizeof(s_seq_enc_pattern);
+    if (g_mcu.state.led_status == LED_ON || g_mcu.state.led_status == LED_OFF) {
+        ledc_set_freq(g_blink_cfg.ledc_channel.speed_mode, LEDC_TIMER_0, CONFIG_BLINK_PWN_FREQ);
+    }
+    esp_timer_start_periodic(s_blink_timer, CONFIG_BLINK_TIMER_INTERVAL_MS * 1000);
+    g_mcu.state.led_status = LED_SEQ_ENC;
 }
 
-
-COMMAND_FUNCTION(blink_get) {
-    ESP_LOGI(TAG, "Executing command : IMU_BLINK_GET");
-    uint8_t seq = 0;
-
-    /** Open nvs table **/
-    nvs_handle_t blink_handle;
-    nvs_open("blink", NVS_READWRITE, &blink_handle);
-
-    nvs_get_u8(blink_handle, "seq", &seq);
-
-    snprintf(tx_buffer, tx_len, "Blink seq is %d, \n\n", seq);
-
-    nvs_close(blink_handle);
-    return ESP_OK;
-}
-
-
-COMMAND_FUNCTION(blink_start) {
-    ESP_LOGI(TAG, "Executing command : IMU_BLINK_START");
-
-    blink_start();
-
-    snprintf(tx_buffer, tx_len, "Blink started\n\n");
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(blink_stop) {
-    ESP_LOGI(TAG, "Executing command : IMU_BLINK_STOP");
-
-    blink_stop();
-
-    snprintf(tx_buffer, tx_len, "Blink stopped\n\n");
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(blink_mute) {
-    ESP_LOGI(TAG, "Executing command : IMU_BLINK_MUTE");
-
-    blink_mute();
-
-    snprintf(tx_buffer, tx_len, "Blink pin %d set to OFF\n\n", g_blink_pin);
-    return ESP_OK;
-}
