@@ -16,10 +16,6 @@ jobs:
       with:
         submodules: 'recursive'
     
-    - name: Set sdkconfig
-      run: |
-        cp sdkconfig.esp32 sdkconfig
-    
     - name: esp-idf build
       uses: espressif/esp-idf-ci-action@v1
       with:
@@ -29,13 +25,13 @@ jobs:
     
     - name: Pack
       run: |
-        tar -czf imu-esp-node.tar.gz ./build/imu-esp-node.bin ./build/imu-esp-node.elf
+        tar -czf rfmarkit-esp-node.tar.gz ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node.elf
 
     - name: Upload
       uses: actions/upload-artifact@v3.1.0
       with:
-        name: imu-esp-node
-        path: imu-esp-node.tar.gz
+        name: rfmarkit-esp-node
+        path: rfmarkit-esp-node.tar.gz
 
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -47,4 +43,5 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          imu-esp-node.tar.gz
+          ./build/rfmarkit-esp-node.bin
+          rfmarkit-esp-node.tar.gz
