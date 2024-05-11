@@ -1,5 +1,9 @@
 # HI229 Setup
 
+```
+TODO: fix the document
+```
+
 First, flash the firmware.
 
 Then, log IP address of imu from serial debug interface. Record the IP, such as `10.53.21.17`.

@@ -10,26 +10,30 @@
 
 
 /** HI229 related settings **/
-#define CONFIG_HI229_PAYLOAD_LEN 80
-#define CONFIG_HI229_NVS_TABLE_NAME "hi229_scale"
-#define CONFIG_HI229_UART_RX_BUF_LEN 1024 // 4096
-#define CONFIG_HI229_ADDR 0xe5
+#define CONFIG_HI229_PAYLOAD_LEN        82
+#define CONFIG_HI229_UART_RX_BUF_LEN    1024 // 4096
+#define CONFIG_HI229_UART_TX_BUF_LEN    0
+#define CONFIG_HI229_ADDR               0xe5
+#define CONFIG_HI229_ENABLE_LVL         0
+#define CONFIG_HI229_DISABLE_LVL        1
+#define CONFIG_HI229_SELF_TEST_RETRY    4
 
 /** Modify this section to adapt different board **/
-#define CONFIG_HI229_CTRL_PIN CONFIG_IMU_CTRL_PIN
-#define CONFIG_HI229_CTRL_PIN_MASK (1ULL << CONFIG_HI229_CTRL_PIN)
-#define CONFIG_HI229_RX CONFIG_IMU_RX_PIN
-#define CONFIG_HI229_TX CONFIG_IMU_TX_PIN
-#define CONFIG_HI229_RTS UART_PIN_NO_CHANGE
-#define CONFIG_HI229_CTS UART_PIN_NO_CHANGE
-#define CONFIG_HI229_UART_PORT CONFIG_IMU_UART_PORT
+#define CONFIG_HI229_CTRL_PIN           CONFIG_IMU_CTRL_PIN
+#define CONFIG_HI229_RX                 CONFIG_IMU_RX_PIN
+#define CONFIG_HI229_TX                 CONFIG_IMU_TX_PIN
+#define CONFIG_HI229_SYNC_IN            CONFIG_IMU_SYNC_IN_PIN
+#define CONFIG_HI229_SYNC_OUT           CONFIG_IMU_SYNC_OUT_PIN
+#define CONFIG_HI229_RTS                UART_PIN_NO_CHANGE
+#define CONFIG_HI229_CTS                UART_PIN_NO_CHANGE
+#define CONFIG_HI229_UART_PORT          CONFIG_IMU_UART_PORT
 
-#define CONFIG_HI229_DEFAULT_FREQ 100
-#define CONFIG_HI229_DEFAULT_BAUDRATE 115200 
-#define CONFIG_HI229_MAX_CHECK_TICKS 1024
-#define CONFIG_HI229_RETRY_N 10
-#define CONFIG_HI299_MAX_READ_NUM 512
-
+#define CONFIG_HI229_DEFAULT_FREQ       100
+#define CONFIG_HI229_DEFAULT_BAUD_RATE  115200
+#define CONFIG_HI229_MAX_CHECK_TICKS    1024
+#define CONFIG_HI229_RETRY_N            10
+#define CONFIG_HI299_MAX_READ_NUM       512
+#define CONFIG_HI299_BLOCK_READ_NUM     32
 
 typedef struct {
     ch_imu_data_t imu[1];
@@ -39,22 +43,17 @@ typedef struct {
     int uart_buffer_len;
 } hi229_dgram_t; // EXTERNAL
 
-typedef struct {
-    float accel[3];
-    float gyro[3];
-    float mag[3];
-    float rpy[3];
-    float quat[4];
-    float pressure;
-    uint32_t timestamp;
-} hi229_multiplier_t, hi229_data_t; // INTERNAL
+typedef enum {
+    IMU_STATUS_UNKNOWN = -1,
+    IMU_STATUS_FAIL,
+    IMU_STATUS_READY,
+} hi229_status_t;
 
 typedef enum {
-    HI229_OK,
-    HI229_RECV_COMPLETE,
-    HI229_FAIL,
-    HI229_READY,
-} hi229_status_t;
+    IMU_MUX_IDLE,
+    IMU_MUX_STREAM,
+    IMU_MUX_DEBUG
+} hi229_mux_t;
 
 typedef struct {
     int port;
@@ -66,24 +65,18 @@ typedef struct {
     int tx_pin;
     int rts_pin;
     int cts_pin;
+    int sync_in_pin;
+    int sync_out_pin;
 
     uint8_t addr;
     hi229_status_t status;
+    bool enabled;
 
-    SemaphoreHandle_t mux;
-
+    hi229_mux_t mux;
+    SemaphoreHandle_t mutex;
     raw_t raw;
-    size_t n_bytes; /* number of bytes in message buffer */
-    size_t len; /* message length (bytes) */
-    uint8_t buf[CONFIG_HI229_PAYLOAD_LEN];  /* message raw buffer */
-
-    hi229_data_t data;
-    uint8_t item_code[8]; /* item code recv in one frame */
-    uint8_t nitem_code;   /* # of item code */
 
 } hi229_t;
-
-void hi229_msp_init(hi229_t *p_gy);
 
 void hi229_init(hi229_t *p_gy,
                 int port,
@@ -91,12 +84,14 @@ void hi229_init(hi229_t *p_gy,
                 int ctrl_pin,
                 int rx_pin,
                 int tx_pin,
+                int rts_pin,
+                int cts_pin,
+                int sync_in_pin,
+                int sync_out_pin,
                 int addr
 );
 
-uint8_t hi229_setup(hi229_t *p_gy);
-
-esp_err_t hi229_read(hi229_t *p_gy);
+esp_err_t hi229_read(hi229_t *p_gy, hi229_dgram_t *out, bool crc_check);
 
 void hi229_enable(hi229_t *p_gy);
 
@@ -104,33 +99,36 @@ void hi229_disable(hi229_t *p_gy);
 
 esp_err_t hi229_self_test(hi229_t *p_gy);
 
-esp_err_t hi229_parse(hi229_t *p_gy,
-                      hi229_dgram_t *p_reading,
-                      hi229_data_t *p_parsed,
-                      char *buffer, int len);
+void hi229_chip_soft_reset(hi229_t *p_gy);
 
-int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload, int len);
+void hi229_chip_hard_reset(hi229_t *p_gy);
+
+void hi229_buffer_reset(hi229_t *p_gy);
 
 /** Exposed API **/
-
-#define CONFIG_IMU_NAME HI229
-#define CONFIG_IMU_PAYLOAD_LEN CONFIG_HI229_PAYLOAD_LEN
-#define CONFIG_IMU_NVS_TABLE_NAME CONFIG_HI229_NVS_TABLE_NAME
-#define CONFIG_IMU_SUPPORT_SCALE 0
+#define CONFIG_IMU_NAME "HI229"
 
 #define imu_dgram_t hi229_dgram_t
-#define imu_multiplier_t hi229_multiplier_t
-#define imu_res_t hi229_res_t
 #define imu_status_t hi229_status_t
+#define imu_mux_t hi229_mux_t
 
 #define imu_t hi229_t
 extern imu_t g_imu;
 
-#define imu_read(imu) \
-        hi229_read((imu_t*)(imu))
+#define imu_read(imu, out, crc_check) \
+        hi229_read((imu_t*)(imu), (imu_dgram_t*)(out), (crc_check))
 
 #define imu_enable(imu) \
         hi229_enable((imu_t*)(imu))
+
+#define imu_soft_reset(imu) \
+        hi229_chip_soft_reset((imu_t*)(imu))
+
+#define imu_hard_reset(imu) \
+        hi229_chip_hard_reset((imu_t*)(imu))
+
+#define imu_buffer_reset(imu) \
+        hi229_buffer_reset((imu_t*)(imu))
 
 #define imu_disable(imu) \
         hi229_disable((imu_t*)(imu))
@@ -139,44 +137,17 @@ extern imu_t g_imu;
         hi229_self_test((imu_t*)(imu))
 
 #define imu_init(imu) \
-        { \
+        {             \
             hi229_init(&(imu), \
                         CONFIG_HI229_UART_PORT, \
-                        g_mcu.imu_baud, \
-                        CONFIG_HI229_CTRL_PIN, \
-                        CONFIG_HI229_RX, \
-                        CONFIG_HI229_TX, \
-                        CONFIG_HI229_ADDR); \
-            hi229_msp_init(&(imu)); \
-            hi229_disable(&(imu)); \
-            hi229_enable(&(imu)); \
-        }
-
-
-/** @brief func_parse **/
-#define imu_parse(imu, reading, res, buffer, len) \
-        hi229_parse((imu_t*) (imu), \
-                   (imu_dgram_t*) (reading), \
-                   (imu_res_t*) (res), \
-                   (char*) (buffer), \
-                   (int) (len))
-
-#define imu_tag(reading, payload, len) \
-        hi229_tag((imu_dgram_t*) (reading), \
-                  (uint8_t *) (payload), \
-                  (int) (len));
-
-COMMAND_FUNCTION(imu_cali_reset); // EXTERNAL
-COMMAND_FUNCTION(imu_cali_acc); // EXTERNAL
-COMMAND_FUNCTION(imu_cali_gyro); // EXTERNAL
-COMMAND_FUNCTION(imu_cali_mag); // EXTERNAL
-COMMAND_FUNCTION(imu_enable); // EXTERNAL
-COMMAND_FUNCTION(imu_disable); // EXTERNAL
-COMMAND_FUNCTION(imu_status); // EXTERNAL
-COMMAND_FUNCTION(imu_imm); // EXTERNAL
-COMMAND_FUNCTION(imu_setup); // EXTERNAL
-COMMAND_FUNCTION(imu_scale); // EXTERNAL
-COMMAND_FUNCTION(imu_debug); // EXTERNAL
-COMMAND_FUNCTION(imu_self_test);
-
+                        g_mcu.imu_baud,         \
+                        CONFIG_HI229_CTRL_PIN,  \
+                        CONFIG_HI229_RX,        \
+                        CONFIG_HI229_TX,        \
+                        CONFIG_HI229_RTS,        \
+                        CONFIG_HI229_CTS,        \
+                        CONFIG_HI229_SYNC_IN,        \
+                        CONFIG_HI229_SYNC_OUT,        \
+                        CONFIG_HI229_ADDR);     \
+        }NULL
 #endif

@@ -211,10 +211,11 @@ static int parse_data(raw_t* raw) {
     return 1;
 }
 
-static int decode_ch(raw_t* raw) {
+static int decode_ch(raw_t* raw, bool crc_check) {
     uint16_t crc = 0;
 
     /* checksum */
+    if (!crc_check) return parse_data(raw);
     crc16_update(&crc, raw->buf, 4);
     crc16_update(&crc, raw->buf + 6, raw->len);
     if (crc != U2(raw->buf + 4)) {
@@ -232,7 +233,7 @@ static int sync_ch(uint8_t* buf, uint8_t data) {
     return buf[0] == CHSYNC1 && buf[1] == CHSYNC2;
 }
 
-int ch_serial_input(raw_t* raw, uint8_t data) {
+int ch_serial_input(raw_t* raw, uint8_t data, bool crc_check) {
     /* synchronize frame */
     if (raw->nbyte == 0) {
         if (!sync_ch(raw->buf, data)) return 0;
@@ -256,5 +257,5 @@ int ch_serial_input(raw_t* raw, uint8_t data) {
 
     raw->nbyte = 0;
 
-    return decode_ch(raw);
+    return decode_ch(raw, crc_check);
 }

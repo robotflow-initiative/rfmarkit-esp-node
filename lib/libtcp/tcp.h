@@ -25,7 +25,7 @@ typedef struct {
             while (to_write > 0) { \
                 int written = send(sock, buf, to_write, 0); \
                 if (written < 0) { \
-                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno); \
+                    ESP_LOGE(TAG, "error occurred during sending: errno %d", errno); \
                     break; \
                 } \
                 to_write -= written; \
@@ -39,13 +39,13 @@ typedef struct {
             if ((source_addr).ss_family == PF_INET) { \
                 inet_ntoa_r(((struct sockaddr_in*)&(source_addr))->sin_addr, addr_str, sizeof(addr_str) - 1); \
             } \
-            ESP_LOGI(TAG, "Socket accepted ip address: %s", addr_str); \
+            ESP_LOGI(TAG, "socket accepted ip address: %s", addr_str); \
         }
 
 #define handle_socket_err(sock) \
         delay_ms(100);\
         if ((sock) != -1) { \
-            ESP_LOGE(TAG, "Shutting down socket..."); \
+            ESP_LOGE(TAG, "shutting down socket..."); \
             shutdown(sock, 0); \
             delay_ms(100); \
             close(sock); \
@@ -58,12 +58,13 @@ typedef struct {
 #define CONFIG_KEEP_INTERVAL 5
 
 _Noreturn
-void server_loop(tcp_server_t* server, void (*interact)(int));
+void tcp_server_loop(tcp_server_t* server, void (*interact)(int));
 
-void server_init(void (*pfunc)(int));
+void tcp_server_init(void (*pfunc)(int));
 
-void client_init(tcp_client_t* client, int timeout);
+void tcp_client_init(tcp_client_t* client, int timeout);
 
-int client_connect(tcp_client_t* client);
+int tcp_client_connect(tcp_client_t* client);
 
+// TODO: add docs
 #endif

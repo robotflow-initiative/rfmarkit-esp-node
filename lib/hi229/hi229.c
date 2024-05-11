@@ -14,26 +14,17 @@
 #include "hi229.h"
 #include "hi229_serial.h"
 
-static const char *TAG = "hi229";
-
-
-#define ENTER_CONFIGURATION(p_imu)    \
-    xSemaphoreTake((p_imu)->mux, portMAX_DELAY);
-
-#define EXIT_CONFIGURATION(p_imu)    \
-    xSemaphoreGive((p_imu)->mux);
-
 #define hi229_delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS);
 hi229_t g_imu = {0};
 
+static const char *TAG = "imu[hi229]";
 
-void hi229_msp_init(hi229_t *p_gy) {
+/**
+ * @brief Initialize the IMU device
+ * @param p_gy Pointer to the IMU device
+**/
+static void hi229_msp_init(hi229_t *p_gy) {
     ESP_LOGI(TAG, "UART .port=%d, .rx_pin=%d, .tx_pin=%d, .rts_pin=%d, .cts_pin=%d", p_gy->port, p_gy->rx_pin, p_gy->tx_pin, p_gy->rts_pin, p_gy->cts_pin);
-    // uart_service_init(p_gy->port, p_gy->rx_pin, p_gy->tx_pin, p_gy->rts_pin, p_gy->cts_pin);
-
-    int port = p_gy->port;
-    int rx = p_gy->rx_pin;
-    int tx = p_gy->tx_pin;
 
     uart_config_t uart_config = {
             .baud_rate = p_gy->baud,
@@ -45,35 +36,51 @@ void hi229_msp_init(hi229_t *p_gy) {
 
     };
     int intr_alloc_flags = 0;
-    ESP_LOGI(TAG, "Initiate uart service at port %d, rx:%d, tx:%d", port, rx, tx);
-    ESP_ERROR_CHECK(uart_driver_install(port, CONFIG_HI229_UART_RX_BUF_LEN, 0, 0, NULL, intr_alloc_flags));
-    ESP_ERROR_CHECK(uart_param_config(port, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(port, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    ESP_LOGI(TAG, "initiate uart service at port %d, rx:%d, tx:%d", p_gy->port, p_gy->rx_pin, p_gy->tx_pin);
+    ESP_ERROR_CHECK(uart_driver_install(p_gy->port, CONFIG_HI229_UART_RX_BUF_LEN, CONFIG_HI229_UART_TX_BUF_LEN, 0, NULL, intr_alloc_flags));
+    ESP_ERROR_CHECK(uart_param_config(p_gy->port, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(p_gy->port, p_gy->tx_pin, p_gy->rx_pin, p_gy->rts_pin, p_gy->cts_pin));
 
-    gpio_config_t io_conf = {
+    gpio_config_t ctrl_pin_conf = {
             .intr_type = (gpio_int_type_t) GPIO_PIN_INTR_DISABLE,
             .mode = GPIO_MODE_OUTPUT,
             .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
-            .pull_down_en = 1,
-            .pull_up_en = 0,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
     };
-
-    gpio_config(&io_conf);
+    gpio_config(&ctrl_pin_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
+    // TODO: After PCB fix, enable sync pin
+
+    p_gy->enabled = true;
     bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin);
     if (ret) {
-        ESP_LOGI(TAG, "GPIO: %d is valid rtc gpio", p_gy->ctrl_pin);
+        ESP_LOGI(TAG, "GPIO.%d is valid rtc gpio", p_gy->ctrl_pin);
     } else {
-        ESP_LOGW(TAG, "GPIO: %d is not valid rtc gpio", p_gy->ctrl_pin);
+        ESP_LOGW(TAG, "GPIO.%d is not valid rtc gpio", p_gy->ctrl_pin);
     }
 }
 
+/**
+ * @brief Initialize the IMU interface
+ * @param p_gy
+ * @param port
+ * @param baud
+ * @param ctrl_pin
+ * @param rx_pin
+ * @param tx_pin
+ * @param addr
+ */
 void hi229_init(hi229_t *p_gy,
                 int port,
                 int baud,
                 int ctrl_pin,
                 int rx_pin,
                 int tx_pin,
+                int rts_pin,
+                int cts_pin,
+                int sync_in_pin,
+                int sync_out_pin,
                 int addr
 ) {
     p_gy->port = port;
@@ -81,138 +88,144 @@ void hi229_init(hi229_t *p_gy,
     p_gy->ctrl_pin = ctrl_pin;
     p_gy->rx_pin = rx_pin;
     p_gy->tx_pin = tx_pin;
-    p_gy->rts_pin = UART_PIN_NO_CHANGE;
-    p_gy->cts_pin = UART_PIN_NO_CHANGE;
+    p_gy->rts_pin = rts_pin;
+    p_gy->cts_pin = cts_pin;
+    p_gy->sync_in_pin = sync_in_pin;
+    p_gy->sync_out_pin = sync_out_pin;
 
     p_gy->addr = addr;
-    p_gy->status = HI229_READY;
+    p_gy->enabled = false;
 
-    p_gy->mux = xSemaphoreCreateMutex();
-    if (p_gy->mux == NULL) {
-        ESP_LOGE(TAG, "Failed to create mutex");
-        esp_restart();
+    memset(&p_gy->raw, 0, sizeof(p_gy->raw));
+
+    p_gy->mutex = xSemaphoreCreateMutex();
+    if (p_gy->mutex == NULL) {
+        ESP_LOGE(TAG, "failed to create mutex");
+        p_gy->status = IMU_STATUS_FAIL;
+    } else {
+        p_gy->status = IMU_STATUS_READY;
     }
 
-    bzero(p_gy->buf, CONFIG_HI229_PAYLOAD_LEN);
+    /** Initialize IMU Hardware **/
+    hi229_msp_init(p_gy);
+    os_delay_ms(100);
+    hi229_enable(p_gy);
 }
 
-static esp_err_t hi229_check_echo(hi229_t *p_gy, const uint8_t *echo, size_t len) {
-    /** Clean old message **/
-    uint8_t rx_buf = 0;
-    int cursor = 0;
-
-    TickType_t start_tick = xTaskGetTickCount();
-    while (xTaskGetTickCount() - start_tick < CONFIG_HI229_MAX_CHECK_TICKS) {
-        uart_read_bytes(p_gy->port, &rx_buf, 1, 0xF);
-#if CONFIG_EN_IMU_DEBUG
-        printf("0x%x.", rx_buf[cursor]);
-#endif
-        if (rx_buf != echo[cursor]) {
-            rx_buf = 0;
-            cursor = 0;
-            continue;
-        }
-        cursor++;
-        if (cursor >= len) {
-            return ESP_OK;
-        }
-    }
-    return ESP_FAIL;
-}
-
-static esp_err_t hi229_send(hi229_t *p_gy, uint8_t *ctrl_msg, int len, const uint8_t *echo) {
-    len = (len <= 0) ? (int) strlen((char *) ctrl_msg) : len;
-    ESP_LOGI(TAG, "hi229 send : %s, num: %d", (char *) ctrl_msg, len);
-    uart_write_bytes_with_break((p_gy->port), ctrl_msg, len, 0xF);
-    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
-
-    esp_err_t err = ESP_OK;
-    if (echo != NULL) {
-        err = hi229_check_echo(p_gy, echo, strlen((char *) echo)); // Compare with custom echo message
-    }
-    return err;
-}
-
-static esp_err_t hi229_recv(hi229_t *p_gy, uint8_t *rx_buf, size_t rx_len) {
-    size_t len;
-    uart_get_buffered_data_len(p_gy->port, &len);
-
-    for (int idx = 0; idx < len; ++idx) {
-        uart_read_bytes(p_gy->port, &rx_buf[idx], 1, 0xF);
-        if (idx >= rx_len - 2) {
-            break;
-        }
+/**
+ * @brief Setup the IMU device
+ *  @param p_gy Pointer to the IMU device
+ *  @return ESP_OK if the setup is successful, otherwise ESP_FAIL
+**/
+static esp_err_t hi229_setup(hi229_t *p_gy) {
+    const char *msg[] = {
+            "AT+EOUT=0\r\n",
+            "AT+MODE=1\r\n",
+            "AT+SETPTL=91\r\n",
+            "AT+BAUD=921600\r\n",
+            "AT+ODR=200\r\n",
+            "AT+EOUT=1\r\n",
+            "AT+RST\r\n",
+    };
+    for (int idx = 0; idx < sizeof(msg) / sizeof(char *); ++idx) {
+        uart_write_bytes_with_break((p_gy->port), (uint8_t *) msg[idx], strlen(msg[idx]), 0xF);
+        os_delay_ms(100);
     }
     return ESP_OK;
 }
 
-static esp_err_t hi229_soft_flush(hi229_t *p_gy) {
-    uint8_t hole[1];
-    for (int idx = 0; idx < CONFIG_HI229_UART_RX_BUF_LEN; ++idx) {
-        uart_read_bytes(p_gy->port, hole, 1, 0x1);
-    }
-    return ESP_OK;
-}
+/**
+ * @brief Read the IMU device, get a packet
+ * @param p_gy Pointer to the IMU device
+ * @param out Pointer to the IMU data
+ * @return ESP_OK if the read is successful, otherwise ESP_FAIL
+**/
+esp_err_t IRAM_ATTR hi229_read(hi229_t *p_gy, hi229_dgram_t *out, bool crc_check) {
+    uint8_t data[CONFIG_HI299_BLOCK_READ_NUM] = {0};
+    size_t try_count = 0;
+    size_t read_count = 0;
+    while (try_count < CONFIG_HI299_MAX_READ_NUM) {
+        int len = uart_read_bytes(p_gy->port, &data, CONFIG_HI299_BLOCK_READ_NUM, 0x10);
+        read_count += len;
+        try_count += CONFIG_HI299_BLOCK_READ_NUM;
 
-uint8_t hi229_setup(hi229_t *p_gy) {
-    hi229_send(p_gy, (uint8_t *) "AT+EOUT=0\r\n", -1, NULL);
-    os_delay_ms(100);
-    hi229_send(p_gy, (uint8_t *) "AT+MODE=1\r\n", -1, NULL);
-    os_delay_ms(100);
-    hi229_send(p_gy, (uint8_t *) "AT+SETPTL=91\r\n", -1, NULL);
-    os_delay_ms(100);
-    hi229_send(p_gy, (uint8_t *) "AT+BAUD=921600\r\n", -1, NULL);
-    os_delay_ms(100);
-    hi229_send(p_gy, (uint8_t *) "AT+ODR=200\r\n", -1, NULL);
-    os_delay_ms(100);
-    hi229_send(p_gy, (uint8_t *) "AT+EOUT=1\r\n", -1, NULL);
-    os_delay_ms(100);
-    hi229_send(p_gy, (uint8_t *) "AT+RST\r\n", -1, NULL);
-    os_delay_ms(100);
+        bool packet_received = false;
+        for (int idx = 0; idx < len; ++idx) {
+            if (ch_serial_input(&p_gy->raw, data[idx], crc_check) == 1) {
+                if (out != NULL) {
+                    memcpy(out->imu, &p_gy->raw.imu, sizeof(ch_imu_data_t));
+                }
+                packet_received = true;
+            }
+        }
 
-    return 0b1111111;
-}
-
-esp_err_t hi229_read(hi229_t *p_gy) {
-    uint8_t data = 0x0;
-    size_t count = 0;
-    while (count < CONFIG_HI299_MAX_READ_NUM) {
-        uart_read_bytes(p_gy->port, &data, 1, 0xF);
-        ++count;
-        if (ch_serial_input(&p_gy->raw, data) == 1) {
+        if (packet_received) {
+            ESP_LOGD(TAG, "reading IMU data %d/%d", read_count, try_count);
             return ESP_OK;
         }
     }
+    ESP_LOGD(TAG, "reading IMU data %d/%d", read_count, try_count);
     return ESP_FAIL;
 }
 
-
+/**
+ * @brief Enable the IMU device (power on)
+ * @param p_gy Pointer to the IMU device
+**/
 void hi229_enable(hi229_t *p_gy) {
-    gpio_set_level(p_gy->ctrl_pin, 0);
-    hi229_delay_ms(200);
+    gpio_set_level(p_gy->ctrl_pin, CONFIG_HI229_ENABLE_LVL);
+
+    hi229_delay_ms(1000);
+    uart_flush(p_gy->port);
+    p_gy->enabled = true;
+
     int ret = gpio_get_level(p_gy->ctrl_pin);
-    ESP_LOGI(TAG, "HI229 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
+    ESP_LOGD(TAG, "hi229_enable, control_pin(:%d)=%s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
+/**
+ * @brief Disable the IMU device (power on)
+ * @param p_gy Pointer to the IMU device
+**/
 void hi229_disable(hi229_t *p_gy) {
-    gpio_set_level(p_gy->ctrl_pin, 1);
+    gpio_set_level(p_gy->ctrl_pin, CONFIG_HI229_DISABLE_LVL);
+
+    p_gy->enabled = false;
     hi229_delay_ms(200);
+    uart_flush(p_gy->port);
+
     int ret = gpio_get_level(p_gy->ctrl_pin);
-    ESP_LOGI(TAG, "HI229 control pin %d is %s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
+    ESP_LOGD(TAG, "hi229_disable, control_pin(:%d)=%s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
+/**
+ * @brief Self test the IMU device, should run during the init phase
+ * @param p_gy Pointer to the IMU device
+ * @return ESP_OK if the self test is successful, otherwise ESP_FAIL
+**/
 esp_err_t hi229_self_test(hi229_t *p_gy) {
-    // FIXME: Finish test
-    return ESP_OK;
+    uint8_t data[CONFIG_HI299_MAX_READ_NUM] = {0};
+    size_t index_logged[CONFIG_HI229_SELF_TEST_RETRY] = {0};
+    size_t index_cursor = 0;
+    uart_flush(p_gy->port);
+    int len = uart_read_bytes(p_gy->port, &data, CONFIG_HI299_MAX_READ_NUM, 0x100);
+    for (int idx = 0; idx < len; ++idx) {
+        if ((data[idx] == 0x5A) && (data[idx + 1] == 0xA5) && index_cursor < sizeof(index_logged) / sizeof(size_t)) {
+            index_logged[index_cursor++] = idx;
+        }
+    }
+    ESP_LOGI(TAG, "IMU self test finished, addr=[%d, %d, %d, %d]", index_logged[0], index_logged[1], index_logged[2], index_logged[3]);
+    if (index_cursor == CONFIG_HI229_SELF_TEST_RETRY) {
+        p_gy->status = IMU_STATUS_READY;
+        return ESP_OK;
+    } else {
+        p_gy->status = IMU_STATUS_FAIL;
+        return ESP_FAIL;
+    }
 }
 
-esp_err_t hi229_parse(hi229_t *p_gy,
-                      hi229_dgram_t *p_reading,
-                      hi229_data_t *p_parsed,
-                      char *buffer, int len) {
-    return ESP_FAIL;
-}
 
+/**
 #define INIT_DATA(dest) \
         int dest##_offset = 0
 
@@ -223,22 +236,13 @@ esp_err_t hi229_parse(hi229_t *p_gy,
         } \
 
 #define GET_OFFSET(dest) dest##_offset
-
-static uint8_t compute_chksum(const uint8_t *data, size_t len) {
-    uint8_t sum = 0;
-    for (int idx = 0; idx < len; ++idx) {
-        sum ^= data[idx];
-    }
-    return sum;
-}
-
 int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
     INIT_DATA(payload_buffer);
-    /**
-     * @brief Format of packet:
-     *
-     * | g_imu.addr | imu  | seq | time_us | uart_buffer_len | device_id | chk_sum |
-     */
+
+     // * @brief Format of packet:
+     // *
+     // * | g_imu.addr | imu  | seq | time_us | uart_buffer_len | device_id | chk_sum |
+
     ADD_DATA(payload_buffer, len, &g_imu.addr, 1);
 
     ADD_DATA(payload_buffer, len, &p_reading->imu, sizeof(p_reading->imu));
@@ -253,119 +257,38 @@ int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
 
     ADD_DATA(payload_buffer, len, g_mcu.device_id, CONFIG_DEVICE_ID_LEN);
 
-    uint8_t chksum = compute_chksum(payload_buffer, GET_OFFSET(payload_buffer));
+    uint8_t chksum = compute_checksum(payload_buffer, GET_OFFSET(payload_buffer));
 
     ADD_DATA(payload_buffer, len, &chksum, 1);
 
     return GET_OFFSET(payload_buffer);
 }
+**/
 
-static void hi229_reset(hi229_t *p_gy) {
-    hi229_send(p_gy, (uint8_t *) "AT+RST\r\n", -1, (uint8_t *) "AT+OK");
+/**
+ * @brief Reset the IMU device (soft)
+ * @param p_gy
+**/
+void hi229_chip_soft_reset(hi229_t *p_gy) {
+    const char *msg = "AT+RST\r\n";
+    uart_write_bytes_with_break((p_gy->port), (uint8_t *) msg, strlen(msg), 0xF);
+    uart_wait_tx_done((p_gy->port), portMAX_DELAY);
 }
 
-COMMAND_FUNCTION(imu_cali_reset) {
-        ESP_LOGI(TAG, "Executing command : IMU_CALI_RESET");
-        hi229_reset(&g_imu);
-        return ESP_OK;
+
+/**
+ * @brief Reset the IMU device (hard)
+ * @param p_gy
+**/
+void hi229_chip_hard_reset(hi229_t *p_gy) {
+    hi229_disable(p_gy);
+    hi229_enable(p_gy);
 }
 
-COMMAND_FUNCTION(imu_cali_acc) {
-        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-        hi229_reset(&g_imu);
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_cali_gyro) {
-        ESP_LOGI(TAG, "Executing command : IMU_CALI_GYRO");
-        hi229_reset(&g_imu);
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_cali_mag) {
-        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-        hi229_reset(&g_imu);
-
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_enable) {
-        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-        hi229_enable(&g_imu);
-        set_sys_event(EV_IMU_ENABLED);
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_disable) {
-        ESP_LOGI(TAG, "Executing command : IMU_CALI_MAG");
-        hi229_disable(&g_imu);
-        clear_sys_event(EV_IMU_ENABLED);
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_status) {
-        ESP_LOGI(TAG, "Executing command : IMU_IMU_STATUS");
-        int ret = gpio_get_level(g_imu.ctrl_pin);
-        ESP_LOGI(TAG, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
-        snprintf(tx_buffer, tx_len, "HI229 control pin %s\n\n", ret ? "HIGH" : "LOW");
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_imm) {
-        imu_read(&g_imu);
-        snprintf(tx_buffer, tx_len, "acc=[%f, %f, %f], rpy=[%f, %f, %f],\n\n",
-        g_imu.raw.imu[0].acc[0], g_imu.raw.imu[0].acc[1], g_imu.raw.imu[0].acc[2],
-        g_imu.raw.imu[0].eul[0], g_imu.raw.imu[0].eul[1], g_imu.raw.imu[0].eul[2]);
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_setup) {
-        ESP_LOGI(TAG, "Executing command : IMU_IMU_SETUP");
-        uint8_t ret = hi229_setup(&g_imu);
-
-        snprintf(tx_buffer, tx_len, "SETUP returned: 0x%x\n\n", ret);
-
-        return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_scale) {
-        ESP_LOGI(TAG, "Executing command : IMU_IMU_SCALE");
-
-        snprintf(tx_buffer, tx_len, "IMU does not support scale setting\n\n");
-        return ESP_FAIL;
-}
-
-#define IMU_DEBUG_OFFSET 10
-COMMAND_FUNCTION(imu_debug) {
-        ESP_LOGI(TAG, "Executing command : IMU_IMU_DEBUG");
-        rx_buffer[strlen(rx_buffer) - 1] = '\0'; // Remove '\n' tail
-
-        char serial_send_buffer[CONFIG_CTRL_RX_LEN] = { 0 };
-        snprintf(serial_send_buffer, CONFIG_CTRL_RX_LEN, "%s\r\n", &rx_buffer[IMU_DEBUG_OFFSET]);
-
-        printf("\n");
-        for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
-            printf("0x%x, ", serial_send_buffer[idx]);
-        }
-        printf("\n");
-        for (int idx = 0; idx < (int)strlen(serial_send_buffer); ++idx) {
-            printf("%c, ", serial_send_buffer[idx]);
-        }
-        printf("\n");
-
-    uart_flush(g_imu.port);
-    hi229_send(&g_imu, (uint8_t *) serial_send_buffer, (int)strlen(serial_send_buffer), NULL);
-    uint8_t buf[CONFIG_HI299_MAX_READ_NUM] = {0};
-    os_delay_ms(400);
-    hi229_recv(&g_imu, (uint8_t *)tx_buffer, CONFIG_CTRL_TX_LEN);
-    ESP_LOGI(TAG, "IMU: %s", (char *) buf);
-    return ESP_OK;
-}
-
-COMMAND_FUNCTION(imu_self_test) {
-        ESP_LOGI(TAG, "Executing command : IMU_SELF_TEST");
-
-        esp_err_t err = imu_self_test(&g_imu);
-        return err;
-
+/**
+ * @brief Reset the IMU buffer
+ * @param p_gy
+**/
+void hi229_buffer_reset(hi229_t *p_gy) {
+    memset(&p_gy->raw, 0, sizeof(p_gy->raw));
 }

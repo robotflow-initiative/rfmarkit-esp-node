@@ -3,9 +3,10 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 /* dump logs */
-//#define  CH_DEBUG
+// #define  CH_DEBUG
 
 #define MAXRAWLEN       (512)       /* max raw frame long */
 #define MAX_NODE_SIZE   (1)        /* max support node count */
@@ -51,7 +52,7 @@ typedef struct {
 *          uint8_t data I   stream data (1 byte)
 * return : status (-1: error message, 0: no message, 1: input data successfully)
 */
-int ch_serial_input(raw_t* raw, uint8_t data);
+int ch_serial_input(raw_t* raw, uint8_t data, bool crc_check);
 
 /* debug function -----------------------------------------
 *  dump decode information, need open  CH_DEBUG
