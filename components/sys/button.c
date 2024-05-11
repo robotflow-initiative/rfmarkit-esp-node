@@ -122,11 +122,11 @@ void sys_init_buttons() {
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1);
     for (int i = 0; pins[i] >= 0; i++) {
         gpio_config_t io_config = {
-                .pin_bit_mask = (1ull << pins[i]),
-                .mode = GPIO_MODE_INPUT,
-                .pull_up_en = GPIO_PULLUP_ENABLE,
-                .pull_down_en = GPIO_PULLDOWN_DISABLE,
-                .intr_type = GPIO_INTR_ANYEDGE
+            .pin_bit_mask = (1ull << pins[i]),
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_ANYEDGE
         };
         gpio_config(&io_config);
         gpio_isr_handler_add(pins[i], isr_handlers[i], NULL);

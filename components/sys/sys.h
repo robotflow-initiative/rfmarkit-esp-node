@@ -1,6 +1,7 @@
 #ifndef SYS_H_
 #define SYS_H_
 
+#include <esp_http_server.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -34,7 +35,6 @@
 
 /** FreeRTOS related **/
 #define launch_task(target, name, size, arg, priority, handle) \
-    TaskHandle_t handle = NULL; \
     if ((handle) == NULL) { \
         ESP_LOGI(TAG, "launching "name" task"); \
         xTaskCreate(target, \
@@ -45,7 +45,6 @@
                     &(handle)); \
     }
 #define launch_task_multicore(target, name, size, arg, priority, handle, core) \
-    TaskHandle_t handle = NULL; \
     if ((handle) == NULL) { \
         ESP_LOGI(TAG, "launching "name" task"); \
         xTaskCreatePinnedToCore(target, \
@@ -184,6 +183,22 @@ typedef struct {
 } mcu_state_t;
 
 typedef struct {
+    TaskHandle_t app_uart_monitor_task;
+    TaskHandle_t app_system_loop_task;
+    TaskHandle_t app_data_client_task;
+#if CONFIG_PROFILING_ENABLED
+    TaskHandle_t app_log_trace_task;
+#endif
+} mcu_tasks_t;
+
+
+typedef struct {
+    TimerHandle_t discovery_timer;
+    TimerHandle_t time_sync_timer;
+    TimerHandle_t power_mgmt_timer;
+} mcu_timers_t;
+
+typedef struct {
     char device_id[CONFIG_DEVICE_ID_LEN];
     char _device_id_sep_; // separates device_id and ble_local_name
     char ble_local_name[CONFIG_BLE_LOCAL_NAME_LEN];
@@ -191,11 +206,16 @@ typedef struct {
     /** Volatile Variables **/
     ring_buf_t imu_ring_buf;
     mcu_state_t state;
+    mcu_tasks_t tasks;
+    mcu_timers_t timers;
 
     EventGroupHandle_t sys_event_group;
     EventGroupHandle_t task_event_group;
     EventGroupHandle_t wifi_event_group;
     esp_event_loop_handle_t system_loop;
+    httpd_handle_t rest_controller;
+
+    /** Task Handles **/
 
     /** Non Volatile Variables **/
     char wifi_ssid[CONFIG_VAR_STR_MAX_LEN];
@@ -228,18 +248,23 @@ void sys_ota_guard(void);
 
 void sys_init_chip(void);
 
+void sys_init_events(void);
+
 void sys_log_heap_size(void);
 
 void sys_log_trace(void);
 
-void sys_init_events(void);
+void sys_start_tasks(void);
+
+void sys_stop_tasks(void);
+
+void sys_stop_timers(void);
 
 esp_err_t sys_set_operation_mode(bool active);
 
 void sys_mode_change_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);
 
 /** Power Management related **/
-#define CONFIG_WAKE_UP_TIME_SEC 20
 
 typedef enum {
     POWER_UNKNOWN = -1,
@@ -252,23 +277,36 @@ typedef enum {
 } power_mgmt_state_t;
 
 typedef enum {
-    POWER_MODE_PERFORMANCE, // Deep-Sleep is disabled
-    POWER_MODE_NORMAL, // Deep-Sleep is enabled, BLE is on
+    POWER_MODE_PERFORMANCE, // Deep-Sleep and light sleep is disabled
+    POWER_MODE_NORMAL, // Deep-Sleep and light sleep is enabled, BLE is on
     POWER_MODE_LOW_ENERGY, // Deep-Sleep is enabled, BLE is off
 } power_mode_t;
+
+typedef struct {
+    bool wifi_initialized;
+    bool ble_enabled;
+    bool imu_initialized;
+    bool led_initialized;
+    bool button_initialized;
+    bool controller_initialized;
+} power_peripheral_state_t;
 
 typedef struct {
     /** Non-Volatile Variables **/
     bool initialized;
     power_mgmt_state_t state;
     power_mode_t mode;
+    power_mode_t next_mode;
     int boot_count;
 
     /** Volatile Variables **/
     SemaphoreHandle_t mutex;
-} power_mgmt_info_t;
+    power_peripheral_state_t peripheral_state;
+    bool no_sleep;
 
-extern RTC_FAST_ATTR power_mgmt_info_t g_power_mgmt_info;
+} power_mgmt_ctx_t;
+
+extern power_mgmt_ctx_t g_power_mgmt_ctx;
 
 esp_err_t power_mgmt_init();
 
@@ -282,15 +320,20 @@ esp_err_t power_mgmt_on_enter_power_save();
 
 esp_err_t power_mgmt_on_enter_deep_sleep(bool);
 
+void reset_power_save_timer();
+
 void sys_power_mgmt_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);
 
 /** WiFi related **/
 
-/** Wi-Fi Events **/
 #define EV_WIFI_CONNECTED_BIT   BIT0
 #define EV_WIFI_FAIL_BIT        BIT1
 
+void sys_wifi_netif_init(void);
+
 esp_err_t sys_wifi_msp_init(void);
+
+esp_err_t sys_wifi_msp_deinit(void);
 
 esp_err_t sys_wifi_try_connect(wifi_config_t *wifi_config);
 

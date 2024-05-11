@@ -53,18 +53,20 @@ _Noreturn void app_uart_monitor(void *pvParameters) {
         uint32_t seq = 0;
         ring_buf_reset(serial_buf);
 
-#if CONFIG_TOGGLE_PROFILING
-        TickType_t start_tick = xTaskGetTickCount();
+#if CONFIG_FPS_ENABLED
+        int64_t start_time;
+        get_time_usec(start_time);
         uint32_t old_seq = 0;
 #endif
         while (g_imu.enabled && g_imu.mux == IMU_MUX_STREAM) {
             /** Read IMU data **/
-            esp_err_t err = imu_read(&g_imu, &imu_data);
+            esp_err_t err = imu_read(&g_imu, &imu_data, true);
 
             /** If the err occurs(most likely due to the empty uart buffer), wait **/
             if (err != ESP_OK) {
                 ESP_LOGD(TAG, "IMU read error: %d", err);
                 taskYIELD();
+                os_delay_ms(5);
                 continue;
             }
 
@@ -75,13 +77,14 @@ _Noreturn void app_uart_monitor(void *pvParameters) {
 
             /** Add the imu data to the ring buffer **/
             ring_buf_push(serial_buf, (uint8_t *) &imu_data);
-#if CONFIG_TOGGLE_PROFILING
-            TickType_t now = xTaskGetTickCount();
-            if ( now- start_tick > pdMS_TO_TICKS(1000)) {
+#if CONFIG_FPS_ENABLED
+            int64_t now;
+            get_time_usec(now);
+            if ( now - start_time > 1000000UL) {
                 size_t buf_len;
                 uart_get_buffered_data_len(g_imu.port, &buf_len);
                 ESP_LOGI(TAG, "fps=%d, buf_len=%d", seq - old_seq, buf_len);
-                start_tick = now;
+                start_time = now;
                 old_seq = seq;
             }
 #endif

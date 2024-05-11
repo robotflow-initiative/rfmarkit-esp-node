@@ -32,10 +32,10 @@ static const char *TAG = "ble.gatt_srv";
 
 
 static int gatt_svr_chr_wifi_info(
-        uint16_t conn_handle,
-        uint16_t attr_handle,
-        struct ble_gatt_access_ctxt *ctxt,
-        void *arg
+    uint16_t conn_handle,
+    uint16_t attr_handle,
+    struct ble_gatt_access_ctxt *ctxt,
+    void *arg
 ) {
     uint16_t uuid;
 
@@ -89,32 +89,32 @@ static int gatt_svr_chr_wifi_info(
 
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
-        {
-                /** Service: Device Information **/
-                .type = BLE_GATT_SVC_TYPE_PRIMARY,
-                .uuid = BLE_UUID16_DECLARE(GATT_WIFI_CONFIGURATION_UUID),
-                .characteristics = (struct ble_gatt_chr_def[])
-                        {{
-                                 /* Characteristic: * Manufacturer name */
-                                 .uuid = BLE_UUID16_DECLARE(GATT_WIFI_WRITE_UUID),
-                                 .access_cb = gatt_svr_chr_wifi_info,
-                                 .flags = BLE_GATT_CHR_F_WRITE,
-                         },
-                         {
-                                 /* Characteristic: * Manufacturer name */
-                                 .uuid = BLE_UUID16_DECLARE(GATT_WIFI_READ_UUID),
-                                 .access_cb = gatt_svr_chr_wifi_info,
-                                 .flags = BLE_GATT_CHR_F_READ,
-                         },
-                         {
-                                 0, /** No more characteristics in this service **/
-                         },
-                        }
-        },
+    {
+        /** Service: Device Information **/
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = BLE_UUID16_DECLARE(GATT_WIFI_CONFIGURATION_UUID),
+        .characteristics = (struct ble_gatt_chr_def[])
+            {{
+                 /* Characteristic: * Manufacturer name */
+                 .uuid = BLE_UUID16_DECLARE(GATT_WIFI_WRITE_UUID),
+                 .access_cb = gatt_svr_chr_wifi_info,
+                 .flags = BLE_GATT_CHR_F_WRITE,
+             },
+             {
+                 /* Characteristic: * Manufacturer name */
+                 .uuid = BLE_UUID16_DECLARE(GATT_WIFI_READ_UUID),
+                 .access_cb = gatt_svr_chr_wifi_info,
+                 .flags = BLE_GATT_CHR_F_READ,
+             },
+             {
+                 0, /** No more characteristics in this service **/
+             },
+            }
+    },
 
-        {
-                0, /** No more services **/
-        },
+    {
+        0, /** No more services **/
+    },
 };
 
 

@@ -92,6 +92,7 @@ static esp_err_t parse_url_kv_pair(const char *uri, const char *key, char *value
 
 esp_err_t system_info_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     cJSON_AddStringToObject(root, "id", g_mcu.device_id);
@@ -118,6 +119,7 @@ static void system_power_shutdown_cb(TimerHandle_t xTimer) {
 
 esp_err_t system_power_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char target_state[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
@@ -152,6 +154,7 @@ esp_err_t system_power_handler(httpd_req_t *req) {
 
 esp_err_t system_upgrade_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char ota_host[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
@@ -185,6 +188,7 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
 
 esp_err_t system_selftest_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     // TODO: Implement self-test
@@ -199,23 +203,39 @@ esp_err_t system_selftest_handler(httpd_req_t *req) {
 
 esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char mode[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
-    parse_url_kv_pair(req->uri, "mode", mode);
-    cJSON_AddStringToObject(root, "mode", mode);
 
-    if (strcmp(mode, "performance") == 0) {
-        cJSON_AddStringToObject(root, "status", "ok");
-        g_power_mgmt_info.mode = POWER_MODE_PERFORMANCE;
-    } else if (strcmp(mode, "normal") == 0) {
-        cJSON_AddStringToObject(root, "status", "ok");
-        g_power_mgmt_info.mode = POWER_MODE_NORMAL;
-    } else if (strcmp(mode, "low_energy") == 0) {
-        cJSON_AddStringToObject(root, "status", "ok");
-        g_power_mgmt_info.mode = POWER_MODE_LOW_ENERGY;
-    } else {
-        cJSON_AddStringToObject(root, "status", "invalid mode value");
+
+    switch (req->method) {
+        case HTTP_GET:
+            cJSON_AddStringToObject(root, "mode", g_power_mgmt_ctx.mode == POWER_MODE_PERFORMANCE ? "performance" :
+                    g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
+                    g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
+            cJSON_AddBoolToObject(root, "no_sleep", g_power_mgmt_ctx.no_sleep);
+            break;
+        case HTTP_POST:
+            parse_url_kv_pair(req->uri, "mode", mode);
+            cJSON_AddStringToObject(root, "mode", mode);
+            if (strcmp(mode, "performance") == 0) {
+                cJSON_AddStringToObject(root, "status", "ok");
+                g_power_mgmt_ctx.next_mode = POWER_MODE_PERFORMANCE;
+                set_sys_event(EV_SYS_POWER_MGMT);
+            } else if (strcmp(mode, "normal") == 0) {
+                cJSON_AddStringToObject(root, "status", "ok");
+                g_power_mgmt_ctx.next_mode = POWER_MODE_NORMAL;
+                set_sys_event(EV_SYS_POWER_MGMT);
+            } else if (strcmp(mode, "low_energy") == 0) {
+                cJSON_AddStringToObject(root, "status", "ok");
+                g_power_mgmt_ctx.next_mode = POWER_MODE_LOW_ENERGY;
+                set_sys_event(EV_SYS_POWER_MGMT);
+            } else {
+                cJSON_AddStringToObject(root, "status", "invalid mode value");
+            }
+        default:
+            cJSON_AddStringToObject(root, "status", "invalid method");
     }
 
     const char *response = cJSON_Print(root);
@@ -227,6 +247,7 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
 
 esp_err_t nvs_variable_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     cJSON_AddStringToObject(root, "uri", req->uri);
@@ -290,9 +311,10 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
 
 esp_err_t imu_calibrate_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    imu_reset(&g_imu);
+    imu_soft_reset(&g_imu);
     cJSON_AddStringToObject(root, "status", "ok");
 
     const char *response = cJSON_Print(root);
@@ -305,6 +327,7 @@ esp_err_t imu_calibrate_handler(httpd_req_t *req) {
 
 esp_err_t imu_toggle_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char target_state[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
@@ -330,23 +353,22 @@ esp_err_t imu_toggle_handler(httpd_req_t *req) {
 
 esp_err_t imu_status_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     int ret = gpio_get_level(g_imu.ctrl_pin);
     cJSON_AddStringToObject(root, "level", ret ? "HIGH" : "LOW");
+    cJSON_AddNumberToObject(root, "baud_rate", g_mcu.imu_baud);
     cJSON_AddStringToObject(root, "enabled", g_imu.enabled ? "on" : "off");
     cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
 
-    imu_dgram_t imu_data = {0};
+    imu_dgram_t imu_data = {.seq=0};
     esp_err_t err = ESP_FAIL;
     switch (g_imu.mux) {
         case IMU_MUX_DEBUG:
         case IMU_MUX_IDLE:
             uart_flush(g_imu.port);
-            int n_retry = 3;
-            while (err != ESP_OK && n_retry-- > 0) {
-                err = imu_read(&g_imu, &imu_data);
-            }
+            for (int i = 0; i < 3 && err != ESP_OK; i++) err = imu_read(&g_imu, &imu_data, true);
             break;
         case IMU_MUX_STREAM:
             err = ring_buf_peek(&g_mcu.imu_ring_buf, &imu_data, -1, NULL);
@@ -364,6 +386,7 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu[0].eul[0]));
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu[0].eul[1]));
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu[0].eul[2]));
+        cJSON_AddNumberToObject(imm, "seq", imu_data.seq);
     }
 
     const char *response = cJSON_Print(root);
@@ -375,6 +398,7 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
 
 esp_err_t imu_debug_toggle_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char mode[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
@@ -382,9 +406,11 @@ esp_err_t imu_debug_toggle_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "target_state", mode);
     if (strcmp(mode, "enable") == 0) {
         g_imu.mux = IMU_MUX_DEBUG;
+        g_power_mgmt_ctx.no_sleep = true;
         cJSON_AddStringToObject(root, "status", "ok");
     } else if (strcmp(mode, "disable") == 0) {
         g_imu.mux = IMU_MUX_IDLE;
+        g_power_mgmt_ctx.no_sleep = false;
         cJSON_AddStringToObject(root, "status", "ok");
     } else {
         cJSON_AddStringToObject(root, "status", "invalid target_state value");
@@ -453,8 +479,8 @@ static void ws_async_send_task(void *pvParameter) {
 
 static esp_err_t trigger_async_send(httpd_handle_t handle, httpd_req_t *req) {
     struct async_resp_arg resp_arg = {
-            .hd = req->handle,
-            .fd = httpd_req_to_sockfd(req)
+        .hd = req->handle,
+        .fd = httpd_req_to_sockfd(req)
     };
     xTaskCreate(ws_async_send_task, "ws_async_send_task", 3072, &resp_arg, 10, &ws_async_send_task_handle);
     return ESP_OK;
@@ -477,8 +503,8 @@ esp_err_t imu_debug_socket_handler(httpd_req_t *req) {
     /** buf len is CONFIG_WEBSOCKET_FRAM_MAX_LEN+1 is for NULL termination as we are expecting a string **/
     uint8_t buf[CONFIG_WEBSOCKET_FRAM_MAX_LEN + 1];
     httpd_ws_frame_t ws_pkt = {
-            .payload = buf,
-            .type = HTTPD_WS_TYPE_TEXT
+        .payload = buf,
+        .type = HTTPD_WS_TYPE_TEXT
     };
 
     /** Set max_len = CONFIG_WEBSOCKET_FRAM_MAX_LEN to get the frame payload **/
@@ -513,6 +539,7 @@ esp_err_t imu_debug_socket_handler(httpd_req_t *req) {
 
 esp_err_t blink_configure_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char tmp[CONFIG_PARAM_VALUE_MAX_LEN + 1];
@@ -583,6 +610,7 @@ esp_err_t blink_configure_handler(httpd_req_t *req) {
 
 esp_err_t blink_toggle_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char target_state[CONFIG_PARAM_VALUE_MAX_LEN + 1];
@@ -622,6 +650,7 @@ esp_err_t blink_toggle_handler(httpd_req_t *req) {
 
 esp_err_t operation_mode_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
     char action_state[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
@@ -629,7 +658,9 @@ esp_err_t operation_mode_handler(httpd_req_t *req) {
     switch (req->method) {
         case HTTP_GET:
             cJSON_AddBoolToObject(root, "active", g_mcu.state.active);
-            cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
+            //cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
+            cJSON_AddStringToObject(root, "imu_status", g_imu.status == IMU_STATUS_FAIL ? "fail" :
+                    g_imu.status == IMU_STATUS_READY ? "ready" : "unknown");
             break;
         case HTTP_POST:
             parse_url_kv_pair(req->uri, "action", action_state);

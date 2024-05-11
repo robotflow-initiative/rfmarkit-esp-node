@@ -21,6 +21,7 @@ set(
         ${CMAKE_SOURCE_DIR}/lib/battery
         ${CMAKE_SOURCE_DIR}/lib/ring_buf
         ${CMAKE_SOURCE_DIR}/lib/libudp
+        ${CMAKE_SOURCE_DIR}/lib/spatial
         ${CMAKE_SOURCE_DIR}/components
 )
 

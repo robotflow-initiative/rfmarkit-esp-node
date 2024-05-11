@@ -36,18 +36,20 @@ static void time_sync_timer_cb(TimerHandle_t xTimer) {
 
 static void power_mgmt_timer_cb(TimerHandle_t xTimer) {
     /** Power Mgmt Event **/
-    esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_POWER_MGMT_EVENT, NULL, 0, portMAX_DELAY);
+    if (g_power_mgmt_ctx.state != POWER_SAVE) {
+        esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_POWER_MGMT_EVENT, NULL, 0, portMAX_DELAY);
+    }
 }
 
 _Noreturn void app_system_loop(void *pvParameters) {
     ESP_LOGI(TAG, "system loop started");
 
     esp_event_loop_args_t loop_args = {
-            .queue_size = 16,
-            .task_name = "system_event_loop_task",
-            .task_priority = uxTaskPriorityGet(NULL),
-            .task_stack_size = 4096,
-            .task_core_id = tskNO_AFFINITY,
+        .queue_size = 16,
+        .task_name = "system_event_loop_task",
+        .task_priority = uxTaskPriorityGet(NULL),
+        .task_stack_size = 4096,
+        .task_core_id = tskNO_AFFINITY,
     };
 
     /** Register events **/
@@ -62,23 +64,23 @@ _Noreturn void app_system_loop(void *pvParameters) {
     ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_MODE_CHANGE_EVENT, sys_power_mgmt_handler, NULL));
 
     /** Launch timers **/
-    TimerHandle_t discovery_timer = xTimerCreate("discovery_timer", pdMS_TO_TICKS(CONFIG_DISCOVERY_INTERVAL_S * 1000), pdTRUE, NULL, discovery_timer_cb);
-    if (xTimerStart(discovery_timer, 0) == pdPASS) ESP_LOGI(TAG, "discovery timer started");
+    g_mcu.timers.discovery_timer = xTimerCreate("discovery_timer", pdMS_TO_TICKS(CONFIG_DISCOVERY_INTERVAL_S * 1000), pdTRUE, NULL, discovery_timer_cb);
+    if (xTimerStart(g_mcu.timers.discovery_timer, 0) == pdPASS) ESP_LOGI(TAG, "discovery timer started");
 
-    TimerHandle_t time_sync_timer = xTimerCreate("time_sync_timer", pdMS_TO_TICKS(CONFIG_NTP_UPDATE_INTERVAL_S * 1000), pdTRUE, NULL, time_sync_timer_cb);
-    if (xTimerStart(time_sync_timer, 0) == pdPASS) ESP_LOGI(TAG, "time sync timer started");
+    g_mcu.timers.time_sync_timer = xTimerCreate("time_sync_timer", pdMS_TO_TICKS(CONFIG_NTP_UPDATE_INTERVAL_S * 1000), pdTRUE, NULL, time_sync_timer_cb);
+    if (xTimerStart(g_mcu.timers.time_sync_timer, 0) == pdPASS) ESP_LOGI(TAG, "time sync timer started");
 
-    TimerHandle_t power_mgmt_timer = xTimerCreate("power_mgmt_timer", pdMS_TO_TICKS(CONFIG_POWER_MGMT_DURATION_S * 1000), pdTRUE, NULL, power_mgmt_timer_cb);
-    if (xTimerStart(power_mgmt_timer, 0) == pdPASS) ESP_LOGI(TAG, "power mgmt timer started");
+    g_mcu.timers.power_mgmt_timer = xTimerCreate("power_mgmt_timer", pdMS_TO_TICKS(CONFIG_POWER_MGMT_DURATION_S * 1000), pdTRUE, NULL, power_mgmt_timer_cb);
+    if (xTimerStart(g_mcu.timers.power_mgmt_timer, 0) == pdPASS) ESP_LOGI(TAG, "power mgmt timer started");
 
     while (1) {
         /** wait for events **/
         EventBits_t bits = xEventGroupWaitBits(
-                g_mcu.sys_event_group,
-                0x00FFFFFF,
-                pdTRUE,
-                pdFALSE,
-                portMAX_DELAY
+            g_mcu.sys_event_group,
+            0x00FFFFFF,
+            pdTRUE,
+            pdFALSE,
+            portMAX_DELAY
         );
         ESP_LOGI(TAG, "bits=%x", bits);
 

@@ -7,11 +7,7 @@
 #include "driver/gpio.h"
 #include "nvs_flash.h"
 
-#include "apps.h"
-
-#define CONFIG_BATTERY_EN_PIN GPIO_NUM_35
-#define CONFIG_BATTERY_READ_ADC1_CHANNEL ADC1_CHANNEL_6
-#define CONFIG_BATTERY_EN_VALUE 0
+#include "battery.h"
 
 esp_err_t battery_msp_init() {
     /** Init GPIO **/

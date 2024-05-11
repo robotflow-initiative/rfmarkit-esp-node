@@ -41,9 +41,19 @@ static void wifi_event_handler(void *arg, const char *event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
         ESP_LOGI(TAG_HANDLER, "got ip:"
-                IPSTR, IP2STR(&event->ip_info.ip));
+            IPSTR, IP2STR(&event->ip_info.ip));
         xEventGroupSetBits(g_mcu.wifi_event_group, EV_WIFI_CONNECTED_BIT);
     }
+}
+
+/**
+ * @brief Default Wi-Fi netif init function from esp-idf example plus hostname setting
+**/
+void sys_wifi_netif_init(void) {
+    ESP_ERROR_CHECK(esp_netif_init());
+    esp_netif_t *interface = esp_netif_create_default_wifi_sta();
+    /** Set the hostname **/
+    ESP_ERROR_CHECK(esp_netif_set_hostname(interface, g_mcu.ble_local_name));
 }
 
 /**
@@ -51,11 +61,6 @@ static void wifi_event_handler(void *arg, const char *event_base,
  *
 **/
 esp_err_t sys_wifi_msp_init(void) {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_t *interface = esp_netif_create_default_wifi_sta();
-    ESP_ERROR_CHECK(esp_netif_set_hostname(interface, g_mcu.ble_local_name));
-
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
@@ -68,14 +73,20 @@ esp_err_t sys_wifi_msp_init(void) {
                                                &wifi_event_handler,
                                                NULL));
 
-    /** Configure Wi-Fi tx power **/
-    ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
-    esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
-
     /** Configure Wi-Fi mode **/
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
     ESP_LOGI(TAG, "sys_wifi_msp_init finished.");
+    return ESP_OK;
+}
+
+esp_err_t sys_wifi_msp_deinit(void) {
+    sys_wifi_try_disconnect();
+    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler));
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    ESP_ERROR_CHECK(esp_wifi_deinit());
+    ESP_LOGI(TAG, "sys_wifi_msp_deinit finished.");
     return ESP_OK;
 }
 

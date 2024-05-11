@@ -14,6 +14,8 @@
 #define CONFIG_IMU_CTRL_PIN             GPIO_NUM_4
 #define CONFIG_IMU_RX_PIN               GPIO_NUM_17
 #define CONFIG_IMU_TX_PIN               GPIO_NUM_16
+#define CONFIG_IMU_SYNC_IN_PIN          GPIO_NUM_11 // TODO: Fix PCB, this pin cannot be used
+#define CONFIG_IMU_SYNC_OUT_PIN         GPIO_NUM_7  // TODO: Fix PCB, this pin cannot be used
 #define CONFIG_IMU_UART_PORT            UART_NUM_1
 #define CONFIG_IMU_BAUD                 115200
 

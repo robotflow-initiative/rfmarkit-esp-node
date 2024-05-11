@@ -2,8 +2,9 @@
 #define SETTINGS_H_
 
 /** System settings **/
-#define CONFIG_MAIN_LOOP_DUTY_PERIOD_S      10 // Duty cycle of main loop, the main loop checks system events
-#define CONFIG_TOGGLE_PROFILING             0
+#define CONFIG_MAIN_LOOP_DUTY_PERIOD_S      30 // Duty cycle of main loop, the main loop checks system events
+#define CONFIG_PROFILING_ENABLED            0
+#define CONFIG_FPS_ENABLED                  1
 
 /** Hardware related settings **/
 #define CONFIG_MULTI_CORE                   1
@@ -25,6 +26,7 @@
 #define CONFIG_IMU_TYPE                     IMU_TYPE_HI229
 
 /** Wi-Fi&Network settings**/
+#define CONFIG_NORMAL_TX_POWER              (34)
 #define CONFIG_MAX_TX_POWER                 (68)
 #define CONFIG_WIFI_SSID                    "yz_sensor"
 #define CONFIG_WIFI_PSK                     "yzri@1220"
@@ -67,6 +69,10 @@
 
 /** Power Management Related **/
 #define CONFIG_POWER_MGMT_DURATION_S        20
+#define CONFIG_POWER_SAVE_TIMEOUT_S         300
+#define CONFIG_POWER_SAVE_CYCLE_MAX_COUNT   300
+#define CONFIG_POWER_SAVE_MOTION_LIMIT      0.04
+#define CONFIG_POWER_WAKE_UP_DURATION_S     30
 
 /** Button Related **/
 #define CONFIG_LONG_PRESS_DURATION          (1000 / portTICK_PERIOD_MS)

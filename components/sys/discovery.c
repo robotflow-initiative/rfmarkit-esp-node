@@ -150,6 +150,8 @@ void sys_discovery_handler(void *handler_args, esp_event_base_t base, int32_t id
                     if (err == ESP_OK) {
                         ESP_LOGI(TAG, "reply received from %s, ntp_host=%s, ota_host=%s", inet_ntoa(client.reply_addr.sin_addr), pkt.ntp_host, pkt.ota_host);
                         reply_received = true;
+                        /** Update data_host_ip **/
+                        memcpy(g_mcu.data_host_ip_addr, inet_ntoa(client.reply_addr.sin_addr), strlen(inet_ntoa(client.reply_addr.sin_addr)));
 
                         /** Update NTP and OTA host **/
                         if (strlen(pkt.ntp_host) > 0) {

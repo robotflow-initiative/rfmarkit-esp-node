@@ -123,9 +123,9 @@ void blehr_on_sync(void) {
     rc = ble_hs_id_copy_addr(blehr_addr_type, addr_val, NULL);
 
     ESP_LOGI(
-            TAG,
-            "device address: %02x:%02x:%02x:%02x:%02x:%02x",
-            addr_val[5], addr_val[4], addr_val[3], addr_val[2], addr_val[1], addr_val[0]
+        TAG,
+        "device address: %02x:%02x:%02x:%02x:%02x:%02x",
+        addr_val[5], addr_val[4], addr_val[3], addr_val[2], addr_val[1], addr_val[0]
     );
 
     /* Begin advertising */
@@ -145,7 +145,7 @@ static void blehr_host_task(void *param) {
 }
 
 
-void sys_init_ble_srv() {
+void sys_start_ble_srv() {
     ESP_ERROR_CHECK(esp_nimble_hci_and_controller_init());
 
     nimble_port_init();

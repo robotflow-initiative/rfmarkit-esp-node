@@ -198,13 +198,12 @@ static void blink_prepare_pattern() {
 
     /** Arm timers **/
     const esp_timer_create_args_t blink_timer_args = {
-            .callback = &blink_timeout,
-            /** name is optional, but may help identify the timer when debugging */
-            .name = "timeout"
+        .callback = &blink_timeout,
+        /** name is optional, but may help identify the timer when debugging */
+        .name = "timeout"
     };
 
     ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &s_blink_timer));
-
 }
 
 /**
@@ -225,24 +224,24 @@ void blink_msp_init() {
      *         will be the same
     **/
     g_blink_cfg = (blink_config_t) {
-            .en_val = 1,
-            .pin_num = CONFIG_BLINK_PIN,
-            .ledc_channel = {
-                    .channel = CONFIG_LEDC_HS_CH0_CHANNEL,
-                    .duty = 0,
-                    .gpio_num = CONFIG_BLINK_PIN,
-                    .speed_mode = LEDC_HIGH_SPEED_MODE,
-                    .hpoint = 0,
-                    .timer_sel = CONFIG_LEDC_HS_TIMER
-            }
+        .en_val = 1,
+        .pin_num = CONFIG_BLINK_PIN,
+        .ledc_channel = {
+            .channel = CONFIG_LEDC_HS_CH0_CHANNEL,
+            .duty = 0,
+            .gpio_num = CONFIG_BLINK_PIN,
+            .speed_mode = LEDC_HIGH_SPEED_MODE,
+            .hpoint = 0,
+            .timer_sel = CONFIG_LEDC_HS_TIMER
+        }
     };
 
     ledc_timer_config_t ledc_timer = {
-            .duty_resolution = LEDC_TIMER_13_BIT,
-            .freq_hz = CONFIG_BLINK_PWN_FREQ,
-            .speed_mode = LEDC_HIGH_SPEED_MODE,
-            .timer_num = CONFIG_LEDC_HS_TIMER,
-            .clk_cfg = LEDC_AUTO_CLK,
+        .duty_resolution = LEDC_TIMER_13_BIT,
+        .freq_hz = CONFIG_BLINK_PWN_FREQ,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .timer_num = CONFIG_LEDC_HS_TIMER,
+        .clk_cfg = LEDC_AUTO_CLK,
     };
 
     /** Set configuration of timer0 for high speed channels **/

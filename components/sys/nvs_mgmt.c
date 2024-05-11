@@ -17,14 +17,14 @@ static const char *TAG = "sys.nvs_mgmt";
 
 /** MCU vars **/
 mcu_var_t g_mcu_vars[] = {
-        {.name = CONFIG_NVS_WIFI_SSID_NAME, .type = VAR_STR},
-        {.name = CONFIG_NVS_WIFI_PSK_NAME, .type = VAR_STR},
-        {.name = CONFIG_NVS_DATA_HOST_NAME, .type=VAR_STR},
-        {.name = CONFIG_NVS_OTA_HOST_NAME, .type=VAR_STR},
-        {.name = CONFIG_NVS_NTP_HOST_NAME, .type=VAR_STR},
-        {.name = CONFIG_NVS_TEST_NAME, .type =VAR_INT32},
-        {.name = CONFIG_NVS_IMU_BAUD_NAME, .type=VAR_INT32},
-        {.name = CONFIG_NVS_SEQ_NAME, .type=VAR_INT32}
+    {.name = CONFIG_NVS_WIFI_SSID_NAME, .type = VAR_STR},
+    {.name = CONFIG_NVS_WIFI_PSK_NAME, .type = VAR_STR},
+    {.name = CONFIG_NVS_DATA_HOST_NAME, .type=VAR_STR},
+    {.name = CONFIG_NVS_OTA_HOST_NAME, .type=VAR_STR},
+    {.name = CONFIG_NVS_NTP_HOST_NAME, .type=VAR_STR},
+    {.name = CONFIG_NVS_TEST_NAME, .type =VAR_INT32},
+    {.name = CONFIG_NVS_IMU_BAUD_NAME, .type=VAR_INT32},
+    {.name = CONFIG_NVS_SEQ_NAME, .type=VAR_INT32}
 
 };
 
@@ -194,6 +194,10 @@ static void sys_load_nvs_configuration() {
     sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
     sys_load_int32_conf(CONFIG_NVS_SEQ_NAME, g_mcu.seq, 0);
 
+    /** Temporary Fix NVS invalid variable **/
+    g_mcu.imu_baud = MIN(g_mcu.imu_baud, 921600);
+    g_mcu.seq = MIN(g_mcu.seq, 255);
+    g_mcu.seq = MAX(g_mcu.seq, 0);
 
     /** Macro Expansion Reference, DO NOT REMOVE **/
     /**

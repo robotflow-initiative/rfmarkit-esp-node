@@ -1,4 +1,5 @@
 #include <string.h>
+#include <esp_event.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -14,6 +15,7 @@
 #include "sys.h"
 #include "imu.h"
 #include "settings.h"
+#include "apps.h"
 
 /** MCU structure **/
 mcu_t g_mcu = {0};
@@ -56,12 +58,12 @@ esp_err_t sys_ota_perform() {
     snprintf(url, sizeof(url), "http://%s%s", g_mcu.ota_host, CONFIG_OTA_PATH);
     ESP_LOGI(TAG, "[ota] performing OTA, url=%s", url);
     esp_http_client_config_t config = {
-            .url = url,
-            .max_authorization_retries = 3,
-            .auth_type = HTTP_AUTH_TYPE_NONE,
-            .event_handler = esp_ota_event_handler,
-            .keep_alive_enable = true,
-            .skip_cert_common_name_check=true
+        .url = url,
+        .max_authorization_retries = 3,
+        .auth_type = HTTP_AUTH_TYPE_NONE,
+        .event_handler = esp_ota_event_handler,
+        .keep_alive_enable = true,
+        .skip_cert_common_name_check=true
     };
     esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK) {
@@ -69,6 +71,7 @@ esp_err_t sys_ota_perform() {
     } else {
         ESP_LOGW(TAG, "[ota] OTA update error, return code: %d", (int) ret);
         g_mcu.state.ota_err = ret;
+        g_power_mgmt_ctx.no_sleep = false; // change back to normal mode
         return ret;
     }
 }
@@ -76,7 +79,7 @@ esp_err_t sys_ota_perform() {
 /**
  * Check if there is an uncommitted OTA operation
  * @return
- */
+**/
 static bool sys_ota_uncommitted() {
     esp_ota_img_states_t ota_state;
     const esp_partition_t *boot_partition = esp_ota_get_boot_partition();
@@ -122,19 +125,19 @@ void sys_init_chip() {
     /** Print chip information **/
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
-    ESP_LOGI("", "\n\n\n\n\n\n# -------- Begin of app log -------- #");
-    ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
+    ESP_LOGD("", "\n\n\n\n\n\n# -------- Begin of app log -------- #");
+    ESP_LOGD(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
              CONFIG_IDF_TARGET,
              chip_info.cores,
              (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
              (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    ESP_LOGI(TAG, "Silicon revision %d, ", chip_info.revision);
-
-    ESP_LOGI(TAG, "%dMB %s flash", spi_flash_get_chip_size() / (1024 * 1024),
+    ESP_LOGD(TAG, "Silicon revision %d, ", chip_info.revision);
+    ESP_LOGD(TAG, "%dMB %s flash", spi_flash_get_chip_size() / (1024 * 1024),
              (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+    ESP_LOGD(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
 
-    ESP_LOGW(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
+    /** Initialize default event loop required for Wi-Fi, etc. **/
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     /** Set the device_id **/
     uint8_t base_mac_addr[6];
@@ -156,7 +159,6 @@ void sys_init_chip() {
 
     ESP_LOGI(TAG, "Device ID: %s", g_mcu.device_id);
     ESP_LOGI(TAG, "BLE LocalName: %s", g_mcu.ble_local_name);
-
     ESP_LOGW(TAG, "\n-------VERSION-------\n%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
 
 }
@@ -176,7 +178,7 @@ void sys_init_events() {
 /**
  * Log the heap size
  * @param event
- */
+**/
 void sys_log_heap_size(void) {
     ESP_LOGW(TAG, "minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
 }
@@ -185,21 +187,81 @@ void sys_log_heap_size(void) {
  * Log the system trace if the system is in debug mode
 **/
 void sys_log_trace() {
-    char CPU_RunInfo[400] = {0};
     char InfoBuffer[512] = {0};
+    char CPU_RunInfo[1024] = {0};
 
     vTaskList((char *) &InfoBuffer);
-    printf("TaskName  TaskStatus  TaskPriority  StackFreeSpace  TaskNumber  Core\r\n");
+    InfoBuffer[sizeof(InfoBuffer) - 1] = 0; // null-terminate
+    printf("---------------------------------------------\r\n\n");
+    printf("TaskName        Status  Prior   Free    TaskNo. Core\r\n");
     printf("\r\n%s\r\n", InfoBuffer);
 
     vTaskGetRunTimeStats((char *) &CPU_RunInfo);
-    printf("TaskName       CPUCounter         Percent\r\n");
+    CPU_RunInfo[sizeof(CPU_RunInfo) - 1] = 0; // null-terminate
+    printf("TaskName        CPUCounter      Percent\r\n");
     printf("%s", CPU_RunInfo);
     printf("---------------------------------------------\r\n\n");
     /** Print heap size **/
     printf("IDLE: ****free internal ram %d  all heap size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            heap_caps_get_free_size(MALLOC_CAP_8BIT));
     printf("IDLE: ****free SPIRAM size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+}
+
+#if CONFIG_PROFILING_ENABLED
+static _Noreturn void app_log_trace(void * pvParameters) {
+    while (1) {
+        os_delay_ms(CONFIG_MAIN_LOOP_DUTY_PERIOD_S * 1000);
+        sys_log_heap_size();
+        sys_log_trace();
+    }
+}
+#endif
+
+/**
+ * Start all required tasks in a normal boot scenario or resume from power save
+**/
+void sys_start_tasks(void) {
+#if CONFIG_MULTI_CORE
+    launch_task_multicore(app_data_client, "app_data_client", 4096, NULL, 12, g_mcu.tasks.app_data_client_task, 0x1);
+    launch_task_multicore(app_uart_monitor, "app_uart_monitor", 4096, NULL, 12, g_mcu.tasks.app_uart_monitor_task, 0x1);
+    launch_task_multicore(app_system_loop, "app_system_loop", 4096, NULL, 8, g_mcu.tasks.app_system_loop_task, 0x0);
+#if CONFIG_PROFILING_ENABLED
+    launch_task_multicore(app_log_trace, "app_log_trace", 4096, NULL, 5, g_mcu.tasks.app_log_trace_task, 0x0);
+#endif
+#else
+    launch_task(app_data_client, "app_data_client", 4096, NULL, 12, g_mcu.tasks.app_data_client_task);
+    launch_task(app_uart_monitor, "app_uart_monitor", 4096, NULL, 12, g_mcu.tasks.app_uart_monitor_task);
+    launch_task(app_system_loop, "app_system_loop", 4096, NULL, 8, g_mcu.tasks.app_system_loop_task);
+#if CONFIG_PROFILING_ENABLED
+    if (g_mcu.tasks.app_log_trace_task == NULL){
+        launch_task(app_log_trace, "app_log_trace", 2048, NULL, 5, g_mcu.tasks.app_log_trace_task);
+    }
+#endif
+#endif
+}
+
+/**
+ * Stop all tasks in case enter power save mode
+**/
+void sys_stop_tasks(void) {
+    vTaskDelete(g_mcu.tasks.app_system_loop_task);
+    g_mcu.tasks.app_system_loop_task = NULL;
+    vTaskDelete(g_mcu.tasks.app_uart_monitor_task);
+    g_mcu.tasks.app_uart_monitor_task = NULL;
+    vTaskDelete(g_mcu.tasks.app_data_client_task);
+    g_mcu.tasks.app_data_client_task = NULL;
+    // #if CONFIG_PROFILING_ENABLED
+    //     vTaskDelete(g_mcu.tasks.app_log_trace_task);
+    // #endif
+}
+
+/**
+ * Stop all timers in case enter power save mode
+**/
+void sys_stop_timers(void) {
+    xTimerStop(g_mcu.timers.discovery_timer, 0);
+    xTimerStop(g_mcu.timers.time_sync_timer, 0);
+    xTimerStop(g_mcu.timers.power_mgmt_timer, 0);
 }
 
 /**

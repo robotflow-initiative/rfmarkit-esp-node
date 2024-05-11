@@ -41,16 +41,17 @@ static void hi229_msp_init(hi229_t *p_gy) {
     ESP_ERROR_CHECK(uart_param_config(p_gy->port, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(p_gy->port, p_gy->tx_pin, p_gy->rx_pin, p_gy->rts_pin, p_gy->cts_pin));
 
-    gpio_config_t io_conf = {
+    gpio_config_t ctrl_pin_conf = {
             .intr_type = (gpio_int_type_t) GPIO_PIN_INTR_DISABLE,
             .mode = GPIO_MODE_OUTPUT,
             .pin_bit_mask = (1ULL << p_gy->ctrl_pin),
-            .pull_down_en = 1,
-            .pull_up_en = 0,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
     };
-
-    gpio_config(&io_conf);
+    gpio_config(&ctrl_pin_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
+    // TODO: After PCB fix, enable sync pin
+
     p_gy->enabled = true;
     bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin);
     if (ret) {
@@ -76,6 +77,10 @@ void hi229_init(hi229_t *p_gy,
                 int ctrl_pin,
                 int rx_pin,
                 int tx_pin,
+                int rts_pin,
+                int cts_pin,
+                int sync_in_pin,
+                int sync_out_pin,
                 int addr
 ) {
     p_gy->port = port;
@@ -83,11 +88,15 @@ void hi229_init(hi229_t *p_gy,
     p_gy->ctrl_pin = ctrl_pin;
     p_gy->rx_pin = rx_pin;
     p_gy->tx_pin = tx_pin;
-    p_gy->rts_pin = UART_PIN_NO_CHANGE;
-    p_gy->cts_pin = UART_PIN_NO_CHANGE;
+    p_gy->rts_pin = rts_pin;
+    p_gy->cts_pin = cts_pin;
+    p_gy->sync_in_pin = sync_in_pin;
+    p_gy->sync_out_pin = sync_out_pin;
 
     p_gy->addr = addr;
     p_gy->enabled = false;
+
+    memset(&p_gy->raw, 0, sizeof(p_gy->raw));
 
     p_gy->mutex = xSemaphoreCreateMutex();
     if (p_gy->mutex == NULL) {
@@ -131,18 +140,18 @@ static esp_err_t hi229_setup(hi229_t *p_gy) {
  * @param out Pointer to the IMU data
  * @return ESP_OK if the read is successful, otherwise ESP_FAIL
 **/
-esp_err_t IRAM_ATTR hi229_read(hi229_t *p_gy, hi229_dgram_t *out) {
+esp_err_t IRAM_ATTR hi229_read(hi229_t *p_gy, hi229_dgram_t *out, bool crc_check) {
     uint8_t data[CONFIG_HI299_BLOCK_READ_NUM] = {0};
     size_t try_count = 0;
     size_t read_count = 0;
     while (try_count < CONFIG_HI299_MAX_READ_NUM) {
-        int len = uart_read_bytes(p_gy->port, &data, CONFIG_HI299_BLOCK_READ_NUM, 0x20);
+        int len = uart_read_bytes(p_gy->port, &data, CONFIG_HI299_BLOCK_READ_NUM, 0x10);
         read_count += len;
         try_count += CONFIG_HI299_BLOCK_READ_NUM;
 
         bool packet_received = false;
         for (int idx = 0; idx < len; ++idx) {
-            if (ch_serial_input(&p_gy->raw, data[idx]) == 1) {
+            if (ch_serial_input(&p_gy->raw, data[idx], crc_check) == 1) {
                 if (out != NULL) {
                     memcpy(out->imu, &p_gy->raw.imu, sizeof(ch_imu_data_t));
                 }
@@ -166,12 +175,12 @@ esp_err_t IRAM_ATTR hi229_read(hi229_t *p_gy, hi229_dgram_t *out) {
 void hi229_enable(hi229_t *p_gy) {
     gpio_set_level(p_gy->ctrl_pin, CONFIG_HI229_ENABLE_LVL);
 
+    hi229_delay_ms(1000);
     uart_flush(p_gy->port);
-    hi229_delay_ms(200);
     p_gy->enabled = true;
 
     int ret = gpio_get_level(p_gy->ctrl_pin);
-    ESP_LOGI(TAG, "hi229_enable, control_pin(:%d)=%s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
+    ESP_LOGD(TAG, "hi229_enable, control_pin(:%d)=%s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
 /**
@@ -186,7 +195,7 @@ void hi229_disable(hi229_t *p_gy) {
     uart_flush(p_gy->port);
 
     int ret = gpio_get_level(p_gy->ctrl_pin);
-    ESP_LOGI(TAG, "hi229_disable, control_pin(:%d)=%s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
+    ESP_LOGD(TAG, "hi229_disable, control_pin(:%d)=%s", p_gy->ctrl_pin, ret ? "HIGH" : "LOW");
 }
 
 /**
@@ -259,9 +268,27 @@ int hi229_tag(hi229_dgram_t *p_reading, uint8_t *payload_buffer, int len) {
 /**
  * @brief Reset the IMU device (soft)
  * @param p_gy
- */
-void hi229_reset(hi229_t *p_gy) {
+**/
+void hi229_chip_soft_reset(hi229_t *p_gy) {
     const char *msg = "AT+RST\r\n";
     uart_write_bytes_with_break((p_gy->port), (uint8_t *) msg, strlen(msg), 0xF);
     uart_wait_tx_done((p_gy->port), portMAX_DELAY);
+}
+
+
+/**
+ * @brief Reset the IMU device (hard)
+ * @param p_gy
+**/
+void hi229_chip_hard_reset(hi229_t *p_gy) {
+    hi229_disable(p_gy);
+    hi229_enable(p_gy);
+}
+
+/**
+ * @brief Reset the IMU buffer
+ * @param p_gy
+**/
+void hi229_buffer_reset(hi229_t *p_gy) {
+    memset(&p_gy->raw, 0, sizeof(p_gy->raw));
 }
