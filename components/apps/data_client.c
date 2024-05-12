@@ -20,13 +20,42 @@
 #define CONFIG_UDP_RETRY 3
 
 typedef struct {
-    uint8_t addr;
-    hi229_dgram_t dgram;
-    char device_id[12];
-    uint8_t checksum;
+    uint8_t     addr;
+    uint32_t    id;            /* user defined ID       */
+    float       acc[3];           /* acceleration          */
+    float       gyr[3];           /* angular velocity      */
+    float       mag[3];           /* magnetic field        */
+    float       eul[3];           /* attitude: eular angle */
+    float       quat[4];          /* attitude: quaternion  */
+    float       pressure;         /* air pressure          */
+    uint32_t    timestamp;
+    int64_t     time_us;
+    int64_t     tsf_time_us;
+    uint32_t    seq;
+    int32_t     uart_buffer_len;
+    char        device_id[12];
+    uint8_t     checksum;
 } marker_packet_t;
 
-static const char *TAG = "app_data_client";
+//static marker_packet_t dummy_packet = {
+//    .addr = 100,
+//    .id = 101,
+//    .acc = {1, 1, 1},
+//    .gyr = {2, 2, 2},
+//    .mag = {3, 3, 3},
+//    .eul = {4, 4, 4},
+//    .quat = {5, 5, 5, 5},
+//    .pressure = 6,
+//    .timestamp = 7,
+//    .time_us = 8,
+//    .tsf_time_us = 9,
+//    .seq = 10,
+//    .uart_buffer_len = 11,
+//    .device_id = "abcdabcdabcd",
+//    .checksum = 12
+//};
+
+static const char *TAG = "app.data_client ";
 
 /**
  * @brief Compute checksum of the data
@@ -40,7 +69,32 @@ static uint8_t compute_checksum(const uint8_t *data, size_t len) {
     return sum;
 }
 
-_Noreturn void app_data_client(void *pvParameters) {
+static void tag_packet(marker_packet_t * pkt, imu_dgram_t * imu_data) {
+    pkt->id = imu_data->imu[0].id;
+    memcpy(pkt->acc, imu_data->imu[0].acc, sizeof(pkt->acc));
+    memcpy(pkt->gyr, imu_data->imu[0].gyr, sizeof(pkt->gyr));
+    memcpy(pkt->mag, imu_data->imu[0].mag, sizeof(pkt->mag));
+    memcpy(pkt->eul, imu_data->imu[0].eul, sizeof(pkt->eul));
+    memcpy(pkt->quat, imu_data->imu[0].quat, sizeof(pkt->quat));
+    pkt->pressure = imu_data->imu[0].pressure;
+    pkt->timestamp = imu_data->imu[0].timestamp;
+    pkt->time_us = imu_data->time_us;
+    pkt->tsf_time_us = imu_data->tsf_time_us;
+    pkt->seq = imu_data->seq;
+    pkt->uart_buffer_len = imu_data->uart_buffer_len;
+    pkt->checksum = 0;
+
+}
+
+static void IRAM_ATTR read_timer_cb_handler(void *arg) {
+    ESP_LOGD(TAG, "timer_cb_handler called");
+    const char signal = 0;
+    xQueueSendFromISR((QueueHandle_t) arg, &signal, NULL);
+}
+
+static QueueHandle_t read_signal_queue = NULL;
+
+    _Noreturn void app_data_client(void *pvParameters) {
     ESP_LOGI(TAG, "app_data_client started");
 
     /** Get a ring buffer pointer **/
@@ -53,6 +107,18 @@ _Noreturn void app_data_client(void *pvParameters) {
 
     udp_socket_t client = {0};
     esp_err_t err;
+
+    /** Limit the read FPS **/
+    if (read_signal_queue == NULL) read_signal_queue = xQueueCreate(128, sizeof(char));
+    esp_timer_handle_t read_timer;
+    const esp_timer_create_args_t blink_timer_args = {
+        .callback = &read_timer_cb_handler,
+        /** name is optional, but may help identify the timer when debugging */
+        .name = "timeout",
+        .skip_unhandled_events = true,
+        .arg = read_signal_queue
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &read_timer));
 
     while (1) {
         /** Wait for the system to be active **/
@@ -69,13 +135,18 @@ _Noreturn void app_data_client(void *pvParameters) {
                 goto handle_error;
             }
         }
-        os_delay_ms(500); // wait for uart_monitor to start
+        os_delay_ms(100); // wait for uart_monitor to start
 
         int64_t curr_index = 1;
         int64_t confirm_index = -1;
+
+        esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps);
+
+        imu_dgram_t imu_reading = {0};
+        char signal = 0;
         while (g_mcu.state.active) {
             /** If the queue is empty, sleep for a while **/
-            err = ring_buf_peek(serial_buf, &pkt.dgram, curr_index, &confirm_index);
+            err = ring_buf_peek(serial_buf, &imu_reading, curr_index, &confirm_index);
 
             /** The ring buffer is empty or not ready **/
             if (err != ESP_OK) {
@@ -85,7 +156,8 @@ _Noreturn void app_data_client(void *pvParameters) {
             curr_index++; // increment the index
 
             /** imu_reading is available **/
-            pkt.checksum = compute_checksum((uint8_t *) &pkt, sizeof(pkt) - sizeof(pkt.checksum));
+            tag_packet(&pkt, &imu_reading);
+            pkt.checksum = 0;
 
             /** According to the document, udp send may fail because of memory issue, this is normal **/
             for (int i = 0; i < CONFIG_UDP_RETRY; ++i) {
@@ -105,6 +177,8 @@ _Noreturn void app_data_client(void *pvParameters) {
             /** If the packet is not sent, abort **/
             if (err != ESP_OK) goto handle_error;
 
+            /** get the signal from the queue **/
+            xQueueReceive(read_signal_queue, &signal, portMAX_DELAY);
         }
 
 handle_error:

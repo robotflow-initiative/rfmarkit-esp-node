@@ -17,7 +17,7 @@
 
 ESP_EVENT_DEFINE_BASE(SYSTEM_EVENTS);
 
-static const char *TAG = "app_system_loop";
+static const char *TAG = "app.system_loop ";
 
 static void discovery_timer_cb(TimerHandle_t xTimer) {
     /** Send discovery packets if Wi-Fi connected **/
@@ -104,6 +104,7 @@ _Noreturn void app_system_loop(void *pvParameters) {
         if (bits & EV_SYS_OTA_TRIGGERED_BIT) {
             ESP_LOGI(TAG, "OTA triggered");
             esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_OTA_EVENT, NULL, 0, portMAX_DELAY);
+            sys_set_operation_mode(false);
             sys_ota_perform();
         }
 

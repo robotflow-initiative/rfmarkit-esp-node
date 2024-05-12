@@ -17,7 +17,7 @@ static int blehr_gap_event(struct ble_gap_event *event, void *arg);
 static uint8_t blehr_addr_type;
 static uint16_t conn_handle;
 
-static const char *TAG = "ble.srv";
+static const char *TAG = "ble.srv         ";
 
 
 static void blehr_advertise(void) {

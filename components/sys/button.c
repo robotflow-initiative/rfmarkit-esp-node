@@ -34,7 +34,7 @@ static button_state_t button_state = IDLE;
 static uint32_t press_timestamp;
 static uint32_t release_timestamp;
 
-static const char *TAG = "sys.button";
+static const char *TAG = "sys.button      ";
 
 /**
  * @brief Button ISR handler

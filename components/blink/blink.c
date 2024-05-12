@@ -23,7 +23,7 @@ static int s_blink_idx; // Used in interrupt
 blink_config_t g_blink_cfg;
 static esp_timer_handle_t s_blink_timer;
 
-static const char *TAG = "blink";
+static const char *TAG = "blink           ";
 
 /**
  * Function to get bit from byte array
@@ -200,7 +200,8 @@ static void blink_prepare_pattern() {
     const esp_timer_create_args_t blink_timer_args = {
         .callback = &blink_timeout,
         /** name is optional, but may help identify the timer when debugging */
-        .name = "timeout"
+        .name = "timeout",
+        .skip_unhandled_events = true,
     };
 
     ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &s_blink_timer));

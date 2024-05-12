@@ -21,7 +21,7 @@ static SemaphoreHandle_t sync_mutex = NULL;
 RTC_DATA_ATTR power_mgmt_ctx_t g_power_mgmt_ctx;
 static TimerHandle_t power_save_timer = NULL;
 
-static const char *TAG = "sys.pm";
+static const char *TAG = "sys.pm          ";
 
 static void power_mgmt_handle_transition(TimerHandle_t xTimer);
 

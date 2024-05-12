@@ -226,6 +226,7 @@ typedef struct {
     int32_t use_hamming;
     int32_t imu_baud;
     int32_t seq;
+    int32_t target_fps;
 } mcu_t;
 
 typedef enum {

@@ -15,7 +15,7 @@
 #include "imu.h"
 #include "sys.h"
 
-static const char *TAG = "app_uart_monitor";
+static const char *TAG = "app.uart_monitor";
 
 /**
  * @brief Compute and set timestamp with us resolution
@@ -29,7 +29,7 @@ static void IRAM_ATTR tag_time_us(imu_dgram_t *imu_data) {
 static void IRAM_ATTR tag_buffer_len(imu_dgram_t *imu_data) {
     size_t uart_buffer_len = 0;
     uart_get_buffered_data_len(g_imu.port, &uart_buffer_len);
-    imu_data->uart_buffer_len = (int) uart_buffer_len;
+    imu_data->uart_buffer_len = (int32_t) uart_buffer_len;
 }
 
 _Noreturn void app_uart_monitor(void *pvParameters) {

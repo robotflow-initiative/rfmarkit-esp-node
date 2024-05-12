@@ -14,7 +14,7 @@ static const char *TAG_HANDLER = "wifi_event_handler";
 static int s_wifi_retry_num = CONFIG_WIFI_MAX_RETRY;
 static SemaphoreHandle_t sync_mutex = NULL;
 
-static const char *TAG = "sys.wifi";
+static const char *TAG = "sys.wifi        ";
 
 /**
  * @brief Default Wi-Fi event handler from esp-idf example

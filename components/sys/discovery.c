@@ -36,7 +36,7 @@ static char discovery_msg_buffer[] = "\xe5\xe5\xe5\xe5\xe5\x01\x00""000000000000
 static SemaphoreHandle_t sync_mutex = NULL;
 static udp_socket_t client = {0};
 
-static const char *TAG = "sys.discovery";
+static const char *TAG = "sys.discovery   ";
 
 /**
  * @brief Prepare discovery message buffer ONCE

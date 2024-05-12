@@ -10,6 +10,7 @@
 #define CONFIG_MULTI_CORE                   1
 #define CONFIG_SERIAL_QUEUE_LEN             128
 #define CONFIG_DEVICE_ID_LEN                12
+#define CONFIG_TARGET_FPS                   200
 
 /** BLE related settings **/
 #define CONFIG_BLE_LOCAL_NAME_LEN           32
@@ -47,6 +48,7 @@
 #define CONFIG_NVS_TEST_NAME                "TEST"
 #define CONFIG_NVS_IMU_BAUD_NAME            "IMU_BAUD"
 #define CONFIG_NVS_SEQ_NAME                 "SEQ"
+#define CONFIG_NVS_TARGET_FPS_NAME          "TARGET_FPS"
 
 /** Retry limits **/
 #define CONFIG_ESP_MAXIMUM_RETRY            20

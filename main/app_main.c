@@ -1,3 +1,4 @@
+#include <esp_ota_ops.h>
 #include "sdkconfig.h"
 
 #include "freertos/FreeRTOS.h"

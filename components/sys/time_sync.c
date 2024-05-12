@@ -15,7 +15,7 @@
 static SemaphoreHandle_t sync_mutex = NULL;
 static int s_sntp_retry_num = 0;
 
-static const char *TAG = "sys.time";
+static const char *TAG = "sys.time        ";
 
 /**
  * Time sync notification callback

@@ -32,7 +32,7 @@ typedef struct rest_server_context {
     char buffer[CONFIG_USER_CTX_BUFSIZE];
 } rest_server_context_t;
 
-static const char *TAG = "sys.controller";
+static const char *TAG = "sys.rest        ";
 
 /**
 ----------------------------------------------------------------------------------

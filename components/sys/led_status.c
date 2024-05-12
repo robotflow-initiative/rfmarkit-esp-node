@@ -13,7 +13,7 @@
 
 static SemaphoreHandle_t sync_mutex = NULL;
 
-static const char *TAG = "sys.led_status";
+static const char *TAG = "sys.led_status  ";
 
 /**
  * 1. Fast Flash When Wi-Fi is not connected

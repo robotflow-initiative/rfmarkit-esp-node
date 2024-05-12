@@ -11,7 +11,7 @@
 #include "blink.h"
 #include "imu.h"
 
-static const char *TAG = "rest_ctr_hdl";
+static const char *TAG = "sys.rest.hdl    ";
 
 #define CONFIG_PARAM_VALUE_MAX_LEN 32
 #define CONFIG_WEBSOCKET_FRAM_MAX_LEN 64
@@ -158,6 +158,8 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
 
     char ota_host[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
+    mcu_var_t *p_var = NULL;
+    esp_err_t err;
 
     switch (req->method) {
         case HTTP_GET:
@@ -170,10 +172,21 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
 
             if (strlen(ota_host) > 0) {
                 strcpy(g_mcu.ota_host, ota_host);
+                p_var = sys_find_var(CONFIG_NVS_OTA_HOST_NAME, strlen(CONFIG_NVS_OTA_HOST_NAME));
+                if (p_var != NULL) {
+                    err = sys_set_nvs_var(p_var, ota_host);
+                    if (err != ESP_OK) {
+                        cJSON_AddStringToObject(root, "status", "cannot set ota_host");
+                    } else {
+                        cJSON_AddStringToObject(root, "status", "ok");
+                    }
+                } else {
+                    cJSON_AddStringToObject(root, "status", "invalid name");
+                }
+            } else {
+                cJSON_AddStringToObject(root, "status", "ok");
             }
-
             set_sys_event(EV_SYS_OTA_TRIGGERED);
-            cJSON_AddStringToObject(root, "status", "ok");
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
@@ -234,6 +247,7 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
             } else {
                 cJSON_AddStringToObject(root, "status", "invalid mode value");
             }
+            break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
     }

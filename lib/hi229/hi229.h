@@ -11,7 +11,7 @@
 
 /** HI229 related settings **/
 #define CONFIG_HI229_PAYLOAD_LEN        82
-#define CONFIG_HI229_UART_RX_BUF_LEN    1024 // 4096
+#define CONFIG_HI229_UART_RX_BUF_LEN    5120 // 4096
 #define CONFIG_HI229_UART_TX_BUF_LEN    0
 #define CONFIG_HI229_ADDR               0xe5
 #define CONFIG_HI229_ENABLE_LVL         0
@@ -40,7 +40,7 @@ typedef struct {
     int64_t time_us;
     int64_t tsf_time_us;
     uint32_t seq;
-    int uart_buffer_len;
+    int32_t uart_buffer_len;
 } hi229_dgram_t; // EXTERNAL
 
 typedef enum {

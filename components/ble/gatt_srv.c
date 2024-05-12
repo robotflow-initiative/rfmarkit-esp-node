@@ -28,7 +28,7 @@
 #include "ble_srv.h"
 #include "sys.h"
 
-static const char *TAG = "ble.gatt_srv";
+static const char *TAG = "ble.gatt_srv    ";
 
 
 static int gatt_svr_chr_wifi_info(

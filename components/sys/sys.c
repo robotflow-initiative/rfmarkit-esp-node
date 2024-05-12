@@ -20,7 +20,7 @@
 /** MCU structure **/
 mcu_t g_mcu = {0};
 
-static const char *TAG = "sys";
+static const char *TAG = "sys             ";
 
 static esp_err_t esp_ota_event_handler(esp_http_client_event_t *evt) {
     switch (evt->event_id) {
@@ -96,6 +96,7 @@ static bool sys_ota_uncommitted() {
 **/
 void sys_ota_guard() {
     bool ota_uncommitted = sys_ota_uncommitted();
+#ifdef CONFIG_OTA_GUARD_ENABLED
     while (1) {
         if (ota_uncommitted) {
             if (g_mcu.state.wifi_connected) {
@@ -116,6 +117,15 @@ void sys_ota_guard() {
             break;
         }
     }
+#else
+    // TODO: sometimes the device cannot connect to Wi-Fi due to corrupted NVS
+    os_delay_ms(3000); // wait for the system to be ready)
+    if (ota_uncommitted) {
+        esp_ota_mark_app_valid_cancel_rollback();
+        ESP_LOGI(TAG, "[ota] firmware is working fine, cancel rollback");
+        esp_ota_mark_app_valid_cancel_rollback(); // cancel rollback
+    }
+#endif
 }
 
 /**
