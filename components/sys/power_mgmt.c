@@ -23,7 +23,7 @@ static TimerHandle_t power_save_timer = NULL;
 
 static const char *TAG = "sys.pm          ";
 
-static void power_mgmt_handle_transition(TimerHandle_t xTimer);
+static void power_mgmt_handle_transition(__attribute__((unused)) TimerHandle_t xTimer);
 
 static esp_err_t arm_power_save_timer() {
     if (power_save_timer == NULL) {
@@ -249,7 +249,7 @@ _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     esp_deep_sleep_start();
 }
 
-static void app_power_save(void *pvParameter) {
+static void app_power_save(__attribute__((unused)) void *pvParameter) {
     sys_stop_tasks();
     sys_stop_timers();
 
@@ -310,14 +310,14 @@ static void app_power_save(void *pvParameter) {
     vTaskDelete(NULL);
 }
 
-static void power_mgmt_handle_transition(TimerHandle_t xTimer) {
+static void power_mgmt_handle_transition(__attribute__((unused)) TimerHandle_t xTimer) {
     // TODO: due to PCE failure, the ESP32 module's SPI CSC is connected to IMU's SYNC_IN by mistake, thus power_save function cannot work properly
     // xTaskCreate(app_power_save, "app_power_save", 4096, NULL, 12, NULL);
     power_mgmt_on_enter_deep_sleep(false);
 }
 
 
-void sys_power_mgmt_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data) {
+void sys_power_mgmt_handler(__attribute__((unused)) void *handler_args, __attribute__((unused)) esp_event_base_t base, int32_t id, __attribute__((unused)) void *event_data) {
     /** TODO: Implement logic**/
     if (!sync_mutex) {
         sync_mutex = xSemaphoreCreateMutex();

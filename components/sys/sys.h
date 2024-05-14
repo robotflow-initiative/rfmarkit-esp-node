@@ -33,6 +33,7 @@
 ((byte) & 0x02 ? '1' : '0'), \
 ((byte) & 0x01 ? '1' : '0')
 
+
 /** FreeRTOS related **/
 #define launch_task(target, name, size, arg, priority, handle) \
     if ((handle) == NULL) { \
@@ -70,9 +71,6 @@
     }NULL
 
 /** Global System Events**/
-#define EV_SYS_ALL_BIT 0x00FFFFFF
-#define EV_SYS_ALL
-
 #define EV_SYS_WIFI_CONFIG_UPDATED_BIT  BIT0
 #define EV_SYS_WIFI_CONFIG_UPDATED
 #define EV_SYS_WIFI_CONNECTED_BIT       BIT1
@@ -323,7 +321,7 @@ esp_err_t power_mgmt_on_enter_deep_sleep(bool);
 
 void reset_power_save_timer();
 
-void sys_power_mgmt_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);
+void sys_power_mgmt_handler(__attribute__((unused)) void *handler_args, __attribute__((unused)) esp_event_base_t base, int32_t id, __attribute__((unused)) void *event_data);
 
 /** WiFi related **/
 
@@ -348,7 +346,8 @@ void sys_wifi_reconnect_event_handler(void *handler_args, esp_event_base_t base,
 void sys_init_buttons();
 
 /** Time Sync related **/
-void sys_time_sync_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);
+void sys_time_sync_handler(__attribute__((unused)) void *handler_args, __attribute__((unused)) esp_event_base_t base, __attribute__((unused)) int32_t id,
+                           __attribute__((unused)) void *event_data);
 
 /** Discovery related **/
 void sys_discovery_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);

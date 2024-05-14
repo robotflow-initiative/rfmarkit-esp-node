@@ -35,7 +35,12 @@ void time_sync_notification_cb(struct timeval *tv) {
  * @param id
  * @param event_data
 **/
-void sys_time_sync_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data) {
+void sys_time_sync_handler(
+    __attribute__((unused)) void *handler_args,
+    __attribute__((unused)) esp_event_base_t base,
+    __attribute__((unused)) int32_t id,
+    __attribute__((unused)) void *event_data
+) {
     /** @note: This function is VERY CPU intensive, and should be called only when necessary **/
     if (!sync_mutex) {
         sync_mutex = xSemaphoreCreateMutex();
@@ -79,3 +84,18 @@ void sys_time_sync_handler(void *handler_args, esp_event_base_t base, int32_t id
         clear_task_event(EV_TASK_TIME_SYNC);
     }
 }
+
+/** @note:
+ * @url https://github.com/espressif/esp-idf/issues/7244
+ * [jack0c] commented on May 20, 2022
+ * AP have a TBTT time to send beacon which is times beacon interval, for instance TBTTn=n*102400, n = 0,1,2,3,...
+ * However, AP can't send the beacon in time, for instance sent at TSF, which is TSF.
+ * Station receive the beacon at local time T0, which is record by the hardware.
+ * If you can get TSF,T0, and your now the current time, then you can sync time among the stations connected to the same AP.
+ *
+ * - TBTT=TSF - TSF%Beaon_interval
+ * - T1 - T0 + TSF%Beaon_interval means time since AP TBTT
+ * - If you want to make TBTT corresponding to T2, then current time should be T2+T1-T0+TSF%Beaon_interval
+ * - then the delta is T2-T0+TSF%Beaon_interval, you need increase your local time by T2-T0+TSF%Beaon_interval
+ * - all devices connect to the same AP should have same time
+**/

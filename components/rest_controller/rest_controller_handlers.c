@@ -1,4 +1,5 @@
 #include <string.h>
+#include <esp_mesh.h>
 
 #include "esp_http_server.h"
 #include "esp_chip_info.h"
@@ -28,7 +29,7 @@ void url_decode_copyn(char *dest, const char *src, size_t size) {
     char *p = (char *) src;
     char *p_end = (char *) src + size;
     char code[3] = {0};
-    unsigned char ch = 0;
+    unsigned char ch;
 
     while (*p) {
         if (p >= p_end) {
@@ -101,6 +102,9 @@ esp_err_t system_info_handler(httpd_req_t *req) {
     gettimeofday(&tv_now, NULL);
     double now = tv_now.tv_sec + (double) tv_now.tv_usec / 1000000;
     cJSON_AddNumberToObject(root, "time", now);
+    int64_t tsf_time = esp_mesh_get_tsf_time();
+    // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions)
+    cJSON_AddNumberToObject(root, "tsf_time", tsf_time);
 
     const char *response = cJSON_Print(root);
     httpd_resp_sendstr(req, response);
@@ -109,11 +113,11 @@ esp_err_t system_info_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-static void system_power_reboot_cb(TimerHandle_t xTimer) {
+static void system_power_reboot_cb(__attribute__((unused)) TimerHandle_t xTimer) {
     esp_restart();
 }
 
-static void system_power_shutdown_cb(TimerHandle_t xTimer) {
+static void system_power_shutdown_cb(__attribute__((unused)) TimerHandle_t xTimer) {
     power_mgmt_on_enter_deep_sleep(false);
 }
 
@@ -491,7 +495,7 @@ static void ws_async_send_task(void *pvParameter) {
     vTaskDelete(NULL);
 }
 
-static esp_err_t trigger_async_send(httpd_handle_t handle, httpd_req_t *req) {
+static esp_err_t trigger_async_send(__attribute__((unused)) httpd_handle_t handle, httpd_req_t *req) {
     struct async_resp_arg resp_arg = {
         .hd = req->handle,
         .fd = httpd_req_to_sockfd(req)
@@ -628,7 +632,7 @@ esp_err_t blink_toggle_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
 
     char target_state[CONFIG_PARAM_VALUE_MAX_LEN + 1];
-    int target_state_enum = -1;
+    int target_state_enum;
     esp_err_t err;
 
     switch (req->method) {

@@ -140,6 +140,7 @@ static QueueHandle_t read_signal_queue = NULL;
         int64_t curr_index = 1;
         int64_t confirm_index = -1;
 
+        xQueueReset(read_signal_queue);
         esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps);
 
         imu_dgram_t imu_reading = {0};
@@ -182,6 +183,7 @@ static QueueHandle_t read_signal_queue = NULL;
         }
 
 handle_error:
+        esp_timer_stop(read_timer);
         ESP_LOGE(TAG, "data_client aborted, setting operation_mode=inactive");
         if (g_mcu.state.active) sys_set_operation_mode(false);
         os_delay_ms(5000);

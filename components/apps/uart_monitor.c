@@ -2,6 +2,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include <esp_mesh.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -23,7 +24,7 @@ static const char *TAG = "app.uart_monitor";
 **/
 static void IRAM_ATTR tag_time_us(imu_dgram_t *imu_data) {
     get_time_usec(imu_data->time_us);
-    imu_data->tsf_time_us = esp_wifi_get_tsf_time(WIFI_IF_STA);
+    imu_data->tsf_time_us = esp_mesh_get_tsf_time();
 }
 
 static void IRAM_ATTR tag_buffer_len(imu_dgram_t *imu_data) {
