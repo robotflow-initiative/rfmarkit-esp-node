@@ -90,7 +90,7 @@ static esp_err_t parse_url_kv_pair(const char *uri, const char *key, char *value
     return ESP_OK;
 }
 
-
+// uri:/v1/system/info
 esp_err_t system_info_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -121,6 +121,7 @@ static void system_power_shutdown_cb(__attribute__((unused)) TimerHandle_t xTime
     power_mgmt_on_enter_deep_sleep(false);
 }
 
+// uri:/v1/system/power
 esp_err_t system_power_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -139,6 +140,7 @@ esp_err_t system_power_handler(httpd_req_t *req) {
         cJSON_AddStringToObject(root, "status", "ok");
     } else {
         cJSON_AddStringToObject(root, "status", "invalid target_state value");
+        httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);
@@ -155,7 +157,7 @@ esp_err_t system_power_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-
+// uri:/v1/system/upgrade
 esp_err_t system_upgrade_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -181,11 +183,13 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
                     err = sys_set_nvs_var(p_var, ota_host);
                     if (err != ESP_OK) {
                         cJSON_AddStringToObject(root, "status", "cannot set ota_host");
+                        httpd_resp_set_status(req, HTTPD_500);
                     } else {
                         cJSON_AddStringToObject(root, "status", "ok");
                     }
                 } else {
                     cJSON_AddStringToObject(root, "status", "invalid name");
+                    httpd_resp_set_status(req, HTTPD_400);
                 }
             } else {
                 cJSON_AddStringToObject(root, "status", "ok");
@@ -194,6 +198,7 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
+            httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);
@@ -203,6 +208,7 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/system/selftest
 esp_err_t system_selftest_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -218,6 +224,7 @@ esp_err_t system_selftest_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/system/power_mgmt
 esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -250,10 +257,12 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
                 set_sys_event(EV_SYS_POWER_MGMT);
             } else {
                 cJSON_AddStringToObject(root, "status", "invalid mode value");
+                httpd_resp_set_status(req, HTTPD_400);
             }
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
+            httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);
@@ -263,6 +272,7 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/nvs/variable/*
 esp_err_t nvs_variable_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -273,6 +283,7 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
 
     if (last_slash == NULL || strlen(last_slash) <= 1) {
         cJSON_AddStringToObject(root, "status", "empty name");
+        httpd_resp_set_status(req, HTTPD_400);
     } else {
         char *name = last_slash + 1;
         char *name_end = strchr(name, '?');
@@ -290,16 +301,19 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
                     break;
                 } else {
                     cJSON_AddStringToObject(root, "status", "invalid name");
+                    httpd_resp_set_status(req, HTTPD_400);
                     break;
                 }
             case HTTP_POST:
                 if (name_end == NULL || strlen(name_end) <= 1) {
                     cJSON_AddStringToObject(root, "status", "empty_field");
+                    httpd_resp_set_status(req, HTTPD_400);
                     break;
                 }
                 err = parse_url_kv_pair(req->uri, "value", value_buffer);
                 if (err != ESP_OK) {
                     cJSON_AddStringToObject(root, "status", "invalid value");
+                    httpd_resp_set_status(req, HTTPD_400);
                     break;
                 } else {
                     p_var = sys_find_var(name, name_end - name);
@@ -307,16 +321,19 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
                         err = sys_set_nvs_var(p_var, value_buffer);
                         if (err != ESP_OK) {
                             cJSON_AddStringToObject(root, "status", "cannot set value");
+                            httpd_resp_set_status(req, HTTPD_500);
                         } else {
                             cJSON_AddStringToObject(root, "status", "ok");
                         }
                     } else {
                         cJSON_AddStringToObject(root, "status", "invalid name");
+                        httpd_resp_set_status(req, HTTPD_400);
                     }
                     break;
                 }
             default:
                 cJSON_AddStringToObject(root, "status", "invalid method");
+                httpd_resp_set_status(req, HTTPD_400);
         }
     }
 
@@ -327,6 +344,7 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/imu/calibrate
 esp_err_t imu_calibrate_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -343,6 +361,7 @@ esp_err_t imu_calibrate_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/imu/toggle
 esp_err_t imu_toggle_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -360,6 +379,7 @@ esp_err_t imu_toggle_handler(httpd_req_t *req) {
         cJSON_AddStringToObject(root, "status", "ok");
     } else {
         cJSON_AddStringToObject(root, "status", "invalid target_state value");
+        httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);
@@ -369,6 +389,7 @@ esp_err_t imu_toggle_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/imu/status
 esp_err_t imu_status_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -414,6 +435,7 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/imu/debug/toggle
 esp_err_t imu_debug_toggle_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -432,6 +454,7 @@ esp_err_t imu_debug_toggle_handler(httpd_req_t *req) {
         cJSON_AddStringToObject(root, "status", "ok");
     } else {
         cJSON_AddStringToObject(root, "status", "invalid target_state value");
+        httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);
@@ -504,6 +527,7 @@ static esp_err_t trigger_async_send(__attribute__((unused)) httpd_handle_t handl
     return ESP_OK;
 }
 
+// uri:/v1/imu/debug/socket
 esp_err_t imu_debug_socket_handler(httpd_req_t *req) {
     /** Handshake is done, so the new connection was opened **/
     if (req->method == HTTP_GET) {
@@ -555,6 +579,7 @@ esp_err_t imu_debug_socket_handler(httpd_req_t *req) {
     return ret;
 }
 
+// uri:/v1/blink/configure
 esp_err_t blink_configure_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -587,6 +612,7 @@ esp_err_t blink_configure_handler(httpd_req_t *req) {
                     blink_led_off();
                 } else {
                     cJSON_AddStringToObject(root, "status", "invalid mode value");
+                    httpd_resp_set_status(req, HTTPD_400);
                     success = false;
                     break;
                 }
@@ -606,6 +632,7 @@ esp_err_t blink_configure_handler(httpd_req_t *req) {
                     g_mcu.seq = seq;
                 } else {
                     cJSON_AddStringToObject(root, "status", "invalid seq value");
+                    httpd_resp_set_status(req, HTTPD_400);
                     success = false;
                     break;
                 }
@@ -613,6 +640,7 @@ esp_err_t blink_configure_handler(httpd_req_t *req) {
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
+            httpd_resp_set_status(req, HTTPD_400);
             success = false;
     }
     if (success) {
@@ -626,6 +654,7 @@ esp_err_t blink_configure_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/blink/toggle
 esp_err_t blink_toggle_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -650,13 +679,16 @@ esp_err_t blink_toggle_handler(httpd_req_t *req) {
                     cJSON_AddStringToObject(root, "status", "ok");
                 } else {
                     cJSON_AddStringToObject(root, "status", "invalid target_state value");
+                    httpd_resp_set_status(req, HTTPD_400);
                 }
             } else {
                 cJSON_AddStringToObject(root, "status", "invalid target_state value");
+                httpd_resp_set_status(req, HTTPD_400);
             }
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
+            httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);
@@ -666,6 +698,7 @@ esp_err_t blink_toggle_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// uri:/v1/operation/mode
 esp_err_t operation_mode_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     reset_power_save_timer();
@@ -692,10 +725,12 @@ esp_err_t operation_mode_handler(httpd_req_t *req) {
                 cJSON_AddStringToObject(root, "status", "ok");
             } else {
                 cJSON_AddStringToObject(root, "status", "invalid action value");
+                httpd_resp_set_status(req, HTTPD_400);
             }
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
+            httpd_resp_set_status(req, HTTPD_400);
     }
 
     const char *response = cJSON_Print(root);

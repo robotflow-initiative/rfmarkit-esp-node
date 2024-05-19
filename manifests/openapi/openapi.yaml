@@ -1,0 +1,393 @@
+openapi: 3.0.0
+info:
+  title: RFMarkIt Restful API
+  version: 1.0.0
+paths:
+  /v1/system/power:
+    get:
+      parameters:
+        - name: target_state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target_state:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid target_state value
+  /v1/system/upgrade:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ota_host:
+                    type: string
+                  ota_err:
+                    type: integer
+    post:
+      parameters:
+        - name: ota_host
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ota_host:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid name
+        '500':
+          description: Cannot set ota_host
+  /v1/system/selftest:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+  /v1/system/power_mgmt:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                  no_sleep:
+                    type: boolean
+    post:
+      parameters:
+        - name: mode
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid mode value
+  /v1/nvs/variable/{name}:
+    get:
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid name
+    post:
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: value
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '400':
+          description: Invalid value or empty field
+        '500':
+          description: Cannot set value
+  /v1/imu/calibrate:
+    post:
+      summary: Calibrate the IMU
+      responses:
+        '200':
+          description: Calibration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        default:
+          description: Unexpected error
+  /v1/imu/toggle:
+    post:
+      summary: Toggle the IMU
+      parameters:
+        - name: target_state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Toggle successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target_state:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid target_state value
+  /v1/imu/status:
+    get:
+      summary: Get the status of the IMU
+      responses:
+        '200':
+          description: Status retrieval successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  level:
+                    type: string
+                  baud_rate:
+                    type: integer
+                  enabled:
+                    type: string
+                  imu_status:
+                    type: integer
+                  imm:
+                    type: object
+                    properties:
+                      acc:
+                        type: array
+                        items:
+                          type: number
+                      rpy:
+                        type: array
+                        items:
+                          type: number
+                      seq:
+                        type: integer
+        default:
+          description: Unexpected error
+  /v1/imu/debug/toggle:
+    post:
+      summary: Toggle the IMU debug mode
+      parameters:
+        - name: target_state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Toggle successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target_state:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid target_state value
+  /v1/imu/debug/socket:
+    get:
+      summary: Get the IMU debug socket
+      responses:
+        '200':
+          description: Socket retrieval successful
+        '400':
+          description: IMU is not in debug mode
+    post:
+      summary: Post to the IMU debug socket
+      responses:
+        '200':
+          description: Post successful
+        '400':
+          description: Invalid packet
+  /v1/blink/configure:
+    get:
+      summary: Get the blink configuration
+      responses:
+        '200':
+          description: Configuration retrieval successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  seq:
+                    type: integer
+                  mode:
+                    type: string
+        default:
+          description: Unexpected error
+    post:
+      summary: Post the blink configuration
+      parameters:
+        - name: mode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: seq
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Configuration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                  seq:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid mode or seq value
+  /v1/blink/toggle:
+    get:
+      summary: Get the blink toggle state
+      responses:
+        '200':
+          description: Toggle state retrieval successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    type: integer
+        default:
+          description: Unexpected error
+    post:
+      summary: Post the blink toggle state
+      parameters:
+        - name: target_state
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Toggle state successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target_state:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Invalid target_state value
+  /v1/operation/mode:
+    get:
+      summary: Get the operation mode
+      responses:
+        '200':
+          description: Mode retrieval successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active:
+                    type: boolean
+                  imu_status:
+                    type: string
+        default:
+          description: Unexpected error
+    post:
+      summary: Post the operation mode
+      parameters:
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mode successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action:
+                    type: string
+                  imu_status:
+                    type: integer
+                  status:
+                    type: string
+        '400':
+          description: Invalid action value

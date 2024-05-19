@@ -32,7 +32,7 @@
 #define CONFIG_WIFI_SSID                    "yz_sensor"
 #define CONFIG_WIFI_PSK                     "yzri@1220"
 #define CONFIG_DATA_HOST_IP_ADDR            "10.233.233.3"
-#define CONFIG_DATA_HOST_PORT               18888
+#define CONFIG_DATA_HOST_PORT               18891
 #define CONFIG_DISCOVERY_PORT               18889
 #define CONFIG_CONTROLLER_LISTEN_PORT       18888
 #define CONFIG_CONTROLLER_BASE_PATH         "/"

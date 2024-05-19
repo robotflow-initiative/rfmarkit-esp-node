@@ -249,7 +249,7 @@ _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     esp_deep_sleep_start();
 }
 
-static void app_power_save(__attribute__((unused)) void *pvParameter) {
+__attribute__((unused)) static void app_power_save(__attribute__((unused)) void *pvParameter) {
     sys_stop_tasks();
     sys_stop_timers();
 

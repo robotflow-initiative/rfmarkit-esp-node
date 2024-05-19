@@ -117,7 +117,7 @@ void hi229_init(hi229_t *p_gy,
  *  @param p_gy Pointer to the IMU device
  *  @return ESP_OK if the setup is successful, otherwise ESP_FAIL
 **/
-static esp_err_t hi229_setup(hi229_t *p_gy) {
+__attribute__((unused)) static esp_err_t hi229_setup(hi229_t *p_gy) {
     const char *msg[] = {
             "AT+EOUT=0\r\n",
             "AT+MODE=1\r\n",
