@@ -1,39 +1,51 @@
 # HI229 Setup
 
-```
-TODO: fix the document
-```
+There are two ways to prepare/setup HI229 IMU for RFMarkIt project: offline and online
 
-First, flash the firmware.
+## Offline
 
-Then, log IP address of imu from serial debug interface. Record the IP, such as `10.53.21.17`.
+The HI229 should be set via uart interface. First, connect HI229 to a USB to UART adapter, then connect the adapter to a computer. Use a serial terminal software, such as `minicom`, `putty`, `screen`, etc. to connect to the HI229. The baudrate should be set to 115200.
 
-On IMU socket interface， use `blink_set <NO.>` to set blink sequence.
+Then, send the following commands to the HI229 with `\r\n` at the end of each command:
 
 ```text
-imu_debug AT+EOUT=0
-imu_debug AT+MODE=1
-imu_debug AT+SETPTL=91
-imu_debug AT+BAUD=921600
-imu_debug AT+ODR=200
-imu_debug AT+EOUT=1
-imu_debug AT+RST
-varset IMU_BAUD=921600
-restart
-imu_imm
+AT+EOUT=0
+AT+MODE=1
+AT+SETPTL=91
+AT+BAUD=921600
+AT+ODR=200
+AT+EOUT=1
+AT+RST
 ```
 
-```
-blink_set 225
-varset IMU_BAUD=921600
+After that, the HI229 should be ready to use.
 
-imu_debug AT+EOUT=0
-imu_debug AT+MODE=1
-imu_debug AT+SETPTL=91
-imu_debug AT+BAUD=921600
-imu_debug AT+ODR=200
-imu_debug AT+EOUT=1
-imu_debug AT+RST
-restart
-imu_imm
+## Online
+
+If the HI229 is already installed on the Marker, the HI229 can be set via the debug socket interface. You need a websocket client to connect to the debug socket interface. The websocket client can be a browser or a websocket client software, such as `wscat`.
+
+First, flash the latest firmware to marker, or run OTA update. Turn on the marker and wait for registration, record its IP address.
+
+Then, toggle the debug socket interface on the marker by running the following command:
+
+```shell
+curl -X POST http://$IP:18888/v1/imu/debug/toggle?target_state=enable
+```
+
+After that, connect to the debug socket interface with a websocket client:
+
+```shell
+wscat -c ws://$IP:18888/v1/imu/debug/socket
+```
+
+Then, send the following commands to the HI229 with `\r\n` at the end of each command:
+
+```text
+AT+EOUT=0
+AT+MODE=1
+AT+SETPTL=91
+AT+BAUD=921600
+AT+ODR=200
+AT+EOUT=1
+AT+RST
 ```
