@@ -4,10 +4,14 @@
 #include "esp_sleep.h"
 #include "lwip/err.h"
 #include <driver/adc.h>
+#include <esp_log.h>
 #include "driver/gpio.h"
 #include "nvs_flash.h"
 
 #include "battery.h"
+#include "settings.h"
+
+static const char *TAG = "battery         ";
 
 esp_err_t battery_msp_init() {
     /** Init GPIO **/
@@ -23,6 +27,9 @@ esp_err_t battery_msp_init() {
     adc1_config_channel_atten(CONFIG_BATTERY_READ_ADC1_CHANNEL, ADC_ATTEN_DB_0);
 
     gpio_config(&io_config);
+    /** Self-Test **/
+    int lvl = battery_read_level();
+    ESP_LOGI(TAG, "battery level: %d", lvl);
     return ESP_OK;
 }
 

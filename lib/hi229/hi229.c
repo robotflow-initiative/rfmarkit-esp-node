@@ -50,7 +50,25 @@ static void hi229_msp_init(hi229_t *p_gy) {
     };
     gpio_config(&ctrl_pin_conf);
     gpio_set_level(p_gy->ctrl_pin, 0);
-    // TODO: After PCB fix, enable sync pin
+
+    gpio_config_t sync_out_pin_conf = {
+        .intr_type = (gpio_int_type_t) GPIO_PIN_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = (1ULL << p_gy->sync_out_pin),
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    gpio_config(&sync_out_pin_conf);
+    gpio_set_level(p_gy->sync_out_pin, 0);
+
+    gpio_config_t sync_in_pin_conf = {
+        .intr_type = (gpio_int_type_t) GPIO_PIN_INTR_DISABLE,
+        .mode = GPIO_MODE_INPUT,
+        .pin_bit_mask = (1ULL << p_gy->sync_in_pin),
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    gpio_config(&sync_in_pin_conf);
 
     p_gy->enabled = true;
     bool ret = rtc_gpio_is_valid_gpio(p_gy->ctrl_pin);

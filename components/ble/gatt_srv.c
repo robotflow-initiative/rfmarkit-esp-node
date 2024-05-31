@@ -30,7 +30,6 @@
 
 static const char *TAG = "ble.gatt_srv    ";
 
-
 static int gatt_svr_chr_wifi_info(
     uint16_t conn_handle,
     uint16_t attr_handle,
@@ -87,7 +86,6 @@ static int gatt_svr_chr_wifi_info(
     }
 }
 
-
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     {
         /** Service: Device Information **/
@@ -116,7 +114,6 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
         0, /** No more services **/
     },
 };
-
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg) {
     char buf[BLE_UUID_STR_LEN];

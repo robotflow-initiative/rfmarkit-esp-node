@@ -118,7 +118,6 @@ void sys_ota_guard() {
         }
     }
 #else
-    // TODO: sometimes the device cannot connect to Wi-Fi due to corrupted NVS
     os_delay_ms(3000); // wait for the system to be ready)
     if (ota_uncommitted) {
         esp_ota_mark_app_valid_cancel_rollback();

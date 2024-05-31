@@ -187,7 +187,7 @@ static void sys_load_nvs_configuration() {
 
     char value_buffer[CONFIG_VAR_STR_MAX_LEN];
     char _protect = 0;
-    sys_load_int32_conf(CONFIG_NVS_TEST_NAME, _protect, 0); // FIXME: a workaround to protect the following variable from getting corrupted
+    sys_load_int32_conf(CONFIG_NVS_TEST_NAME, _protect, 0); // NOTE: a workaround to protect the following variable from getting corrupted
     sys_load_str_conf(CONFIG_NVS_WIFI_SSID_NAME, g_mcu.wifi_ssid, CONFIG_WIFI_SSID);
     sys_load_str_conf(CONFIG_NVS_WIFI_PSK_NAME, g_mcu.wifi_psk, CONFIG_WIFI_PSK);
     sys_load_str_conf(CONFIG_NVS_DATA_HOST_NAME, g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_IP_ADDR);

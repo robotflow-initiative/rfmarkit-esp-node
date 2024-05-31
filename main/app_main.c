@@ -46,10 +46,12 @@ static void init() {
 
 void app_main(void) {
     init();
+    ESP_LOGI(TAG, "main application started");
 
     /** Launch tasks **/
     sys_start_tasks();
 
     sys_ota_guard();
+    ESP_LOGI(TAG, "main application finished");
     vTaskDelete(NULL);
 }

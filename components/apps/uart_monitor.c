@@ -27,6 +27,10 @@ static void IRAM_ATTR tag_time_us(imu_dgram_t *imu_data) {
     imu_data->tsf_time_us = esp_mesh_get_tsf_time();
 }
 
+/**
+ * @brief Tag the buffer length
+ * @param imu_data
+**/
 static void IRAM_ATTR tag_buffer_len(imu_dgram_t *imu_data) {
     size_t uart_buffer_len = 0;
     uart_get_buffered_data_len(g_imu.port, &uart_buffer_len);
