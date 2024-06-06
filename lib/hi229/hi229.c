@@ -10,7 +10,6 @@
 #include "driver/rtc_io.h"
 #include "nvs_flash.h"
 
-#include "sys.h"
 #include "hi229.h"
 #include "hi229_serial.h"
 
@@ -126,7 +125,7 @@ void hi229_init(hi229_t *p_gy,
 
     /** Initialize IMU Hardware **/
     hi229_msp_init(p_gy);
-    os_delay_ms(100);
+    imu_delay_ms(100);
     hi229_enable(p_gy);
 }
 
@@ -147,7 +146,7 @@ __attribute__((unused)) static esp_err_t hi229_setup(hi229_t *p_gy) {
     };
     for (int idx = 0; idx < sizeof(msg) / sizeof(char *); ++idx) {
         uart_write_bytes_with_break((p_gy->port), (uint8_t *) msg[idx], strlen(msg[idx]), 0xF);
-        os_delay_ms(100);
+        imu_delay_ms(100);
     }
     return ESP_OK;
 }

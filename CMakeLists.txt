@@ -18,6 +18,7 @@ add_definitions(-DCONFIG_FIRMWARE_VERSION=\"${GIT_VERSION}\")
 set(
         EXTRA_COMPONENT_DIRS
         ${CMAKE_SOURCE_DIR}/lib/hi229
+        ${CMAKE_SOURCE_DIR}/lib/bno08x
         ${CMAKE_SOURCE_DIR}/lib/battery
         ${CMAKE_SOURCE_DIR}/lib/ring_buf
         ${CMAKE_SOURCE_DIR}/lib/libudp

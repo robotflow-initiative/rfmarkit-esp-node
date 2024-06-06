@@ -4,7 +4,6 @@
 #include <driver/uart.h>
 #include <driver/gpio.h>
 
-#include "sys.h"
 #include "modelspec.h"
 #include "hi229_serial.h"
 
@@ -114,6 +113,8 @@ void hi229_buffer_reset(hi229_t *p_gy);
 
 #define imu_t hi229_t
 extern imu_t g_imu;
+
+#define imu_delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS)
 
 #define imu_read(imu, out, crc_check) \
         hi229_read((imu_t*)(imu), (imu_dgram_t*)(out), (crc_check))
