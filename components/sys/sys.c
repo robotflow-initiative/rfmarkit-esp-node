@@ -294,8 +294,8 @@ esp_err_t sys_set_operation_mode(bool active) {
 **/
 void sys_mode_change_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data) {
     if (g_mcu.state.active) {
-        g_imu.mux = IMU_MUX_STREAM;
+        g_imu.p_imu->mux = IMU_MUX_STREAM;
     } else {
-        g_imu.mux = IMU_MUX_IDLE;
+        g_imu.p_imu->mux = IMU_MUX_IDLE;
     }
 }

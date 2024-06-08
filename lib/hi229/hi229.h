@@ -1,12 +1,10 @@
-#ifndef HI229_H_
-#define HI229_H_
+#ifndef _HI229_H
+#define _HI229_H
 
-#include <driver/uart.h>
-#include <driver/gpio.h>
+#include "driver/gpio.h"
 
+#include "imu.h"
 #include "modelspec.h"
-#include "hi229_serial.h"
-
 
 /** HI229 related settings **/
 #define CONFIG_HI229_PAYLOAD_LEN        82
@@ -27,128 +25,42 @@
 #define CONFIG_HI229_CTS                UART_PIN_NO_CHANGE
 #define CONFIG_HI229_UART_PORT          CONFIG_IMU_UART_PORT
 
-#define CONFIG_HI229_DEFAULT_FREQ       100
-#define CONFIG_HI229_DEFAULT_BAUD_RATE  115200
-#define CONFIG_HI229_MAX_CHECK_TICKS    1024
-#define CONFIG_HI229_RETRY_N            10
+/** HI229 related settings **/
 #define CONFIG_HI299_MAX_READ_NUM       512
 #define CONFIG_HI299_BLOCK_READ_NUM     32
 
 typedef struct {
-    ch_imu_data_t imu[1];
-    int64_t time_us;
-    int64_t tsf_time_us;
-    uint32_t seq;
-    int32_t uart_buffer_len;
-} hi229_dgram_t; // EXTERNAL
+    imu_config_t base;
 
-typedef enum {
-    IMU_STATUS_UNKNOWN = -1,
-    IMU_STATUS_FAIL,
-    IMU_STATUS_READY,
-} hi229_status_t;
-
-typedef enum {
-    IMU_MUX_IDLE,
-    IMU_MUX_STREAM,
-    IMU_MUX_DEBUG
-} hi229_mux_t;
-
-typedef struct {
+    /** uart configuration **/
     int port;
     int baud;
 
     /** pin configuration **/
-    int ctrl_pin;
-    int rx_pin;
-    int tx_pin;
-    int rts_pin;
-    int cts_pin;
-    int sync_in_pin;
-    int sync_out_pin;
-
-    uint8_t addr;
-    hi229_status_t status;
-    bool enabled;
-
-    hi229_mux_t mux;
-    SemaphoreHandle_t mutex;
-    raw_t raw;
-
-} hi229_t;
-
-void hi229_init(hi229_t *p_gy,
-                int port,
-                int baud,
-                int ctrl_pin,
-                int rx_pin,
-                int tx_pin,
-                int rts_pin,
-                int cts_pin,
-                int sync_in_pin,
-                int sync_out_pin,
-                int addr
-);
-
-esp_err_t hi229_read(hi229_t *p_gy, hi229_dgram_t *out, bool crc_check);
-
-void hi229_enable(hi229_t *p_gy);
-
-void hi229_disable(hi229_t *p_gy);
-
-esp_err_t hi229_self_test(hi229_t *p_gy);
-
-void hi229_chip_soft_reset(hi229_t *p_gy);
-
-void hi229_chip_hard_reset(hi229_t *p_gy);
-
-void hi229_buffer_reset(hi229_t *p_gy);
+    gpio_num_t ctrl_pin;
+    gpio_num_t rx_pin;
+    gpio_num_t tx_pin;
+    gpio_num_t rts_pin;
+    gpio_num_t cts_pin;
+    gpio_num_t sync_in_pin;
+    gpio_num_t sync_out_pin;
+} hi229_config_t;
 
 /** Exposed API **/
-#define CONFIG_IMU_NAME "HI229"
+#define imu_interface_init_external(imu)                    \
+    {                                                       \
+        hi229_config_t cfg = {                              \
+            .port = CONFIG_HI229_UART_PORT,                 \
+            .baud = g_mcu.imu_baud,                         \
+            .ctrl_pin = CONFIG_HI229_CTRL_PIN,              \
+            .rx_pin = CONFIG_HI229_RX,                      \
+            .tx_pin = CONFIG_HI229_TX,                      \
+            .rts_pin = CONFIG_HI229_RTS,                    \
+            .cts_pin = CONFIG_HI229_CTS,                    \
+            .sync_in_pin = CONFIG_HI229_SYNC_IN,            \
+            .sync_out_pin = CONFIG_HI229_SYNC_OUT,          \
+        };                                                  \
+        imu_interface_init((imu), (imu_config_t*) &cfg);    \
+    }NULL
 
-#define imu_dgram_t hi229_dgram_t
-#define imu_status_t hi229_status_t
-#define imu_mux_t hi229_mux_t
-
-#define imu_t hi229_t
-extern imu_t g_imu;
-
-#define imu_delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS)
-
-#define imu_read(imu, out, crc_check) \
-        hi229_read((imu_t*)(imu), (imu_dgram_t*)(out), (crc_check))
-
-#define imu_enable(imu) \
-        hi229_enable((imu_t*)(imu))
-
-#define imu_soft_reset(imu) \
-        hi229_chip_soft_reset((imu_t*)(imu))
-
-#define imu_hard_reset(imu) \
-        hi229_chip_hard_reset((imu_t*)(imu))
-
-#define imu_buffer_reset(imu) \
-        hi229_buffer_reset((imu_t*)(imu))
-
-#define imu_disable(imu) \
-        hi229_disable((imu_t*)(imu))
-
-#define imu_self_test(imu) \
-        hi229_self_test((imu_t*)(imu))
-
-#define imu_init(imu) \
-        {             \
-            hi229_init(&(imu), \
-                        CONFIG_HI229_UART_PORT, \
-                        g_mcu.imu_baud,         \
-                        CONFIG_HI229_CTRL_PIN,  \
-                        CONFIG_HI229_RX,        \
-                        CONFIG_HI229_TX,        \
-                        CONFIG_HI229_RTS,        \
-                        CONFIG_HI229_CTS,        \
-                        CONFIG_HI229_SYNC_IN,        \
-                        CONFIG_HI229_SYNC_OUT,        \
-                        CONFIG_HI229_ADDR);     \
-        }NULL
 #endif

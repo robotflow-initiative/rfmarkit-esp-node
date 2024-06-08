@@ -206,7 +206,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  level:
+                  power:
                     type: string
                   baud_rate:
                     type: integer

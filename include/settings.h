@@ -21,11 +21,6 @@
 #define CONFIG_OTA_PATH                     "/v1/ota/download"
 #define CONFIG_OTA_HOST                     "10.233.233.3:18889"
 
-/** Peripheral related settings **/
-#define IMU_TYPE_GY95                       95
-#define IMU_TYPE_HI229                      229
-#define CONFIG_IMU_TYPE                     IMU_TYPE_HI229
-
 /** Wi-Fi&Network settings**/
 #define CONFIG_NORMAL_TX_POWER              (34)
 #define CONFIG_MAX_TX_POWER                 (68)

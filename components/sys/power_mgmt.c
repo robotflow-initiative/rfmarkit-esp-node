@@ -11,7 +11,7 @@
 #include "apps.h"
 #include "settings.h"
 #include "sys.h"
-#include "hi229.h"
+#include "imu.h"
 #include "blink.h"
 #include "ble_srv.h"
 #include "rest_controller.h"
@@ -128,20 +128,20 @@ power_mgmt_state_t power_mgmt_wake_up_handler() {
     } else {
         // TODO: update this logic after PCB fix, detect movement
         ESP_LOGI(TAG, "wakeup from timer");
-        imu_init(g_imu);
+        imu_interface_init_external(&g_imu);
         imu_dgram_t imu_status;
         for (esp_err_t err = ESP_FAIL; err != ESP_OK; taskYIELD()) {
-            err = imu_read(&g_imu, &imu_status, true);
+            err = g_imu.read(g_imu.p_imu, &imu_status, true);
             ESP_LOGD(TAG, "imu_read err=%d", err);
         }
         Vector3 ref = {0, 0, -1};
         Vector3 acc_diff;
-        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu[0].acc, &ref, -1, &acc_diff);
+        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu.acc, &ref, -1, &acc_diff);
         float acc_diff_norm = spatial_vector_norm(&acc_diff);
         ESP_LOGI(
             TAG,
             "acc=[%f, %f, %f], norm=%f, diff=[%f, %f, %f],",
-            imu_status.imu[0].acc[0], imu_status.imu[0].acc[1], imu_status.imu[0].acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
+            imu_status.imu.acc[0], imu_status.imu.acc[1], imu_status.imu.acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
         );
 
         return POWER_DEEP_SLEEP;
@@ -167,11 +167,11 @@ esp_err_t power_mgmt_on_enter_standby() {
 
     /** Init global imu struct g_imu **/
     if (!g_power_mgmt_ctx.peripheral_state.imu_initialized) {
-        imu_init(g_imu);
+        imu_interface_init_external(&g_imu);
         g_power_mgmt_ctx.peripheral_state.imu_initialized = true;
     } else {
-        if (!g_imu.enabled) {
-            imu_enable(&g_imu);
+        if (!g_imu.p_imu->enabled) {
+            g_imu.toggle(g_imu.p_imu, true);
         }
     }
 
@@ -266,7 +266,7 @@ esp_err_t power_mgmt_on_enter_power_save() {
 _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     ESP_LOGI(TAG, "disabling IMU and led");
 
-    imu_disable(&g_imu);
+    g_imu.toggle(g_imu.p_imu, false);
     g_mcu.state.led_manual = true;
     os_delay_ms(100);
 
@@ -308,32 +308,32 @@ __attribute__((unused)) static void app_power_save(__attribute__((unused)) void 
     imu_dgram_t imu_status;
     float old_acc[3] = {0, 0, 0};
 
-    uart_flush(g_imu.port);
+    g_imu.buffer_reset(g_imu.p_imu);
     for (esp_err_t err = ESP_FAIL; err != ESP_OK; taskYIELD(), os_delay_ms(100)) {
-        err = imu_read(&g_imu, &imu_status, true);
+        err = g_imu.read(g_imu.p_imu, &imu_status, true);
         ESP_LOGD(TAG, "imu_read_init err=%d", err);
     }
-    memcpy(old_acc, imu_status.imu[0].acc, sizeof(old_acc));
+    memcpy(old_acc, imu_status.imu.acc, sizeof(old_acc));
 
     int cycle_count = 0;
 
     while (1) {
         ESP_LOGI(TAG, "light sleep for 10 seconds");
         esp_sleep_enable_timer_wakeup(10 * 1000000UL); // 3 seconds
-        imu_disable(&g_imu);
+        g_imu.toggle(g_imu.p_imu, false);
         os_delay_ms(10);
         esp_light_sleep_start();
         ESP_LOGI(TAG, "Returned from light sleep, reason:%s\n", esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0 ? "pin" : "timer");
 
-        imu_enable(&g_imu);
-        imu_buffer_reset(&g_imu);
+        g_imu.toggle(g_imu.p_imu, true);
+        g_imu.buffer_reset(g_imu.p_imu);
         for (esp_err_t err = ESP_FAIL; err != ESP_OK; taskYIELD(), os_delay_ms(100)) {
-            err = imu_read(&g_imu, &imu_status, true);
+            err = g_imu.read(g_imu.p_imu, &imu_status, true);
             ESP_LOGD(TAG, "imu_read err=%d", err);
         }
 
         Vector3 acc_diff;
-        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu[0].acc, (const Vector3 *) &old_acc, -1, &acc_diff);
+        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu.acc, (const Vector3 *) &old_acc, -1, &acc_diff);
         float acc_diff_norm = spatial_vector_norm(&acc_diff);
 
         if (acc_diff_norm > CONFIG_POWER_SAVE_MOTION_LIMIT) {
@@ -343,9 +343,9 @@ __attribute__((unused)) static void app_power_save(__attribute__((unused)) void 
             ESP_LOGI(
                 TAG,
                 "acc=[%f, %f, %f], norm=%f, diff=[%f, %f, %f],",
-                imu_status.imu[0].acc[0], imu_status.imu[0].acc[1], imu_status.imu[0].acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
+                imu_status.imu.acc[0], imu_status.imu.acc[1], imu_status.imu.acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
             );
-            memcpy(old_acc, imu_status.imu[0].acc, sizeof(old_acc));
+            memcpy(old_acc, imu_status.imu.acc, sizeof(old_acc));
         }
 
         cycle_count++;

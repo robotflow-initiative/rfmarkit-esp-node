@@ -32,7 +32,7 @@ typedef struct {
     int64_t time_us;
     int64_t tsf_time_us;
     uint32_t seq;
-    int32_t uart_buffer_len;
+    int32_t buffer_delay_us;
     char device_id[12];
     uint8_t checksum;
 } marker_packet_t;
@@ -75,18 +75,18 @@ __attribute__((unused)) static uint8_t compute_checksum(const uint8_t *data, siz
  * @param imu_data
 **/
 static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
-    pkt->id = imu_data->imu[0].id;
-    memcpy(pkt->acc, imu_data->imu[0].acc, sizeof(pkt->acc));
-    memcpy(pkt->gyr, imu_data->imu[0].gyr, sizeof(pkt->gyr));
-    memcpy(pkt->mag, imu_data->imu[0].mag, sizeof(pkt->mag));
-    memcpy(pkt->eul, imu_data->imu[0].eul, sizeof(pkt->eul));
-    memcpy(pkt->quat, imu_data->imu[0].quat, sizeof(pkt->quat));
-    pkt->pressure = imu_data->imu[0].pressure;
-    pkt->timestamp = imu_data->imu[0].timestamp;
+    pkt->id = imu_data->imu.id;
+    memcpy(pkt->acc, imu_data->imu.acc, sizeof(pkt->acc));
+    memcpy(pkt->gyr, imu_data->imu.gyr, sizeof(pkt->gyr));
+    memcpy(pkt->mag, imu_data->imu.mag, sizeof(pkt->mag));
+    memcpy(pkt->eul, imu_data->imu.eul, sizeof(pkt->eul));
+    memcpy(pkt->quat, imu_data->imu.quat, sizeof(pkt->quat));
+    pkt->pressure = imu_data->imu.pressure;
+    pkt->timestamp = imu_data->imu.timestamp;
     pkt->time_us = imu_data->time_us;
     pkt->tsf_time_us = imu_data->tsf_time_us;
     pkt->seq = imu_data->seq;
-    pkt->uart_buffer_len = imu_data->uart_buffer_len;
+    pkt->buffer_delay_us = imu_data->buffer_delay_us;
     pkt->checksum = 0;
 
 }
@@ -111,7 +111,7 @@ _Noreturn void app_data_client(void *pvParameters) {
 
     /** Initialize a packet **/
     marker_packet_t pkt = {0};
-    pkt.addr = g_imu.addr; // this part is fixed
+    pkt.addr = g_imu.p_imu->addr; // this part is fixed
     memcpy(pkt.device_id, g_mcu.device_id, sizeof(g_mcu.device_id));  // this part is fixed
 
     udp_socket_t client = {0};

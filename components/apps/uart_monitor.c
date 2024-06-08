@@ -20,21 +20,11 @@ static const char *TAG = "app.uart_monitor";
 
 /**
  * @brief Compute and set timestamp with us resolution
- *
+ * @note: use IRAM_ATTR to avoid cache miss
 **/
 static void IRAM_ATTR tag_time_us(imu_dgram_t *imu_data) {
     get_time_usec(imu_data->time_us);
     imu_data->tsf_time_us = esp_mesh_get_tsf_time();
-}
-
-/**
- * @brief Tag the buffer length
- * @param imu_data
-**/
-static void IRAM_ATTR tag_buffer_len(imu_dgram_t *imu_data) {
-    size_t uart_buffer_len = 0;
-    uart_get_buffered_data_len(g_imu.port, &uart_buffer_len);
-    imu_data->uart_buffer_len = (int32_t) uart_buffer_len;
 }
 
 _Noreturn void app_uart_monitor(void *pvParameters) {
@@ -48,13 +38,13 @@ _Noreturn void app_uart_monitor(void *pvParameters) {
 
     while (1) {
         /** Wait for the system to be active **/
-        if (!g_imu.enabled || g_imu.mux != IMU_MUX_STREAM) {
+        if (!g_imu.p_imu->enabled || g_imu.p_imu->mux != IMU_MUX_STREAM) {
             os_delay_ms(500);
             continue;
         }
 
         /** Flush the uart buffer and prepare ring_buffer **/
-        uart_flush(g_imu.port);
+        g_imu.buffer_reset(g_imu.p_imu);
         uint32_t seq = 0;
         ring_buf_reset(serial_buf);
 
@@ -63,9 +53,9 @@ _Noreturn void app_uart_monitor(void *pvParameters) {
         get_time_usec(start_time);
         uint32_t old_seq = 0;
 #endif
-        while (g_imu.enabled && g_imu.mux == IMU_MUX_STREAM) {
+        while (g_imu.p_imu->enabled && g_imu.p_imu->mux == IMU_MUX_STREAM) {
             /** Read IMU data **/
-            esp_err_t err = imu_read(&g_imu, &imu_data, true);
+            esp_err_t err = g_imu.read(g_imu.p_imu, &imu_data, true);
 
             /** If the err occurs(most likely due to the empty uart buffer), wait **/
             if (err != ESP_OK) {
@@ -78,7 +68,7 @@ _Noreturn void app_uart_monitor(void *pvParameters) {
             /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
             imu_data.seq = seq++;
             tag_time_us(&imu_data);
-            tag_buffer_len(&imu_data);
+            imu_data.buffer_delay_us = (int32_t) g_imu.get_buffer_delay(g_imu.p_imu);
 
             /** Add the imu data to the ring buffer **/
             ring_buf_push(serial_buf, (uint8_t *) &imu_data);
@@ -86,9 +76,8 @@ _Noreturn void app_uart_monitor(void *pvParameters) {
             int64_t now;
             get_time_usec(now);
             if ( now - start_time > 1000000UL) {
-                size_t buf_len;
-                uart_get_buffered_data_len(g_imu.port, &buf_len);
-                ESP_LOGI(TAG, "fps=%d, buf_len=%d", seq - old_seq, buf_len);
+                int64_t delay = g_imu.get_buffer_delay(g_imu.p_imu);
+                ESP_LOGI(TAG, "fps=%d, delay=%lld", seq - old_seq, delay);
                 start_time = now;
                 old_seq = seq;
             }

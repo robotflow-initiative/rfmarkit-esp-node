@@ -20,6 +20,15 @@
 #define CONFIG_IMU_UART_PORT                UART_NUM_1
 #define CONFIG_IMU_BAUD                     115200
 
+
+#define CONFIG_IMU_MOSI_PIN                 GPIO_NUM_4
+#define CONFIG_IMU_MISO_PIN                 GPIO_NUM_17
+#define CONFIG_IMU_SCLK_PIN                 GPIO_NUM_16
+#define CONFIG_IMU_CS_PIN                   GPIO_NUM_18
+#define CONFIG_IMU_INT_PIN                  GPIO_NUM_19
+#define CONFIG_IMU_RST_PIN                  GPIO_NUM_15
+#define CONFIG_IMU_WAKE_PIN                 GPIO_NUM_13
+
 #define CONFIG_BATTERY_EN_PIN               GPIO_NUM_25
 #define CONFIG_BATTERY_READ_ADC1_CHANNEL    ADC1_CHANNEL_6 // GPIO_NUM_34
 #endif

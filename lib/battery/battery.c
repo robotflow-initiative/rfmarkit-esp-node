@@ -2,14 +2,13 @@
 // Created by liyutong on 2024/4/30.
 
 #include "esp_sleep.h"
-#include "lwip/err.h"
-#include <driver/adc.h>
-#include <esp_log.h>
+#include "esp_log.h"
+
+#include "driver/adc.h"
 #include "driver/gpio.h"
-#include "nvs_flash.h"
 
 #include "battery.h"
-#include "settings.h"
+#include "modelspec.h"
 
 static const char *TAG = "battery         ";
 
@@ -35,7 +34,7 @@ esp_err_t battery_msp_init() {
 
 int battery_read_level() {
     gpio_set_level(CONFIG_BATTERY_EN_PIN, CONFIG_BATTERY_EN_VALUE);
-    sys_delay_ms(50);
+    battery_delay_ms(50);
     int val = adc1_get_raw(CONFIG_BATTERY_READ_ADC1_CHANNEL);
     gpio_set_level(CONFIG_BATTERY_EN_PIN, !CONFIG_BATTERY_EN_VALUE);
     return val;

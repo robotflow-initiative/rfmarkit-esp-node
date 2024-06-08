@@ -40,7 +40,7 @@ static void init() {
     ring_buf_init(&g_mcu.imu_ring_buf, CONFIG_SERIAL_QUEUE_LEN, sizeof(imu_dgram_t), s_serial_buf, true);
 
     /** Test IMU availability, must run at the end of init() **/
-    imu_self_test(&g_imu);
+    g_imu.self_test(g_imu.p_imu);
 }
 
 
