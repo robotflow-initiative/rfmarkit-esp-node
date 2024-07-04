@@ -22,6 +22,10 @@ static const char *TAG = "imu[bno08x]";
  */
 void BNO08x_init(BNO08x* device, BNO08x_config_t *imu_config)
 {
+    device->int_asserted_semaphore = xSemaphoreCreateBinary();
+    device->tx_semaphore = xSemaphoreCreateBinary();
+    memcpy(&device->imu_config, imu_config, sizeof(BNO08x_config_t));
+    device->calibration_status = 1;
     // clear all buffers
     memset(device->tx_buffer, 0, sizeof(device->tx_buffer));
     memset(device->rx_buffer, 0, sizeof(device->rx_buffer));
@@ -85,7 +89,7 @@ void BNO08x_init(BNO08x* device, BNO08x_config_t *imu_config)
     // check if GPIO ISR service has been installed (only has to be done once regardless of SPI slaves being used)
     if (!bno08x_isr_service_installed)
     {
-        gpio_install_isr_service(0); // install isr service
+        gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1); // install isr service
         bno08x_isr_service_installed = true;
     }
 
@@ -170,12 +174,12 @@ bool BNO08x_initialize(BNO08x* device)
                  "Successfully initialized....\n\r"
                  "                ---------------------------\n\r"
                  "                Product ID: 0x%" PRIx32 "\n\r"
-                                                          "                SW Version Major: 0x%" PRIx32 "\n\r"
-                                                                                                         "                SW Version Minor: 0x%" PRIx32 "\n\r"
-                                                                                                                                                        "                SW Part Number:   0x%" PRIx32 "\n\r"
-                                                                                                                                                                                                       "                SW Build Number:  0x%" PRIx32 "\n\r"
-                                                                                                                                                                                                                                                      "                SW Version Patch: 0x%" PRIx32 "\n\r"
-                                                                                                                                                                                                                                                                                                     "                ---------------------------\n\r",
+                 "                SW Version Major: 0x%" PRIx32 "\n\r"
+                 "                SW Version Minor: 0x%" PRIx32 "\n\r"
+                 "                SW Part Number:   0x%" PRIx32 "\n\r"
+                 "                SW Build Number:  0x%" PRIx32 "\n\r"
+                 "                SW Version Patch: 0x%" PRIx32 "\n\r"
+                 "                ---------------------------\n\r",
             (uint32_t) device->rx_buffer[0], (uint32_t) device->rx_buffer[2], (uint32_t) device->rx_buffer[3], sw_part_number, sw_build_number,
             (uint32_t) sw_version_patch);
     }

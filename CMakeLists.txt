@@ -18,8 +18,8 @@ add_definitions(-DIMU_TYPE_HI229=229)
 add_definitions(-DIMU_TYPE_BNO08X=80)
 
 # Select IMU module
-set(IMU_MODULE hi229) # hi229 or bno08x
-add_definitions(-DCONFIG_IMU_TYPE=IMU_TYPE_HI229) # IMU_TYPE_HI229 or IMU_TYPE_BNO08X, depending on the selected module
+set(IMU_MODULE bno08x) # hi229 or bno08x
+add_definitions(-DCONFIG_IMU_TYPE=IMU_TYPE_BNO08X) # IMU_TYPE_HI229 or IMU_TYPE_BNO08X, depending on the selected module
 
 
 # Introduce esp-iot-solution

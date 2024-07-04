@@ -16,6 +16,7 @@
 #include "imu.h"
 #include "settings.h"
 #include "apps.h"
+#include "battery.h"
 
 /** MCU structure **/
 mcu_t g_mcu = {0};
@@ -169,6 +170,9 @@ void sys_init_chip() {
     ESP_LOGI(TAG, "Device ID: %s", g_mcu.device_id);
     ESP_LOGI(TAG, "BLE LocalName: %s", g_mcu.ble_local_name);
     ESP_LOGW(TAG, "\n-------VERSION-------\n%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
+
+    /** Init the battery monitor **/
+    battery_msp_init();
 
 }
 

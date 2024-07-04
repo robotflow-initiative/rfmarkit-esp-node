@@ -193,7 +193,7 @@ static void sys_load_nvs_configuration() {
     sys_load_str_conf(CONFIG_NVS_DATA_HOST_NAME, g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_IP_ADDR);
     sys_load_str_conf(CONFIG_NVS_OTA_HOST_NAME, g_mcu.ota_host, CONFIG_OTA_HOST);
     sys_load_str_conf(CONFIG_NVS_NTP_HOST_NAME, g_mcu.ntp_host_ip_addr, CONFIG_NTP_HOST_IP_ADDR);
-    sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
+    // sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
     sys_load_int32_conf(CONFIG_NVS_SEQ_NAME, g_mcu.seq, 0);
     sys_load_int32_conf(CONFIG_NVS_TARGET_FPS_NAME, g_mcu.target_fps, CONFIG_TARGET_FPS);
 

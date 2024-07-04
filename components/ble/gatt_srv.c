@@ -21,6 +21,7 @@
  */
 
 #include <assert.h>
+#include <esp_netif.h>
 #include "host/ble_hs.h"
 #include "host/ble_uuid.h"
 #include "services/gap/ble_svc_gap.h"
@@ -79,7 +80,16 @@ static int gatt_svr_chr_wifi_info(
         return ESP_OK;
     } else if (uuid == GATT_WIFI_READ_UUID) {
         bool wifi_connected = g_mcu.state.wifi_connected;
-        int rc = os_mbuf_append(ctxt->om, wifi_connected ? "1" : "0", 1);
+        int rc;
+        if (wifi_connected) {
+            /** Return the device IP **/
+            char ip_str[16];
+            sprintf(ip_str, IPSTR, IP2STR(&(g_mcu.ip_info.ip)));
+            rc = os_mbuf_append(ctxt->om, ip_str, strlen(ip_str));
+        } else {
+            /** 0.0.0.0 for unconnected **/
+            rc = os_mbuf_append(ctxt->om, "0.0.0.0", 7);
+        }
         return rc == 0 ? 0 : BLE_ATT_ERR_UNLIKELY;
     } else {
         return BLE_ATT_ERR_UNLIKELY;

@@ -1,5 +1,6 @@
 #include <string.h>
 #include <esp_mesh.h>
+#include <math.h>
 
 #include "esp_http_server.h"
 #include "esp_chip_info.h"
@@ -11,6 +12,7 @@
 #include "rest_controller_handlers.h"
 #include "blink.h"
 #include "imu.h"
+#include "battery.h"
 
 static const char *TAG = "sys.rest.hdl    ";
 
@@ -105,6 +107,8 @@ esp_err_t system_info_handler(httpd_req_t *req) {
     int64_t tsf_time = esp_mesh_get_tsf_time();
     // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions)
     cJSON_AddNumberToObject(root, "tsf_time", tsf_time);
+    int64_t battery_level = battery_read_level();
+    cJSON_AddNumberToObject(root, "battery_level", (double) battery_level);
 
     const char *response = cJSON_Print(root);
     httpd_resp_sendstr(req, response);
@@ -407,7 +411,7 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
         case IMU_MUX_DEBUG:
         case IMU_MUX_IDLE:
             g_imu.buffer_reset(g_imu.p_imu);
-            for (int i = 0; i < 3 && err != ESP_OK; i++) err = g_imu.read(g_imu.p_imu, &imu_data, true);
+            err = g_imu.read_latest(g_imu.p_imu, &imu_data, true);
             break;
         case IMU_MUX_STREAM:
             err = ring_buf_peek(&g_mcu.imu_ring_buf, &imu_data, -1, NULL);

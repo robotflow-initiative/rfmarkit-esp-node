@@ -1,10 +1,55 @@
 //
 // Created by liyutong on 2024/5/10.
 //
-#include <stdio.h>
 #include <math.h>
 
 #include "spatial.h"
+
+/**
+ * @brief Convert quaternion to euler angles
+ * @param q
+ * @param[out] e
+ * @param q
+ * @param e
+**/
+void spatial_quaternion_to_euler(const Quaternion *q, Euler *e) {
+    // Roll (x-axis rotation)
+    float sinr_cosp = 2 * (q->w * q->x + q->y * q->z);
+    float cosr_cosp = 1 - 2 * (q->x * q->x + q->y * q->y);
+    e->roll = atan2f(sinr_cosp, cosr_cosp);
+
+    // Pitch (y-axis rotation)
+    float sinp = 2 * (q->w * q->y - q->z * q->x);
+    if (fabsf(sinp) >= 1) {
+        e->pitch = copysignf(M_PI / 2, sinp); // Use 90 degrees if out of range
+    } else {
+        e->pitch = asinf(sinp);
+    }
+
+    // Yaw (z-axis rotation)
+    float siny_cosp = 2 * (q->w * q->z + q->x * q->y);
+    float cosy_cosp = 1 - 2 * (q->y * q->y + q->z * q->z);
+    e->yaw = atan2f(siny_cosp, cosy_cosp);
+}
+
+
+/**
+ * @brief Convert quaternion to euler angles in degrees
+ * @param q
+ * @param[out] e_deg
+**/
+void spatial_quaternion_to_euler_deg(const Quaternion *q, Euler *e_deg) {
+    Euler e_rad;
+    spatial_quaternion_to_euler(q, &e_rad);
+
+    // Constants for conversion
+    const float RAD_TO_DEG = 180.0f / M_PI;
+
+    // Convert each angle from radians to degrees
+    e_deg->roll = e_rad.roll * RAD_TO_DEG;
+    e_deg->pitch = e_rad.pitch * RAD_TO_DEG;
+    e_deg->yaw = e_rad.yaw * RAD_TO_DEG;
+}
 
 /**
  * @brief Multiply a vector by a scalar and add another vector

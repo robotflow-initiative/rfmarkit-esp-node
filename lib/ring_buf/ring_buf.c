@@ -22,7 +22,7 @@ esp_err_t ring_buf_init(ring_buf_t *rb, uint16_t size, uint16_t item_width, uint
     rb->size = size;
     rb->item_width = item_width;
     rb->head = 1;
-    rb->_head = (rb->_head + 1) % rb->size;
+    rb->_head = 1;
 
     /** Allocate memory for the buffer **/
     if (buf == NULL) {
@@ -51,7 +51,7 @@ esp_err_t ring_buf_init(ring_buf_t *rb, uint16_t size, uint16_t item_width, uint
 **/
 esp_err_t ring_buf_reset(ring_buf_t *rb) {
     rb->head = 1;
-    rb->_head = (rb->_head + 1) % rb->size;
+    rb->_head = 1;
     return ESP_OK;
 }
 

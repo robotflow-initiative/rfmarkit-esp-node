@@ -9,7 +9,7 @@
 
 #define CONFIG_BNO08X_ADDR              0x50
 #define CONFIG_BNO08X_TRY_TIMES         5
-#define CONFIG_BNO08X_INTERVAL_MS       5
+#define CONFIG_BNO08X_INTERVAL_MS       10
 
 /** Modify this section to adapt different board **/
 #define CONFIG_BNO08X_MOSI_PIN          CONFIG_IMU_MOSI_PIN
@@ -19,6 +19,15 @@
 #define CONFIG_BNO08X_INT_PIN           CONFIG_IMU_INT_PIN
 #define CONFIG_BNO08X_RST_PIN           CONFIG_IMU_RST_PIN
 #define CONFIG_BNO08X_WAKE_PIN          CONFIG_IMU_WAKE_PIN
+
+// Depending on the board (esp32s, esp32s3), the port is different
+#if defined(CONFIG_IDF_TARGET_ESP32S)
+#define CONFIG_BNO08X_SPI_HOST          VSPI_HOST
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#define CONFIG_BNO08X_SPI_HOST          SPI2_HOST
+#endif
+
+#define CONFIG_BNO08X_SPI_SPEED         3000000
 
 typedef struct {
     imu_config_t base;

@@ -191,7 +191,6 @@ esp_err_t IRAM_ATTR hi229_read(imu_t *p_imu_in, imu_dgram_t *out, bool crc_check
     return ESP_FAIL;
 }
 
-
 /**
  * @brief Enable/Disable the IMU device (power on)
  * @param p_gy Pointer to the IMU device
@@ -369,6 +368,7 @@ void imu_interface_init(imu_interface_t *p_interface, imu_config_t * p_config) {
 
     p_interface->init = hi229_init;
     p_interface->read = hi229_read;
+    p_interface->read_latest = hi229_read;
     p_interface->toggle = hi229_toggle;
     p_interface->is_powered_on = hi229_is_powered_on;
     p_interface->self_test = hi229_self_test;

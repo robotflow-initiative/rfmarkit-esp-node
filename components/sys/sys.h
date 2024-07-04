@@ -8,6 +8,7 @@
 
 #include "esp_wifi_types.h"
 #include "esp_err.h"
+#include "esp_netif.h"
 
 #include "settings.h"
 #include "ring_buf.h"
@@ -206,6 +207,7 @@ typedef struct {
     mcu_state_t state;
     mcu_tasks_t tasks;
     mcu_timers_t timers;
+    esp_netif_ip_info_t ip_info;
 
     EventGroupHandle_t sys_event_group;
     EventGroupHandle_t task_event_group;
