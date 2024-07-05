@@ -142,6 +142,14 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# IMU Sensor Configuration
+#
+# CONFIG_IMU_SENSOR_HI229 is not set
+CONFIG_IMU_SENSOR_BNO08X=y
+CONFIG_IMU_SENSOR_SELECT="bno08x"
+# end of IMU Sensor Configuration
+
+#
 # Compiler options
 #
 # CONFIG_COMPILER_OPTIMIZATION_DEFAULT is not set

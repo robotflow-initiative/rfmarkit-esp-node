@@ -8,6 +8,11 @@ EXECUTE_PROCESS(COMMAND git describe --tags --abbrev=0
         OUTPUT_VARIABLE GIT_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE
         )
+# Check if GIT_VERSION is empty, if so set it to default value
+if("${GIT_VERSION}" STREQUAL "")
+    set(GIT_VERSION "3.0.4")
+endif()
+
 MESSAGE(STATUS "building from git tag ${GIT_VERSION}")
 add_definitions(-DCONFIG_FIRMWARE_VERSION=\"${GIT_VERSION}\")
 

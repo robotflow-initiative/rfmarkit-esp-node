@@ -310,7 +310,7 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
                 }
             case HTTP_POST:
                 if (name_end == NULL || strlen(name_end) <= 1) {
-                    cJSON_AddStringToObject(root, "status", "empty_field");
+                    cJSON_AddStringToObject(root, "status", "empty value");
                     httpd_resp_set_status(req, HTTPD_400);
                     break;
                 }
