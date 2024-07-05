@@ -16,7 +16,7 @@
 #define CONFIG_HI229_SELF_TEST_RETRY    4
 
 /** Modify this section to adapt different board **/
-#define CONFIG_HI229_CTRL_PIN           CONFIG_IMU_CTRL_PIN
+#define CONFIG_HI229_EN_PIN             CONFIG_IMU_EN_PIN
 #define CONFIG_HI229_RX                 CONFIG_IMU_RX_PIN
 #define CONFIG_HI229_TX                 CONFIG_IMU_TX_PIN
 #define CONFIG_HI229_SYNC_IN            CONFIG_IMU_SYNC_IN_PIN
@@ -52,7 +52,7 @@ typedef struct {
         hi229_config_t cfg = {                              \
             .port = CONFIG_HI229_UART_PORT,                 \
             .baud = g_mcu.imu_baud,                         \
-            .ctrl_pin = CONFIG_HI229_CTRL_PIN,              \
+            .ctrl_pin = CONFIG_HI229_EN_PIN,              \
             .rx_pin = CONFIG_HI229_RX,                      \
             .tx_pin = CONFIG_HI229_TX,                      \
             .rts_pin = CONFIG_HI229_RTS,                    \

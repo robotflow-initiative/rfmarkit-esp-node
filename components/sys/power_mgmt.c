@@ -77,7 +77,9 @@ void reset_power_save_timer() {
  */
 esp_err_t power_mgmt_init() {
     /** Cancel hold **/
-    // gpio_hold_dis(CONFIG_IMU_CTRL_PIN); TODO: study the powersave of bno085
+#ifdef CONFIG_IMU_EN_PIN
+     gpio_hold_dis(CONFIG_IMU_EN_PIN);
+#endif
     gpio_hold_dis(CONFIG_BLINK_PIN);
     gpio_deep_sleep_hold_dis();
     /** Enable gpio hold in deep sleep **/
@@ -278,7 +280,9 @@ _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     }
 
     /** Hold pins in deep sleep **/
-    // gpio_hold_en(CONFIG_IMU_CTRL_PIN);
+#ifdef CONFIG_IMU_EN_PIN
+     gpio_hold_en(CONFIG_IMU_EN_PIN);
+#endif
     gpio_hold_en(CONFIG_BLINK_PIN);
 
     if (wakeup) {

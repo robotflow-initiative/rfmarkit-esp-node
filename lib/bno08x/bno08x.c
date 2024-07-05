@@ -110,24 +110,7 @@ esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
  * @return
 **/
 esp_err_t bno08x_read_latest(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
-    BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
-
-    float rad_acc;
-    uint8_t acc;
-    bool read_success = false;
-
-    if (BNO08x_data_available(p_driver)) {
-        BNO08x_get_quat(p_driver, &out->imu.quat[1], &out->imu.quat[2], &out->imu.quat[3], &out->imu.quat[0], &rad_acc, &acc);
-        spatial_quaternion_to_euler_deg((Quaternion *) &(out->imu.quat), (Euler *) &out->imu.eul);
-        BNO08x_get_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
-        read_success = true;
-    }
-
-    if (read_success) {
-        return ESP_OK;
-    } else {
-        return ESP_FAIL;
-    }
+    return bno08x_read(p_imu, out, crc_check);
 }
 
 /**
