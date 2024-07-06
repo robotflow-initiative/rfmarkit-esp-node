@@ -27,6 +27,28 @@ static bno08x_t s_bno08x = {0};
 
 static const char *TAG = "imu[bno08x]";
 
+
+static esp_err_t bno08x_config(imu_t *p_imu) {
+    bno08x_t *p_bno08x = (bno08x_t *) p_imu;
+    BNO08x *p_driver = &p_bno08x->driver;
+
+    bool ret = BNO08x_initialize(p_driver);
+    if (!ret) {
+        ESP_LOGE(TAG, "failed to initialize BNO08x");
+        p_bno08x->base.status = IMU_STATUS_FAIL;
+        return ESP_FAIL;
+    }
+
+    BNO08x_enable_accelerometer(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 100Hz
+    BNO08x_enable_rotation_vector(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 100Hz
+    BNO08x_enable_step_counter(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
+    BNO08x_enable_stability_classifier(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
+
+    p_bno08x->base.enabled = true;
+
+    return ESP_OK;
+}
+
 /**
  * @brief
  * @param p_imu
@@ -60,21 +82,10 @@ static esp_err_t bno08x_init(imu_t *p_imu, __attribute__((unused)) imu_config_t 
         .sclk_speed = CONFIG_BNO08X_SPI_SPEED,
 
     };
-
     BNO08x_init(p_driver, &config);
-    bool ret = BNO08x_initialize(p_driver);
-    if (!ret) {
-        ESP_LOGE(TAG, "failed to initialize BNO08x");
-        p_imu->status = IMU_STATUS_FAIL;
-        return ESP_FAIL;
-    }
-    BNO08x_enable_gyro(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 200Hz
-    BNO08x_enable_accelerometer(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 200Hz
-    BNO08x_enable_magnetometer(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 200Hz
-    BNO08x_enable_gyro_integrated_rotation_vector(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 200Hz
+    p_bno08x->base.initialized = true;
 
-    p_imu->initialized = true;
-    return ESP_OK;
+    return bno08x_config(p_imu);
 }
 
 /**
@@ -120,8 +131,24 @@ esp_err_t bno08x_read_latest(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
  * @return
 **/
 esp_err_t bno08x_toggle(imu_t *p_imu, bool enable) {
-    // Not implemented
-    return ESP_OK;
+    BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
+
+    if (enable == p_imu->enabled) {
+        ESP_LOGW(TAG, "imu already %s", enable ? "enabled" : "disabled");
+        return ESP_OK;
+    }
+
+    bool success = false;
+    if (enable) {
+        BNO08x_hard_reset(p_driver);
+        success = bno08x_config(p_imu);
+        p_imu->enabled = success ? true : p_imu->enabled;
+    } else {
+        success = BNO08x_mode_sleep(p_driver);
+        p_imu->enabled = success ? false : p_imu->enabled;
+    }
+
+    return success ? ESP_OK : ESP_FAIL;
 }
 
 /**
@@ -130,8 +157,7 @@ esp_err_t bno08x_toggle(imu_t *p_imu, bool enable) {
  * @return
 **/
 int bno08x_is_powered_on(imu_t *p_imu) {
-    // Not implemented
-    return 1;
+    return p_imu->enabled ? 1 : 0;
 }
 
 /**
@@ -149,7 +175,8 @@ esp_err_t bno08x_self_test(imu_t *p_imu) {
  * @param p_imu
 **/
 void bno08x_chip_soft_reset(imu_t *p_imu) {
-    // Not implemented
+    BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
+    BNO08x_soft_reset(p_driver);
 }
 
 /**
@@ -157,7 +184,8 @@ void bno08x_chip_soft_reset(imu_t *p_imu) {
  * @param p_imu
 **/
 void bno08x_chip_hard_reset(imu_t *p_imu) {
-    // Not implemented
+    BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
+    BNO08x_hard_reset(p_driver);
 }
 
 /**
@@ -204,7 +232,7 @@ size_t bno08x_read_bytes(imu_t *p_imu, uint8_t *out, size_t len) {
         out_dgram.imu.quat[0], out_dgram.imu.quat[1], out_dgram.imu.quat[2], out_dgram.imu.quat[3],
         out_dgram.imu.eul[0], out_dgram.imu.eul[1], out_dgram.imu.eul[2]
     );
-    return strlen((char *)out);
+    return strlen((char *) out);
 }
 
 /**

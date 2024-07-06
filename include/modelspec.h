@@ -13,7 +13,7 @@
 
 /** If UART is used **/
 #if CONFIG_IMU_SENSOR_HI229
-#define CONFIG_IMU_EN_PIN                 GPIO_NUM_4      // Need RTC GPIO
+#define CONFIG_IMU_EN_PIN                   GPIO_NUM_4      // Need RTC GPIO
 #define CONFIG_IMU_RX_PIN                   GPIO_NUM_17
 #define CONFIG_IMU_TX_PIN                   GPIO_NUM_16
 #define CONFIG_IMU_SYNC_IN_PIN              GPIO_NUM_18
@@ -23,7 +23,6 @@
 #define CONFIG_IMU_BAUD                     115200
 #elif CONFIG_IMU_SENSOR_BNO08X
 /** If SPI is used **/
-#define CONFIG_IMU_EN_PIN                 GPIO_NUM_5    // Need RTC GPIO FIXME: update the pin usage
 #define CONFIG_IMU_WAKE_PIN                 GPIO_NUM_4    // Need RTC GPIO, OUTPUT
 #define CONFIG_IMU_MOSI_PIN                 GPIO_NUM_17
 #define CONFIG_IMU_MISO_PIN                 GPIO_NUM_18
@@ -35,10 +34,10 @@
 
 #if defined(CONFIG_IDF_TARGET_ESP32S)
 #define CONFIG_BATTERY_EN_PIN               GPIO_NUM_25
-#define CONFIG_BATTERY_READ_ADC1_CHANNEL    ADC1_CHANNEL_6  //
+#define CONFIG_BATTERY_READ_ADC_CHANNEL    ADC1_CHANNEL_6  // GPIO_NUM_34
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-#define CONFIG_BATTERY_EN_PIN               GPIO_NUM_10
-#define CONFIG_BATTERY_READ_ADC1_CHANNEL    ADC1_CHANNEL_9  //
+#define CONFIG_BATTERY_EN_PIN               GPIO_NUM_12
+#define CONFIG_BATTERY_READ_ADC_CHANNEL    ADC1_CHANNEL_9  //  GPIO_NUM_10
 #endif
 
 #endif

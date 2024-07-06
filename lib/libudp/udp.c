@@ -7,6 +7,14 @@
 
 static const char *TAG = "udp";
 
+/**
+ * @brief  Initialize a UDP socket object
+ * @param object
+ * @param source_port
+ * @param dest_addr
+ * @param dest_port
+ * @return
+**/
 esp_err_t udp_socket_init(udp_socket_t *object, uint16_t source_port, const char *dest_addr, uint16_t dest_port) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -57,6 +65,11 @@ esp_err_t udp_socket_init(udp_socket_t *object, uint16_t source_port, const char
     return ESP_FAIL;
 }
 
+/**
+ * @brief  Free a UDP socket object
+ * @param object
+ * @return
+**/
 esp_err_t udp_socket_free(udp_socket_t* object) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -73,6 +86,12 @@ esp_err_t udp_socket_free(udp_socket_t* object) {
     return ESP_OK;
 }
 
+/**
+ * @brief  Bind a local port to a UDP socket object
+ * @param object
+ * @param source_port
+ * @return
+**/
 esp_err_t udp_socket_bind_local_port(udp_socket_t *object, uint16_t source_port) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -96,6 +115,13 @@ esp_err_t udp_socket_bind_local_port(udp_socket_t *object, uint16_t source_port)
 
 }
 
+/**
+ * @brief  Set the destination address and port of a UDP socket object
+ * @param object
+ * @param ip_addr
+ * @param port
+ * @return
+**/
 esp_err_t udp_socket_set_destination(udp_socket_t *object, const char *ip_addr, uint16_t port) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -115,6 +141,12 @@ esp_err_t udp_socket_set_destination(udp_socket_t *object, const char *ip_addr, 
 
 }
 
+/**
+ * @brief  Set the broadcast flag of a UDP socket object
+ * @param object
+ * @param broadcast
+ * @return
+**/
 esp_err_t udp_socket_set_broadcast(udp_socket_t *object, bool broadcast) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -137,6 +169,12 @@ esp_err_t udp_socket_set_broadcast(udp_socket_t *object, bool broadcast) {
     }
 }
 
+/**
+ * @brief  Set the timeout of a UDP socket object
+ * @param object
+ * @param timeout_s
+ * @return
+**/
 esp_err_t udp_socket_set_timeout(udp_socket_t *object, uint32_t timeout_s) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -159,6 +197,13 @@ esp_err_t udp_socket_set_timeout(udp_socket_t *object, uint32_t timeout_s) {
     }
 }
 
+/**
+ * @brief  Send data to a UDP socket object
+ * @param object
+ * @param data_ptr
+ * @param size
+ * @return
+**/
 esp_err_t udp_socket_send(udp_socket_t *object, uint8_t *data_ptr, size_t size) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");
@@ -179,6 +224,14 @@ esp_err_t udp_socket_send(udp_socket_t *object, uint8_t *data_ptr, size_t size) 
     }
 }
 
+/**
+ * @brief  Receive data from a UDP socket object
+ * @param object
+ * @param data_ptr
+ * @param size
+ * @param len
+ * @return
+**/
 esp_err_t udp_socket_recv(udp_socket_t* object, uint8_t * data_ptr, size_t size, size_t * len) {
     if (object == NULL) {
         ESP_LOGE(TAG, "object is NULL");

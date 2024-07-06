@@ -10,7 +10,7 @@ EXECUTE_PROCESS(COMMAND git describe --tags --abbrev=0
         )
 # Check if GIT_VERSION is empty, if so set it to default value
 if("${GIT_VERSION}" STREQUAL "")
-    set(GIT_VERSION "3.0.4")
+    set(GIT_VERSION "3.1.1")
 endif()
 
 MESSAGE(STATUS "building from git tag ${GIT_VERSION}")
