@@ -281,6 +281,10 @@ paths:
                         type: array
                         items:
                           type: number
+                      quat:
+                        type: array
+                        items:
+                          type: number
                       seq:
                         type: integer
         default:

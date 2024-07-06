@@ -240,8 +240,8 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
     switch (req->method) {
         case HTTP_GET:
             cJSON_AddStringToObject(root, "mode", g_power_mgmt_ctx.mode == POWER_MODE_PERFORMANCE ? "performance" :
-                    g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
-                    g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
+                                                  g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
+                                                  g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
             cJSON_AddBoolToObject(root, "no_sleep", g_power_mgmt_ctx.no_sleep);
             break;
         case HTTP_POST:
@@ -354,7 +354,7 @@ esp_err_t imu_calibrate_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    g_imu.chip_soft_reset(g_imu.p_imu);
+    // TODO: Implement calibration
     cJSON_AddStringToObject(root, "status", "ok");
 
     const char *response = cJSON_Print(root);
@@ -429,6 +429,11 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[0]));
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[1]));
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[2]));
+        cJSON *quat = cJSON_AddArrayToObject(imm, "quat");
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[0]));
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[1]));
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[2]));
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[3]));
         cJSON_AddNumberToObject(imm, "seq", imu_data.seq);
     }
 
@@ -714,7 +719,7 @@ esp_err_t operation_mode_handler(httpd_req_t *req) {
             cJSON_AddBoolToObject(root, "active", g_mcu.state.active);
             //cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
             cJSON_AddStringToObject(root, "imu_status", g_imu.p_imu->status == IMU_STATUS_FAIL ? "fail" :
-                    g_imu.p_imu->status == IMU_STATUS_READY ? "ready" : "unknown");
+                                                        g_imu.p_imu->status == IMU_STATUS_READY ? "ready" : "unknown");
             break;
         case HTTP_POST:
             parse_url_kv_pair(req->uri, "action", action_state);

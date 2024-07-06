@@ -15,6 +15,13 @@ typedef struct {
 } imu_data_t;
 
 typedef struct {
+    uint64_t step;          /* step counter                 */
+    uint8_t stability;      /* stability indicator          */
+    uint8_t activity;       /* activity indicator           */
+    uint32_t timestamp;
+} imu_data_extra_t; // TODO: implement extra information mechanism
+
+typedef struct {
     imu_data_t imu;
     int64_t time_us;
     int64_t tsf_time_us;
@@ -103,5 +110,6 @@ void imu_interface_init(imu_interface_t *p_interface, __attribute__((unused)) im
 
 #endif
 
-// TODO: fix gy95 broken interface, make it align with hi229
+// TODO: fix hi229 broken interface, make it align with bno08x
+// TODO: fix gy95 broken interface, make it align with bno08x
 #endif

@@ -10,6 +10,7 @@
 #define CONFIG_BNO08X_ADDR              0x50
 #define CONFIG_BNO08X_TRY_TIMES         5
 #define CONFIG_BNO08X_INTERVAL_MS       10
+#define CONFIG_BNO08X_SLOW_INTERVAL_MS  500
 
 /** Modify this section to adapt different board **/
 #define CONFIG_BNO08X_MOSI_PIN          CONFIG_IMU_MOSI_PIN

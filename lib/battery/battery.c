@@ -44,12 +44,25 @@ static bool adc_calibration_init(void) {
 }
 
 esp_err_t battery_msp_init() {
+
+    /** Init ADC_EN GPIO **/
+#ifdef CONFIG_BATTERY_EN_PIN
+    gpio_config_t io_config = {
+        .pin_bit_mask = (1ull << CONFIG_BATTERY_EN_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&io_config);
+#endif
+
     /** Init GPIO **/
     cali_enable = adc_calibration_init();
 
     /** ADC1 config **/
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT));
-    ESP_ERROR_CHECK(adc1_config_channel_atten(CONFIG_BATTERY_READ_ADC1_CHANNEL, ADC_ATTEN_DB));
+    ESP_ERROR_CHECK(adc1_config_channel_atten(CONFIG_BATTERY_READ_ADC_CHANNEL, ADC_ATTEN_DB));
 
     /** Self-Test **/
     int lvl = battery_read_level();
@@ -58,8 +71,11 @@ esp_err_t battery_msp_init() {
 }
 
 int battery_read_level() {
+#ifdef CONFIG_BATTERY_EN_PIN
+    gpio_set_level(CONFIG_BATTERY_EN_PIN, CONFIG_BATTERY_EN_VALUE);
+#endif
     battery_delay_ms(50);
-    int adc_raw = adc1_get_raw(CONFIG_BATTERY_READ_ADC1_CHANNEL);
+    int adc_raw = adc1_get_raw(CONFIG_BATTERY_READ_ADC_CHANNEL);
     uint32_t voltage;
     if (cali_enable) {
         voltage = esp_adc_cal_raw_to_voltage(adc_raw, &adc1_chars);
@@ -67,5 +83,30 @@ int battery_read_level() {
     } else {
         voltage = adc_raw * 1100 / (1 << ADC_WIDTH_BIT_12);
     }
-    return (int)voltage;
+#ifdef CONFIG_BATTERY_EN_PIN
+    gpio_set_level(CONFIG_BATTERY_EN_PIN, !CONFIG_BATTERY_EN_VALUE);
+
+    /**
+    It goes like this
+    VBAT
+    +
+    |
+    |
+    [R1] 10kΩ
+    |
+    |---- ADC_CHANNEL
+    |
+    [R2] 10kΩ
+    |
+    \
+    |---- ADC_EN
+    /
+    |
+    -
+    GND
+     **/
+
+    voltage *= 2; // the voltage divider ratio is 2
+#endif
+    return (int) voltage;
 }
