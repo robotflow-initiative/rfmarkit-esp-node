@@ -23,6 +23,7 @@ typedef struct {
 } bno08x_t;
 
 imu_interface_t g_imu = {0};
+
 static bno08x_t s_bno08x = {0};
 
 static const char *TAG = "imu[bno08x]";
@@ -39,8 +40,8 @@ static esp_err_t bno08x_config(imu_t *p_imu) {
         return ESP_FAIL;
     }
 
-    BNO08x_enable_accelerometer(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 100Hz
-    BNO08x_enable_rotation_vector(p_driver, CONFIG_BNO08X_INTERVAL_MS); // 100Hz
+    BNO08x_enable_accelerometer(p_driver, 1000 / p_imu->target_fps); // 100Hz
+    BNO08x_enable_rotation_vector(p_driver, 1000 / p_imu->target_fps); // 100Hz
     BNO08x_enable_step_counter(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
     BNO08x_enable_stability_classifier(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
 
@@ -101,13 +102,11 @@ esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
     float rad_acc;
     uint8_t acc;
 
-    for (int i = 0; i < CONFIG_BNO08X_TRY_TIMES; i++) {
-        if (BNO08x_data_available(p_driver)) {
-            BNO08x_get_quat(p_driver, &out->imu.quat[1], &out->imu.quat[2], &out->imu.quat[3], &out->imu.quat[0], &rad_acc, &acc);
-            spatial_quaternion_to_euler_deg((Quaternion *) &(out->imu.quat), (Euler *) &out->imu.eul);
-            BNO08x_get_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
-            return ESP_OK;
-        }
+    if (BNO08x_data_available(p_driver)) {
+        BNO08x_get_quat(p_driver, &out->imu.quat[1], &out->imu.quat[2], &out->imu.quat[3], &out->imu.quat[0], &rad_acc, &acc);
+        spatial_quaternion_to_euler_deg((Quaternion *) &(out->imu.quat), (Euler *) &out->imu.eul);
+        BNO08x_get_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
+        return ESP_OK;
     }
 
     return ESP_FAIL;
@@ -252,8 +251,9 @@ esp_err_t bno08x_write_bytes(imu_t *p_imu, void *in, size_t len) {
  * @param p_interface
  * @param p_config
 **/
-void imu_interface_init(imu_interface_t *p_interface, __attribute__((unused)) imu_config_t *p_config) {
+void imu_interface_init(imu_interface_t *p_interface, imu_config_t *p_config) {
     p_interface->p_imu = (imu_t *) &s_bno08x;
+    p_interface->p_imu->target_fps = p_config->target_fps;
     if (p_interface->p_imu->initialized) {
         ESP_LOGW(TAG, "IMU already initialized");
         return;

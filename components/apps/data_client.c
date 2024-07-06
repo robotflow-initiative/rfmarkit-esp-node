@@ -144,7 +144,7 @@ _Noreturn void app_data_client(void *pvParameters) {
                 goto handle_error;
             }
         }
-        os_delay_ms(100); // wait for uart_monitor to start
+        os_delay_ms(100); // wait for monitor to start
 
         int64_t curr_index = 1;
         int64_t confirm_index = -1;

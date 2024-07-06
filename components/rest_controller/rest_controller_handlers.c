@@ -16,7 +16,7 @@
 
 static const char *TAG = "sys.rest.hdl    ";
 
-#define CONFIG_PARAM_VALUE_MAX_LEN 32
+#define CONFIG_PARAM_VALUE_MAX_LEN 128
 #define CONFIG_WEBSOCKET_FRAM_MAX_LEN 64
 
 /**
@@ -167,38 +167,24 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    char ota_host[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
-    mcu_var_t *p_var = NULL;
-    esp_err_t err;
+    char ota_url[CONFIG_OTA_URL_LEN + 1] = {0};
 
     switch (req->method) {
         case HTTP_GET:
-            cJSON_AddStringToObject(root, "ota_host", g_mcu.ota_host);
             cJSON_AddNumberToObject(root, "ota_err", g_mcu.state.ota_err);
             break;
         case HTTP_POST:
-            parse_url_kv_pair(req->uri, "ota_host", ota_host);
-            cJSON_AddStringToObject(root, "ota_host", ota_host);
+            ESP_LOGW(TAG, "%s", req->uri);
+            parse_url_kv_pair(req->uri, "ota_url", ota_url);
+            cJSON_AddStringToObject(root, "ota_url", ota_url);
 
-            if (strlen(ota_host) > 0) {
-                strcpy(g_mcu.ota_host, ota_host);
-                p_var = sys_find_var(CONFIG_NVS_OTA_HOST_NAME, strlen(CONFIG_NVS_OTA_HOST_NAME));
-                if (p_var != NULL) {
-                    err = sys_set_nvs_var(p_var, ota_host);
-                    if (err != ESP_OK) {
-                        cJSON_AddStringToObject(root, "status", "cannot set ota_host");
-                        httpd_resp_set_status(req, HTTPD_500);
-                    } else {
-                        cJSON_AddStringToObject(root, "status", "ok");
-                    }
-                } else {
-                    cJSON_AddStringToObject(root, "status", "invalid name");
-                    httpd_resp_set_status(req, HTTPD_400);
-                }
+            if (strlen(ota_url) > 0) {
+                strcpy(g_mcu.ota_url, ota_url);
+                set_sys_event(EV_SYS_OTA_TRIGGERED);
             } else {
-                cJSON_AddStringToObject(root, "status", "ok");
+                cJSON_AddStringToObject(root, "status", "empty ota_url");
+                httpd_resp_set_status(req, HTTPD_500);
             }
-            set_sys_event(EV_SYS_OTA_TRIGGERED);
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");

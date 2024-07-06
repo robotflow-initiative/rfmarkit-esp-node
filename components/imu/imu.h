@@ -45,6 +45,7 @@ typedef enum {
  * @brief IMU configuration
  */
 typedef struct {
+    int32_t target_fps;
 } imu_config_t;
 
 /**
@@ -57,6 +58,7 @@ typedef struct {
     bool enabled;
     imu_mux_t mux;
     SemaphoreHandle_t mutex;
+    int32_t target_fps;
 } imu_t;
 
 /**
@@ -92,7 +94,7 @@ typedef struct {
 
 extern imu_interface_t g_imu;
 
-void imu_interface_init(imu_interface_t *p_interface, __attribute__((unused)) imu_config_t *p_config);
+void imu_interface_init(imu_interface_t *p_interface, imu_config_t *p_config);
 
 
 /** IMU model related **/

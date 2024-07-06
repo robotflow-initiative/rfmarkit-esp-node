@@ -9,7 +9,6 @@
 
 #define CONFIG_BNO08X_ADDR              0x50
 #define CONFIG_BNO08X_TRY_TIMES         5
-#define CONFIG_BNO08X_INTERVAL_MS       10
 #define CONFIG_BNO08X_SLOW_INTERVAL_MS  500
 
 /** Modify this section to adapt different board **/
@@ -44,8 +43,8 @@ typedef struct {
 } bno08x_config_t;
 
 /** Exposed API **/
-#define imu_interface_init_external(imu)  \
-    imu_interface_init((imu), NULL)
+#define imu_interface_init_external(imu, config)  \
+    imu_interface_init((imu), (config))
 
 
 #endif

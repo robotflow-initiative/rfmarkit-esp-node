@@ -83,7 +83,7 @@ paths:
                     type: integer
     post:
       parameters:
-        - name: ota_host
+        - name: ota_url
           in: query
           required: true
           schema:
@@ -96,16 +96,14 @@ paths:
               schema:
                 type: object
                 properties:
-                  ota_host:
-                    type: string
                   status:
                     type: string
         '400':
-          description: Invalid name
+          description: Invalid method
         default:
           description: Unexpected error
         '500':
-          description: Cannot set ota_host
+          description: Empty ota_url
   /v1/system/selftest:
     get:
       responses:

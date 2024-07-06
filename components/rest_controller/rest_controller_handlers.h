@@ -36,4 +36,6 @@ esp_err_t operation_mode_handler(httpd_req_t *req);
 
 // clang-format on
 
+// TODO: add basic auth / jwt
+
 #endif

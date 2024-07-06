@@ -38,8 +38,9 @@ address_list=($addresses)
 # Loop through the list and print each address
 set +e
 for address in "${address_list[@]}"; do
-  echo "Run OTA upgrade for : $address"
-  curl -X POST -m 5 "http://$address:18888/v1/system/upgrade?ota_host=$ota_host:$ota_api_port"
+  endpoint="http://$address:18888/v1/system/upgrade?ota_url=http://$ota_host:$ota_api_port/v1/ota/download"
+  echo "Run OTA upgrade for : $address" "$endpoint"
+  curl -X POST -m 5 "$endpoint"
 done
 
 

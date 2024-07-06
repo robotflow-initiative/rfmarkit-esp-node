@@ -20,7 +20,7 @@ jobs:
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: v4.4.2
-        target: esp32
+        target: esp32s3
         path: '/'
     
     - name: Pack
