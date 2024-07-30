@@ -1,4 +1,5 @@
 #include <string.h>
+#include <esp_mesh.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -102,10 +103,21 @@ esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, __attribute__((unused)) bo
     float rad_acc;
     uint8_t acc;
 
+    int64_t now = esp_timer_get_time();
     if (BNO08x_data_available(p_driver)) {
         BNO08x_get_quat(p_driver, &out->imu.quat[1], &out->imu.quat[2], &out->imu.quat[3], &out->imu.quat[0], &rad_acc, &acc);
         spatial_quaternion_to_euler_deg((Quaternion *) &(out->imu.quat), (Euler *) &out->imu.eul);
         BNO08x_get_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
+
+        // tsf timestamp
+        out->tsf_time_us = esp_mesh_get_tsf_time();
+
+        out->buffer_delay_us = (int32_t)(esp_timer_get_time() - now);
+
+        // unix timestamp
+        struct timeval tv_now = { 0, 0 };
+        gettimeofday(&tv_now, NULL);
+        out->time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
         return ESP_OK;
     }
 

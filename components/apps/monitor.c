@@ -15,15 +15,6 @@
 
 static const char *TAG = "app.monitor     ";
 
-/**
- * @brief Compute and set timestamp with us resolution
- * @note: use IRAM_ATTR to avoid cache miss
-**/
-static void IRAM_ATTR tag_time_us(imu_dgram_t *imu_data) {
-    get_time_usec(imu_data->time_us);
-    imu_data->tsf_time_us = esp_mesh_get_tsf_time();
-}
-
 #if CONFIG_EN_READ_FPS_LIM
 
 /**
@@ -98,8 +89,6 @@ _Noreturn void app_monitor(void *pvParameters) {
 
             /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
             imu_data.seq = seq++;
-            tag_time_us(&imu_data);
-            imu_data.buffer_delay_us = (int32_t) g_imu.get_delay_us(g_imu.p_imu);
 
             /** Add the imu data to the ring buffer **/
             ring_buf_push(serial_buf, (uint8_t *) &imu_data);

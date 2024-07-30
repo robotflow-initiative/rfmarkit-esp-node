@@ -35,6 +35,7 @@ typedef struct {
     /** uart configuration **/
     int port;
     int baud;
+    int target_fps;
 
     /** pin configuration **/
     gpio_num_t ctrl_pin;
@@ -47,12 +48,12 @@ typedef struct {
 } hi229_config_t;
 
 /** Exposed API **/
-#define imu_interface_init_external(imu)                    \
+#define imu_interface_init_external(imu, _unused)           \
     {                                                       \
         hi229_config_t cfg = {                              \
             .port = CONFIG_HI229_UART_PORT,                 \
             .baud = g_mcu.imu_baud,                         \
-            .ctrl_pin = CONFIG_HI229_EN_PIN,              \
+            .ctrl_pin = CONFIG_HI229_EN_PIN,                \
             .rx_pin = CONFIG_HI229_RX,                      \
             .tx_pin = CONFIG_HI229_TX,                      \
             .rts_pin = CONFIG_HI229_RTS,                    \

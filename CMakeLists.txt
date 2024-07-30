@@ -4,28 +4,21 @@ cmake_minimum_required(VERSION 3.5)
 
 # Add git tag to firmware version
 EXECUTE_PROCESS(COMMAND git describe --tags --abbrev=0
-        TIMEOUT 5
-        OUTPUT_VARIABLE GIT_VERSION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
+    TIMEOUT 5
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 # Check if GIT_VERSION is empty, if so set it to default value
-if("${GIT_VERSION}" STREQUAL "")
+if ("${GIT_VERSION}" STREQUAL "")
     set(GIT_VERSION "3.1.2")
-endif()
+endif ()
 
 MESSAGE(STATUS "building from git tag ${GIT_VERSION}")
 add_definitions(-DCONFIG_FIRMWARE_VERSION=\"${GIT_VERSION}\")
 
-
-# All available IMU types
-add_definitions(-DIMU_TYPE_GY95=95)
-add_definitions(-DIMU_TYPE_HI229=229)
-add_definitions(-DIMU_TYPE_BNO08X=80)
-
-# Select IMU module
-set(IMU_MODULE bno08x) # hi229 or bno08x
-add_definitions(-DCONFIG_IMU_TYPE=IMU_TYPE_BNO08X) # IMU_TYPE_HI229 or IMU_TYPE_BNO08X, depending on the selected module
-
+# choose imu module
+set(IMU_MODULE bno08x)
+set(ENV{IMU_MODULE} ${IMU_MODULE})
 
 # Introduce esp-iot-solution
 # set(IOT_SOLUTION_PATH  ${CMAKE_CURRENT_LIST_DIR}/esp-iot-solution)
@@ -34,13 +27,12 @@ add_definitions(-DCONFIG_IMU_TYPE=IMU_TYPE_BNO08X) # IMU_TYPE_HI229 or IMU_TYPE_
 
 # Introduce used components
 set(
-        EXTRA_COMPONENT_DIRS
-        ${CMAKE_SOURCE_DIR}/lib/${IMU_MODULE}
-        ${CMAKE_SOURCE_DIR}/lib/battery ${CMAKE_SOURCE_DIR}/lib/ring_buf ${CMAKE_SOURCE_DIR}/lib/libudp ${CMAKE_SOURCE_DIR}/lib/spatial
-        ${CMAKE_SOURCE_DIR}/components
+    EXTRA_COMPONENT_DIRS
+    ${CMAKE_SOURCE_DIR}/lib/${IMU_MODULE}
+    ${CMAKE_SOURCE_DIR}/lib/battery ${CMAKE_SOURCE_DIR}/lib/ring_buf ${CMAKE_SOURCE_DIR}/lib/libudp ${CMAKE_SOURCE_DIR}/lib/spatial
+    ${CMAKE_SOURCE_DIR}/components
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-set(ENV{IMU_MODULE} "${IMU_MODULE}")
 project(rfmarkit-esp-node)
 #idf_build_set_property(COMPILE_OPTIONS "-O3" APPEND)

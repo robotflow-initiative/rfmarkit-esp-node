@@ -192,13 +192,16 @@ static void sys_load_nvs_configuration() {
     sys_load_str_conf(CONFIG_NVS_WIFI_PSK_NAME, g_mcu.wifi_psk, CONFIG_WIFI_PSK);
     sys_load_str_conf(CONFIG_NVS_DATA_HOST_NAME, g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_IP_ADDR);
     sys_load_str_conf(CONFIG_NVS_NTP_HOST_NAME, g_mcu.ntp_host_ip_addr, CONFIG_NTP_HOST_IP_ADDR);
-    // sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
+#if CONFIG_IMU_SENSOR_HI229
+    sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
+#endif
     sys_load_int32_conf(CONFIG_NVS_SEQ_NAME, g_mcu.seq, 0);
     sys_load_int32_conf(CONFIG_NVS_TARGET_FPS_NAME, g_mcu.target_fps, CONFIG_TARGET_FPS);
 
 
     /** Temporary Fix NVS invalid variable **/
     g_mcu.imu_baud = MIN(g_mcu.imu_baud, 921600);
+    g_mcu.imu_baud = MAX(g_mcu.imu_baud, 9600);
     g_mcu.seq = MIN(g_mcu.seq, 255);
     g_mcu.seq = MAX(g_mcu.seq, 0);
     g_mcu.target_fps = MIN(g_mcu.target_fps, CONFIG_TARGET_FPS);

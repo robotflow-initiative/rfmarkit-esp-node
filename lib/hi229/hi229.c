@@ -1,7 +1,12 @@
+#include <sys/select.h>
+#include <sys/cdefs.h>
 #include <string.h>
+#include <esp_mesh.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/event_groups.h"
+#include "freertos/task.h"
 
 #include "esp_log.h"
 
@@ -14,6 +19,7 @@
 #include "hi229.h"
 #include "hi229_serial.h"
 
+#define EV_DATA_READY BIT0
 #define hi229_delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS);
 
 typedef struct {
@@ -21,6 +27,10 @@ typedef struct {
     /** buffer **/
     hi229_config_t config;
     raw_t raw;
+    ch_imu_data_t raw_snapshot;
+    int64_t raw_timestamp;
+    TaskHandle_t data_proc_task_hdl;
+    EventGroupHandle_t event_group;
 } hi229_t;
 
 imu_interface_t g_imu = {0};
@@ -29,6 +39,9 @@ static hi229_t s_hi229 = {0};
 static const char *TAG = "imu[hi229]";
 
 esp_err_t hi229_toggle(imu_t *p_imu, bool enable);
+
+_Noreturn void hi229_poll_task(void *);
+
 /**
  * @brief Initialize the IMU device
  * @param p_imu Pointer to the IMU device
@@ -124,37 +137,17 @@ esp_err_t hi229_init(imu_t *p_imu, imu_config_t *p_config) {
     } else {
         p_imu->status = IMU_STATUS_READY;
     }
+    p_hi229->event_group = xEventGroupCreate();
 
     /** Initialize IMU Hardware **/
     s_hi229_msp_init(p_hi229);
     hi229_delay_ms(100);
     hi229_toggle(p_imu, true);
-
+    xTaskCreate(&hi229_poll_task, "hi229_poll_task", 4096, (void *)p_hi229, 7, &(p_hi229->data_proc_task_hdl)); // launch data proc task
     p_imu->initialized = true;
     return ESP_OK;
 }
 
-/**
- * @brief Setup the IMU device
- *  @param p_gy Pointer to the IMU device
- *  @return ESP_OK if the setup is successful, otherwise ESP_FAIL
-**/
-__attribute__((unused)) static esp_err_t hi229_setup(hi229_t *p_gy) {
-    const char *msg[] = {
-        "AT+EOUT=0\r\n",
-        "AT+MODE=1\r\n",
-        "AT+SETPTL=91\r\n",
-        "AT+BAUD=921600\r\n",
-        "AT+ODR=200\r\n",
-        "AT+EOUT=1\r\n",
-        "AT+RST\r\n",
-    };
-    for (int idx = 0; idx < sizeof(msg) / sizeof(char *); ++idx) {
-        uart_write_bytes_with_break((p_gy->config.port), (uint8_t *) msg[idx], strlen(msg[idx]), 0xF);
-        hi229_delay_ms(100);
-    }
-    return ESP_OK;
-}
 
 /**
  * @brief Read the IMU device, get a packet
@@ -164,33 +157,55 @@ __attribute__((unused)) static esp_err_t hi229_setup(hi229_t *p_gy) {
 **/
 esp_err_t IRAM_ATTR hi229_read(imu_t *p_imu_in, imu_dgram_t *out, bool crc_check) {
     hi229_t *p_hi229 = (hi229_t *) p_imu_in;
-    uint8_t data[CONFIG_HI299_BLOCK_READ_NUM] = {0};
-    size_t try_count = 0;
-    size_t read_count = 0;
-    while (try_count < CONFIG_HI299_MAX_READ_NUM) {
-        int len = uart_read_bytes(p_hi229->config.port, &data, CONFIG_HI299_BLOCK_READ_NUM, 0x10);
-        read_count += len;
-        try_count += CONFIG_HI299_BLOCK_READ_NUM;
 
-        bool packet_received = false;
-        for (int idx = 0; idx < len; ++idx) {
-            if (ch_serial_input(&p_hi229->raw, data[idx], crc_check) == 1) {
-                if (out != NULL) {
-                    memcpy(&out->imu, &p_hi229->raw.imu, sizeof(ch_imu_data_t));
-                }
-                packet_received = true;
-            }
-        }
+    if (xEventGroupWaitBits(p_hi229->event_group, EV_DATA_READY, pdFALSE, pdFALSE, 0x10) == EV_DATA_READY) {
+        if (out != NULL) {
+            ESP_LOGD(TAG, "IMU data ready, acc_x=%f", p_hi229->raw_snapshot.acc[0]);
+            memcpy(&out->imu, &p_hi229->raw_snapshot, sizeof(ch_imu_data_t));
+            int64_t time_delta = esp_timer_get_time() - p_hi229->raw_timestamp; // process time delta
+            // tsf timestamp
+            out->tsf_time_us = esp_mesh_get_tsf_time() - time_delta;
 
-        if (packet_received) {
-            ESP_LOGD(TAG, "reading IMU data %d/%d", read_count, try_count);
-            return ESP_OK;
+            size_t uart_buffer_len;
+            uart_get_buffered_data_len(p_hi229->config.port, &uart_buffer_len);
+            out->buffer_delay_us = (int32_t)(1000000 * uart_buffer_len / p_hi229->config.baud);
+
+            // unix timestamp
+            struct timeval tv_now = { 0, 0 };
+            gettimeofday(&tv_now, NULL);
+            out->time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec - time_delta;
+            xEventGroupClearBits(p_hi229->event_group, EV_DATA_READY);
+        } else {
+            ESP_LOGD(TAG, "out is null");
         }
+        return ESP_OK;
     }
-    ESP_LOGD(TAG, "reading IMU data %d/%d", read_count, try_count);
     return ESP_FAIL;
 }
 
+_Noreturn void hi229_poll_task(void *p_imu) {
+    hi229_t *p_hi229 = (hi229_t *) p_imu;
+    uint8_t data[CONFIG_HI299_BLOCK_READ_NUM] = {0};
+
+    while (1) {
+        int len = uart_read_bytes(p_hi229->config.port, &data, CONFIG_HI299_BLOCK_READ_NUM, 0x10);
+
+
+        for (int idx = 0; idx < len; ++idx) {
+            if (ch_serial_input(&p_hi229->raw, data[idx], true) == 1) {
+                memcpy(&p_hi229->raw_snapshot, &p_hi229->raw.imu[0], sizeof(ch_imu_data_t));
+                p_hi229->raw_timestamp = esp_timer_get_time();
+                xEventGroupSetBits(p_hi229->event_group, EV_DATA_READY);
+            }
+        }
+
+        // we are not getting enough data, wait for a while
+        if (len < CONFIG_HI299_BLOCK_READ_NUM) {
+            hi229_delay_ms(10);
+        }
+
+    }
+}
 /**
  * @brief Enable/Disable the IMU device (power on)
  * @param p_gy Pointer to the IMU device
@@ -199,7 +214,7 @@ esp_err_t hi229_toggle(imu_t *p_imu, bool enable) {
     hi229_t *p_hi229 = (hi229_t *) p_imu;
     gpio_set_level(p_hi229->config.ctrl_pin, enable ? CONFIG_HI229_ENABLE_LVL : CONFIG_HI229_DISABLE_LVL);
 
-    hi229_delay_ms(200);
+    hi229_delay_ms(100);
     uart_flush(p_hi229->config.port);
     p_hi229->base.enabled = enable ? true : false;
 
@@ -368,14 +383,13 @@ void imu_interface_init(imu_interface_t *p_interface, imu_config_t * p_config) {
 
     p_interface->init = hi229_init;
     p_interface->read = hi229_read;
-    p_interface->read_latest = hi229_read;
     p_interface->toggle = hi229_toggle;
-    p_interface->is_powered_on = hi229_is_powered_on;
+    p_interface->enabled = hi229_is_powered_on;
     p_interface->self_test = hi229_self_test;
-    p_interface->chip_soft_reset = hi229_chip_soft_reset;
-    p_interface->chip_hard_reset = hi229_chip_hard_reset;
+    p_interface->soft_reset = hi229_chip_soft_reset;
+    p_interface->hard_reset = hi229_chip_hard_reset;
     p_interface->buffer_reset = hi229_buffer_reset;
-    p_interface->get_buffer_delay = hi229_get_buffer_delay;
+    p_interface->get_delay_us= hi229_get_buffer_delay;
     p_interface->read_bytes = hi229_read_bytes;
     p_interface->write_bytes = hi229_write_bytes;
 }
