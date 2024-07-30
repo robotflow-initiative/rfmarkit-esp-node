@@ -42,9 +42,6 @@
 #define CONFIG_NVS_SEQ_NAME                 "SEQ"
 #define CONFIG_NVS_TARGET_FPS_NAME          "TARGET_FPS"
 
-/** Retry limits **/
-#define CONFIG_ESP_MAXIMUM_RETRY            20
-
 /** NTP settings **/
 #define CONFIG_NTP_HOST_IP_ADDR             ""                  // left blank to use GW as ntp server by default
 #define CONFIG_LOCAL_TZ                     "CTS-8"

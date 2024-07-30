@@ -99,7 +99,7 @@ _Noreturn void app_monitor(void *pvParameters) {
             /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
             imu_data.seq = seq++;
             tag_time_us(&imu_data);
-            imu_data.buffer_delay_us = (int32_t) g_imu.get_buffer_delay(g_imu.p_imu);
+            imu_data.buffer_delay_us = (int32_t) g_imu.get_delay_us(g_imu.p_imu);
 
             /** Add the imu data to the ring buffer **/
             ring_buf_push(serial_buf, (uint8_t *) &imu_data);
@@ -112,7 +112,7 @@ _Noreturn void app_monitor(void *pvParameters) {
             int64_t now;
             get_time_usec(now);
             if (now - start_time > 1000000UL) {
-                int64_t delay = g_imu.get_buffer_delay(g_imu.p_imu);
+                int64_t delay = g_imu.get_delay_us(g_imu.p_imu);
                 ESP_LOGI(TAG, "fps=%d, delay=%lld", seq - old_seq, delay);
                 start_time = now;
                 old_seq = seq;

@@ -96,7 +96,7 @@ static esp_err_t bno08x_init(imu_t *p_imu, __attribute__((unused)) imu_config_t 
  * @param crc_check
  * @return
 **/
-esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
+esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, __attribute__((unused)) bool crc_check) {
     BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
 
     float rad_acc;
@@ -110,17 +110,6 @@ esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
     }
 
     return ESP_FAIL;
-}
-
-/**
- * @brief
- * @param p_imu
- * @param out
- * @param crc_check
- * @return
-**/
-esp_err_t bno08x_read_latest(imu_t *p_imu, imu_dgram_t *out, bool crc_check) {
-    return bno08x_read(p_imu, out, crc_check);
 }
 
 /**
@@ -155,7 +144,7 @@ esp_err_t bno08x_toggle(imu_t *p_imu, bool enable) {
  * @param p_imu
  * @return
 **/
-int bno08x_is_powered_on(imu_t *p_imu) {
+int bno08x_enabled(imu_t *p_imu) {
     return p_imu->enabled ? 1 : 0;
 }
 
@@ -173,7 +162,7 @@ esp_err_t bno08x_self_test(imu_t *p_imu) {
  * @brief
  * @param p_imu
 **/
-void bno08x_chip_soft_reset(imu_t *p_imu) {
+void bno08x_soft_reset(imu_t *p_imu) {
     BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
     BNO08x_soft_reset(p_driver);
 }
@@ -182,7 +171,7 @@ void bno08x_chip_soft_reset(imu_t *p_imu) {
  * @brief
  * @param p_imu
 **/
-void bno08x_chip_hard_reset(imu_t *p_imu) {
+void bno08x_hard_reset(imu_t *p_imu) {
     BNO08x *p_driver = &((bno08x_t *) p_imu)->driver;
     BNO08x_hard_reset(p_driver);
 }
@@ -200,7 +189,7 @@ void bno08x_buffer_reset(imu_t *p_imu) {
  * @param p_imu
  * @return
 **/
-int64_t bno08x_get_buffer_delay(imu_t *p_imu) {
+int64_t bno08x_get_delay_us(imu_t *p_imu) {
     // Not implemented
     return 0;
 }
@@ -263,14 +252,13 @@ void imu_interface_init(imu_interface_t *p_interface, imu_config_t *p_config) {
 
     p_interface->init = bno08x_init;
     p_interface->read = bno08x_read;
-    p_interface->read_latest = bno08x_read_latest;
     p_interface->toggle = bno08x_toggle;
-    p_interface->is_powered_on = bno08x_is_powered_on;
+    p_interface->enabled = bno08x_enabled;
     p_interface->self_test = bno08x_self_test;
-    p_interface->chip_soft_reset = bno08x_chip_soft_reset;
-    p_interface->chip_hard_reset = bno08x_chip_hard_reset;
+    p_interface->soft_reset = bno08x_soft_reset;
+    p_interface->hard_reset = bno08x_hard_reset;
     p_interface->buffer_reset = bno08x_buffer_reset;
-    p_interface->get_buffer_delay = bno08x_get_buffer_delay;
+    p_interface->get_delay_us = bno08x_get_delay_us;
     p_interface->read_bytes = bno08x_read_bytes;
     p_interface->write_bytes = bno08x_write_bytes;
 }

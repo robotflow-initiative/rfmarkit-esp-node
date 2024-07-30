@@ -385,7 +385,7 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    int ret = g_imu.is_powered_on(g_imu.p_imu);
+    int ret = g_imu.enabled(g_imu.p_imu);
     cJSON_AddStringToObject(root, "power", ret ? "ON" : "OFF");
     cJSON_AddNumberToObject(root, "baud_rate", g_mcu.imu_baud);
     cJSON_AddStringToObject(root, "enabled", g_imu.p_imu->enabled ? "on" : "off");
@@ -397,7 +397,7 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
         case IMU_MUX_DEBUG:
         case IMU_MUX_IDLE:
             g_imu.buffer_reset(g_imu.p_imu);
-            err = g_imu.read_latest(g_imu.p_imu, &imu_data, true);
+            err = g_imu.read(g_imu.p_imu, &imu_data, true);
             break;
         case IMU_MUX_STREAM:
             err = ring_buf_peek(&g_mcu.imu_ring_buf, &imu_data, -1, NULL);

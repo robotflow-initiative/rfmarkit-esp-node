@@ -28,7 +28,7 @@ static void wifi_event_handler(void *arg, const char *event_base,
                                __int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
-        s_wifi_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
+        s_wifi_retry_num = CONFIG_WIFI_MAX_RETRY;
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         if (s_wifi_retry_num > 0) {
             esp_wifi_connect();

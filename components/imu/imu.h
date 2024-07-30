@@ -59,7 +59,10 @@ typedef struct {
     imu_mux_t mux;
     SemaphoreHandle_t mutex;
     int32_t target_fps;
+    uint64_t seq;   // sequence number
 } imu_t;
+
+typedef void (*imu_cb_fxn_t)(void *);  // void * is the imu_data_t
 
 /**
  * @brief IMU interface
@@ -71,21 +74,19 @@ typedef struct {
 
     esp_err_t (*read)(imu_t *p_imu, imu_dgram_t *out, bool crc_check);
 
-    esp_err_t (*read_latest)(imu_t *p_imu, imu_dgram_t *out, bool crc_check);
-
     esp_err_t (*toggle)(imu_t *p_imu, bool enable);
 
-    int (*is_powered_on)(imu_t *p_imu);
+    int (*enabled)(imu_t *p_imu);
 
     esp_err_t (*self_test)(imu_t *p_imu);
 
-    void (*chip_soft_reset)(imu_t *p_imu);
+    void (*soft_reset)(imu_t *p_imu);
 
-    void (*chip_hard_reset)(imu_t *p_imu);
+    void (*hard_reset)(imu_t *p_imu);
 
     void (*buffer_reset)(imu_t *p_imu);
 
-    int64_t (*get_buffer_delay)(imu_t *p_imu);
+    int64_t (*get_delay_us)(imu_t *p_imu);
 
     size_t (*read_bytes)(imu_t *p_imu, uint8_t *out, size_t len);
 
