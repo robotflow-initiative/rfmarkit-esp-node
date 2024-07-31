@@ -151,15 +151,11 @@ void sys_discovery_handler(void *handler_args, esp_event_base_t base, int32_t id
                         ESP_LOGI(TAG, "reply received from %s, ntp_host=%s, ota_host=%s", inet_ntoa(client.reply_addr.sin_addr), pkt.ntp_host, pkt.ota_host);
                         reply_received = true;
                         /** Update data_host_ip **/
-                        memset(g_mcu.data_host_ip_addr, 0, sizeof(g_mcu.data_host_ip_addr));
-                        memcpy(g_mcu.data_host_ip_addr, inet_ntoa(client.reply_addr.sin_addr), strlen(inet_ntoa(client.reply_addr.sin_addr)));
+                        strncpy(g_mcu.data_host_ip_addr, inet_ntoa(client.reply_addr.sin_addr), sizeof(g_mcu.data_host_ip_addr) - 1);
 
                         /** Update NTP and OTA host **/
                         if (strlen(pkt.ntp_host) > 0) {
-                            memcpy(g_mcu.ntp_host_ip_addr, &pkt.ntp_host, strlen(pkt.ntp_host));
-                        }
-                        if (strlen(pkt.ota_host) > 0) {
-                            memcpy(g_mcu.ntp_host_ip_addr, &pkt.ntp_host, strlen(pkt.ntp_host));
+                            strncpy(g_mcu.ntp_host_ip_addr, pkt.ntp_host, sizeof(g_mcu.ntp_host_ip_addr) - 1);
                         }
                         ESP_LOGI(TAG, "discovery completed, detected interface address: %s", g_mcu.data_host_ip_addr);
                         g_mcu.state.discovery_completed = true;
