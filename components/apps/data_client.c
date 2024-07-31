@@ -20,21 +20,21 @@
 #define CONFIG_UDP_RETRY 3
 
 typedef struct {
-    uint8_t     addr;
-    uint32_t    id;            /* user defined ID       */
-    float       acc[3];           /* acceleration          */
-    float       gyr[3];           /* angular velocity      */
-    float       mag[3];           /* magnetic field        */
-    float       eul[3];           /* attitude: eular angle */
-    float       quat[4];          /* attitude: quaternion  */
-    float       pressure;         /* air pressure          */
-    uint32_t    timestamp;
-    int64_t     time_us;
-    int64_t     tsf_time_us;
-    uint32_t    seq;
-    int32_t     uart_buffer_len;
-    char        device_id[12];
-    uint8_t     checksum;
+    uint8_t addr;
+    uint32_t id;            /* user defined ID       */
+    float acc[3];           /* acceleration          */
+    float gyr[3];           /* angular velocity      */
+    float mag[3];           /* magnetic field        */
+    float eul[3];           /* attitude: eular angle */
+    float quat[4];          /* attitude: quaternion  */
+    float pressure;         /* air pressure          */
+    uint32_t timestamp;
+    int64_t time_us;
+    int64_t tsf_time_us;
+    uint32_t seq;
+    int32_t buffer_delay_us;
+    char device_id[12];
+    uint8_t checksum;
 } marker_packet_t;
 
 //static marker_packet_t dummy_packet = {
@@ -63,29 +63,38 @@ static const char *TAG = "app.data_client ";
  * @param len
  * @return
  */
-static uint8_t compute_checksum(const uint8_t *data, size_t len) {
+__attribute__((unused)) static uint8_t compute_checksum(const uint8_t *data, size_t len) {
     uint8_t sum = 0;
     for (int idx = 0; idx < len; ++idx) sum ^= data[idx];
     return sum;
 }
 
-static void tag_packet(marker_packet_t * pkt, imu_dgram_t * imu_data) {
-    pkt->id = imu_data->imu[0].id;
-    memcpy(pkt->acc, imu_data->imu[0].acc, sizeof(pkt->acc));
-    memcpy(pkt->gyr, imu_data->imu[0].gyr, sizeof(pkt->gyr));
-    memcpy(pkt->mag, imu_data->imu[0].mag, sizeof(pkt->mag));
-    memcpy(pkt->eul, imu_data->imu[0].eul, sizeof(pkt->eul));
-    memcpy(pkt->quat, imu_data->imu[0].quat, sizeof(pkt->quat));
-    pkt->pressure = imu_data->imu[0].pressure;
-    pkt->timestamp = imu_data->imu[0].timestamp;
+/**
+ * @brief Tag the packet with the imu data, to avoid memory alignment issue
+ * @param[out] pkt
+ * @param imu_data
+**/
+static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
+    pkt->id = imu_data->imu.id;
+    memcpy(pkt->acc, imu_data->imu.acc, sizeof(pkt->acc));
+    memcpy(pkt->gyr, imu_data->imu.gyr, sizeof(pkt->gyr));
+    memcpy(pkt->mag, imu_data->imu.mag, sizeof(pkt->mag));
+    memcpy(pkt->eul, imu_data->imu.eul, sizeof(pkt->eul));
+    memcpy(pkt->quat, imu_data->imu.quat, sizeof(pkt->quat));
+    pkt->pressure = imu_data->imu.pressure;
+    pkt->timestamp = imu_data->imu.timestamp;
     pkt->time_us = imu_data->time_us;
     pkt->tsf_time_us = imu_data->tsf_time_us;
     pkt->seq = imu_data->seq;
-    pkt->uart_buffer_len = imu_data->uart_buffer_len;
+    pkt->buffer_delay_us = imu_data->buffer_delay_us;
     pkt->checksum = 0;
 
 }
 
+/**
+ * @brief Timer callback handler， send a signal to the queue so that the data client read latest reading
+ * @param arg
+ */
 static void IRAM_ATTR read_timer_cb_handler(void *arg) {
     ESP_LOGD(TAG, "timer_cb_handler called");
     const char signal = 0;
@@ -94,7 +103,7 @@ static void IRAM_ATTR read_timer_cb_handler(void *arg) {
 
 static QueueHandle_t read_signal_queue = NULL;
 
-    _Noreturn void app_data_client(void *pvParameters) {
+_Noreturn void app_data_client(void *pvParameters) {
     ESP_LOGI(TAG, "app_data_client started");
 
     /** Get a ring buffer pointer **/
@@ -102,7 +111,7 @@ static QueueHandle_t read_signal_queue = NULL;
 
     /** Initialize a packet **/
     marker_packet_t pkt = {0};
-    pkt.addr = g_imu.addr; // this part is fixed
+    pkt.addr = g_imu.p_imu->addr; // this part is fixed
     memcpy(pkt.device_id, g_mcu.device_id, sizeof(g_mcu.device_id));  // this part is fixed
 
     udp_socket_t client = {0};
@@ -135,7 +144,7 @@ static QueueHandle_t read_signal_queue = NULL;
                 goto handle_error;
             }
         }
-        os_delay_ms(100); // wait for uart_monitor to start
+        os_delay_ms(100); // wait for monitor to start
 
         int64_t curr_index = 1;
         int64_t confirm_index = -1;

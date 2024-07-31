@@ -8,6 +8,7 @@
 
 #include "esp_wifi_types.h"
 #include "esp_err.h"
+#include "esp_netif.h"
 
 #include "settings.h"
 #include "ring_buf.h"
@@ -121,6 +122,7 @@
 #define CONFIG_MAX_VAR_NAME_LEN 16
 #define CONFIG_VAR_NVS_TABLE_NAME "var"
 #define CONFIG_VAR_STR_MAX_LEN 64
+#define CONFIG_VAR_URL_MAX_LEN 128
 
 typedef enum {
     VAR_INT32,
@@ -181,10 +183,10 @@ typedef struct {
 } mcu_state_t;
 
 typedef struct {
-    TaskHandle_t app_uart_monitor_task;
+    TaskHandle_t app_monitor_task;
     TaskHandle_t app_system_loop_task;
     TaskHandle_t app_data_client_task;
-#if CONFIG_PROFILING_ENABLED
+#if CONFIG_EN_PROFILING
     TaskHandle_t app_log_trace_task;
 #endif
 } mcu_tasks_t;
@@ -206,6 +208,7 @@ typedef struct {
     mcu_state_t state;
     mcu_tasks_t tasks;
     mcu_timers_t timers;
+    esp_netif_ip_info_t ip_info;
 
     EventGroupHandle_t sys_event_group;
     EventGroupHandle_t task_event_group;
@@ -219,7 +222,7 @@ typedef struct {
     char wifi_ssid[CONFIG_VAR_STR_MAX_LEN];
     char wifi_psk[CONFIG_VAR_STR_MAX_LEN];
     char data_host_ip_addr[CONFIG_VAR_STR_MAX_LEN];
-    char ota_host[CONFIG_VAR_STR_MAX_LEN];
+    char ota_url[CONFIG_OTA_URL_LEN];
     char ntp_host_ip_addr[CONFIG_VAR_STR_MAX_LEN];
     int32_t use_hamming;
     int32_t imu_baud;

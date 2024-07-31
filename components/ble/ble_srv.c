@@ -19,7 +19,6 @@ static uint16_t conn_handle;
 
 static const char *TAG = "ble.srv         ";
 
-
 static void blehr_advertise(void) {
     struct ble_gap_adv_params adv_params;
     struct ble_hs_adv_fields fields;

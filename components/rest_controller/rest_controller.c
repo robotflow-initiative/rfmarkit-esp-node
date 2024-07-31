@@ -47,7 +47,7 @@ nvs_variable            /v1/nvs/variable/<name> [get|post]  varset,varget
 imu_calibrate           /v1/imu/calibrate       [post]      imu_cali_reset, imu_cali_acc, imu_cali_mag
 imu_toggle              /v1/imu/toggle          [post]      imu_enable,imu_disable,
 imu_status              /v1/imu/status          [get]       imu_status imu_imm
-imu_debug_toggle        /v1/imu/debug/toggle    [post]      // toggle debug mode and disconnect uart_monitor
+imu_debug_toggle        /v1/imu/debug/toggle    [post]      // toggle debug mode and disconnect monitor
 imu_debug_socket        /v1/imu/debug/socket    [ws]        imu_debug imu_setup
 blink_configure         /v1/blink/configure     [get|post]  blink_set, blink_get, auto/manual
 blink_toggle            /v1/blink/toggle        [get|post]  blink_start, blink_stop, blink_mute, also get led status

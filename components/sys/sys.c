@@ -16,6 +16,7 @@
 #include "imu.h"
 #include "settings.h"
 #include "apps.h"
+#include "battery.h"
 
 /** MCU structure **/
 mcu_t g_mcu = {0};
@@ -54,11 +55,9 @@ static esp_err_t esp_ota_event_handler(esp_http_client_event_t *evt) {
  * @return
 **/
 esp_err_t sys_ota_perform() {
-    char url[CONFIG_OTA_URL_SIZE] = {0};
-    snprintf(url, sizeof(url), "http://%s%s", g_mcu.ota_host, CONFIG_OTA_PATH);
-    ESP_LOGI(TAG, "[ota] performing OTA, url=%s", url);
+    ESP_LOGI(TAG, "[ota] performing OTA, url=%s", g_mcu.ota_url);
     esp_http_client_config_t config = {
-        .url = url,
+        .url = g_mcu.ota_url,
         .max_authorization_retries = 3,
         .auth_type = HTTP_AUTH_TYPE_NONE,
         .event_handler = esp_ota_event_handler,
@@ -118,7 +117,6 @@ void sys_ota_guard() {
         }
     }
 #else
-    // TODO: sometimes the device cannot connect to Wi-Fi due to corrupted NVS
     os_delay_ms(3000); // wait for the system to be ready)
     if (ota_uncommitted) {
         esp_ota_mark_app_valid_cancel_rollback();
@@ -171,6 +169,9 @@ void sys_init_chip() {
     ESP_LOGI(TAG, "BLE LocalName: %s", g_mcu.ble_local_name);
     ESP_LOGW(TAG, "\n-------VERSION-------\n%s\n---------END---------", CONFIG_FIRMWARE_VERSION);
 
+    /** Init the battery monitor **/
+    battery_msp_init();
+
 }
 
 /**
@@ -217,7 +218,7 @@ void sys_log_trace() {
     printf("IDLE: ****free SPIRAM size: %d Bytes****\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 }
 
-#if CONFIG_PROFILING_ENABLED
+#if CONFIG_EN_PROFILING
 static _Noreturn void app_log_trace(void * pvParameters) {
     while (1) {
         os_delay_ms(CONFIG_MAIN_LOOP_DUTY_PERIOD_S * 1000);
@@ -231,16 +232,16 @@ static _Noreturn void app_log_trace(void * pvParameters) {
  * Start all required tasks in a normal boot scenario or resume from power save
 **/
 void sys_start_tasks(void) {
-#if CONFIG_MULTI_CORE
+#if CONFIG_EN_MULTI_CORE
     launch_task_multicore(app_data_client, "app_data_client", 4096, NULL, 12, g_mcu.tasks.app_data_client_task, 0x1);
-    launch_task_multicore(app_uart_monitor, "app_uart_monitor", 4096, NULL, 12, g_mcu.tasks.app_uart_monitor_task, 0x1);
+    launch_task_multicore(app_monitor, "app_monitor", 4096, NULL, 12, g_mcu.tasks.app_monitor_task, 0x1);
     launch_task_multicore(app_system_loop, "app_system_loop", 4096, NULL, 8, g_mcu.tasks.app_system_loop_task, 0x0);
-#if CONFIG_PROFILING_ENABLED
+#if CONFIG_EN_PROFILING
     launch_task_multicore(app_log_trace, "app_log_trace", 4096, NULL, 5, g_mcu.tasks.app_log_trace_task, 0x0);
 #endif
 #else
     launch_task(app_data_client, "app_data_client", 4096, NULL, 12, g_mcu.tasks.app_data_client_task);
-    launch_task(app_uart_monitor, "app_uart_monitor", 4096, NULL, 12, g_mcu.tasks.app_uart_monitor_task);
+    launch_task(app_uart_monitor, "app_monitor", 4096, NULL, 12, g_mcu.tasks.app_monitor_task);
     launch_task(app_system_loop, "app_system_loop", 4096, NULL, 8, g_mcu.tasks.app_system_loop_task);
 #if CONFIG_PROFILING_ENABLED
     if (g_mcu.tasks.app_log_trace_task == NULL){
@@ -256,8 +257,8 @@ void sys_start_tasks(void) {
 void sys_stop_tasks(void) {
     vTaskDelete(g_mcu.tasks.app_system_loop_task);
     g_mcu.tasks.app_system_loop_task = NULL;
-    vTaskDelete(g_mcu.tasks.app_uart_monitor_task);
-    g_mcu.tasks.app_uart_monitor_task = NULL;
+    vTaskDelete(g_mcu.tasks.app_monitor_task);
+    g_mcu.tasks.app_monitor_task = NULL;
     vTaskDelete(g_mcu.tasks.app_data_client_task);
     g_mcu.tasks.app_data_client_task = NULL;
     // #if CONFIG_PROFILING_ENABLED
@@ -295,8 +296,8 @@ esp_err_t sys_set_operation_mode(bool active) {
 **/
 void sys_mode_change_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data) {
     if (g_mcu.state.active) {
-        g_imu.mux = IMU_MUX_STREAM;
+        g_imu.p_imu->mux = IMU_MUX_STREAM;
     } else {
-        g_imu.mux = IMU_MUX_IDLE;
+        g_imu.p_imu->mux = IMU_MUX_IDLE;
     }
 }

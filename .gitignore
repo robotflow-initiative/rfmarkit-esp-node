@@ -4,9 +4,12 @@
 
 cmake-build-*
 build
+build_*
 
 ota/firmware.bin
 ota/version.txt
+
 sdkconfig.old
+sdkconfig
 
 

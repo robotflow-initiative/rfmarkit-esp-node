@@ -1,5 +1,6 @@
 #include <string.h>
 #include <esp_mesh.h>
+#include <math.h>
 
 #include "esp_http_server.h"
 #include "esp_chip_info.h"
@@ -11,10 +12,11 @@
 #include "rest_controller_handlers.h"
 #include "blink.h"
 #include "imu.h"
+#include "battery.h"
 
 static const char *TAG = "sys.rest.hdl    ";
 
-#define CONFIG_PARAM_VALUE_MAX_LEN 32
+#define CONFIG_PARAM_VALUE_MAX_LEN 128
 #define CONFIG_WEBSOCKET_FRAM_MAX_LEN 64
 
 /**
@@ -105,6 +107,8 @@ esp_err_t system_info_handler(httpd_req_t *req) {
     int64_t tsf_time = esp_mesh_get_tsf_time();
     // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions)
     cJSON_AddNumberToObject(root, "tsf_time", tsf_time);
+    int64_t battery_level = battery_read_level();
+    cJSON_AddNumberToObject(root, "battery_level", (double) battery_level);
 
     const char *response = cJSON_Print(root);
     httpd_resp_sendstr(req, response);
@@ -163,38 +167,24 @@ esp_err_t system_upgrade_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    char ota_host[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
-    mcu_var_t *p_var = NULL;
-    esp_err_t err;
+    char ota_url[CONFIG_OTA_URL_LEN + 1] = {0};
 
     switch (req->method) {
         case HTTP_GET:
-            cJSON_AddStringToObject(root, "ota_host", g_mcu.ota_host);
             cJSON_AddNumberToObject(root, "ota_err", g_mcu.state.ota_err);
             break;
         case HTTP_POST:
-            parse_url_kv_pair(req->uri, "ota_host", ota_host);
-            cJSON_AddStringToObject(root, "ota_host", ota_host);
+            ESP_LOGW(TAG, "%s", req->uri);
+            parse_url_kv_pair(req->uri, "ota_url", ota_url);
+            cJSON_AddStringToObject(root, "ota_url", ota_url);
 
-            if (strlen(ota_host) > 0) {
-                strcpy(g_mcu.ota_host, ota_host);
-                p_var = sys_find_var(CONFIG_NVS_OTA_HOST_NAME, strlen(CONFIG_NVS_OTA_HOST_NAME));
-                if (p_var != NULL) {
-                    err = sys_set_nvs_var(p_var, ota_host);
-                    if (err != ESP_OK) {
-                        cJSON_AddStringToObject(root, "status", "cannot set ota_host");
-                        httpd_resp_set_status(req, HTTPD_500);
-                    } else {
-                        cJSON_AddStringToObject(root, "status", "ok");
-                    }
-                } else {
-                    cJSON_AddStringToObject(root, "status", "invalid name");
-                    httpd_resp_set_status(req, HTTPD_400);
-                }
+            if (strlen(ota_url) > 0) {
+                strcpy(g_mcu.ota_url, ota_url);
+                set_sys_event(EV_SYS_OTA_TRIGGERED);
             } else {
-                cJSON_AddStringToObject(root, "status", "ok");
+                cJSON_AddStringToObject(root, "status", "empty ota_url");
+                httpd_resp_set_status(req, HTTPD_500);
             }
-            set_sys_event(EV_SYS_OTA_TRIGGERED);
             break;
         default:
             cJSON_AddStringToObject(root, "status", "invalid method");
@@ -236,8 +226,8 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
     switch (req->method) {
         case HTTP_GET:
             cJSON_AddStringToObject(root, "mode", g_power_mgmt_ctx.mode == POWER_MODE_PERFORMANCE ? "performance" :
-                    g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
-                    g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
+                                                  g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
+                                                  g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
             cJSON_AddBoolToObject(root, "no_sleep", g_power_mgmt_ctx.no_sleep);
             break;
         case HTTP_POST:
@@ -306,7 +296,7 @@ esp_err_t nvs_variable_handler(httpd_req_t *req) {
                 }
             case HTTP_POST:
                 if (name_end == NULL || strlen(name_end) <= 1) {
-                    cJSON_AddStringToObject(root, "status", "empty_field");
+                    cJSON_AddStringToObject(root, "status", "empty value");
                     httpd_resp_set_status(req, HTTPD_400);
                     break;
                 }
@@ -350,7 +340,7 @@ esp_err_t imu_calibrate_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    imu_soft_reset(&g_imu);
+    // TODO: Implement calibration
     cJSON_AddStringToObject(root, "status", "ok");
 
     const char *response = cJSON_Print(root);
@@ -372,10 +362,10 @@ esp_err_t imu_toggle_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "target_state", target_state);
 
     if (strcmp(target_state, "enable") == 0) {
-        imu_enable(&g_imu);
+        g_imu.toggle(g_imu.p_imu, true);
         cJSON_AddStringToObject(root, "status", "ok");
     } else if (strcmp(target_state, "disable") == 0) {
-        imu_disable(&g_imu);
+        g_imu.toggle(g_imu.p_imu, false);
         cJSON_AddStringToObject(root, "status", "ok");
     } else {
         cJSON_AddStringToObject(root, "status", "invalid target_state value");
@@ -395,19 +385,19 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    int ret = gpio_get_level(g_imu.ctrl_pin);
-    cJSON_AddStringToObject(root, "level", ret ? "HIGH" : "LOW");
+    int ret = g_imu.enabled(g_imu.p_imu);
+    cJSON_AddStringToObject(root, "power", ret ? "ON" : "OFF");
     cJSON_AddNumberToObject(root, "baud_rate", g_mcu.imu_baud);
-    cJSON_AddStringToObject(root, "enabled", g_imu.enabled ? "on" : "off");
-    cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
+    cJSON_AddStringToObject(root, "enabled", g_imu.p_imu->enabled ? "on" : "off");
+    cJSON_AddNumberToObject(root, "imu_status", g_imu.p_imu->status);
 
     imu_dgram_t imu_data = {.seq=0};
     esp_err_t err = ESP_FAIL;
-    switch (g_imu.mux) {
+    switch (g_imu.p_imu->mux) {
         case IMU_MUX_DEBUG:
         case IMU_MUX_IDLE:
-            uart_flush(g_imu.port);
-            for (int i = 0; i < 3 && err != ESP_OK; i++) err = imu_read(&g_imu, &imu_data, true);
+            g_imu.buffer_reset(g_imu.p_imu);
+            err = g_imu.read(g_imu.p_imu, &imu_data, true);
             break;
         case IMU_MUX_STREAM:
             err = ring_buf_peek(&g_mcu.imu_ring_buf, &imu_data, -1, NULL);
@@ -418,13 +408,18 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
     } else {
         cJSON *imm = cJSON_AddObjectToObject(root, "imm");
         cJSON *acc = cJSON_AddArrayToObject(imm, "acc");
-        cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu[0].acc[0]));
-        cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu[0].acc[1]));
-        cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu[0].acc[2]));
+        cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu.acc[0]));
+        cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu.acc[1]));
+        cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu.acc[2]));
         cJSON *rpy = cJSON_AddArrayToObject(imm, "rpy");
-        cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu[0].eul[0]));
-        cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu[0].eul[1]));
-        cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu[0].eul[2]));
+        cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[0]));
+        cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[1]));
+        cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[2]));
+        cJSON *quat = cJSON_AddArrayToObject(imm, "quat");
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[0]));
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[1]));
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[2]));
+        cJSON_AddItemToArray(quat, cJSON_CreateNumber(imu_data.imu.quat[3]));
         cJSON_AddNumberToObject(imm, "seq", imu_data.seq);
     }
 
@@ -445,11 +440,11 @@ esp_err_t imu_debug_toggle_handler(httpd_req_t *req) {
     parse_url_kv_pair(req->uri, "target_state", mode);
     cJSON_AddStringToObject(root, "target_state", mode);
     if (strcmp(mode, "enable") == 0) {
-        g_imu.mux = IMU_MUX_DEBUG;
+        g_imu.p_imu->mux = IMU_MUX_DEBUG;
         g_power_mgmt_ctx.no_sleep = true;
         cJSON_AddStringToObject(root, "status", "ok");
     } else if (strcmp(mode, "disable") == 0) {
-        g_imu.mux = IMU_MUX_IDLE;
+        g_imu.p_imu->mux = IMU_MUX_IDLE;
         g_power_mgmt_ctx.no_sleep = false;
         cJSON_AddStringToObject(root, "status", "ok");
     } else {
@@ -493,11 +488,11 @@ static void ws_async_send_task(void *pvParameter) {
     if (xSemaphoreTake(ws_async_task_mutex, portMAX_DELAY)) {
         uint8_t data[CONFIG_WEBSOCKET_FRAM_MAX_LEN];
         while (1) {
-            if (g_imu.mux != IMU_MUX_DEBUG) {
+            if (g_imu.p_imu->mux != IMU_MUX_DEBUG) {
                 ESP_LOGW(TAG, "IMU is not in debug mode");
                 break;
             }
-            int len = uart_read_bytes(g_imu.port, data, CONFIG_WEBSOCKET_FRAM_MAX_LEN, 0x100);
+            size_t len = g_imu.read_bytes(g_imu.p_imu, data, CONFIG_WEBSOCKET_FRAM_MAX_LEN);
             ESP_LOGD(TAG, "len=%d", len);
             if (len <= 0) {
                 continue;
@@ -533,7 +528,7 @@ esp_err_t imu_debug_socket_handler(httpd_req_t *req) {
     if (req->method == HTTP_GET) {
         ESP_LOGD(TAG, "handshake done, the new connection was opened");
         /** Accept the connection if in debug mode **/
-        if (g_imu.mux == IMU_MUX_DEBUG) {
+        if (g_imu.p_imu->mux == IMU_MUX_DEBUG) {
             trigger_async_send(req->handle, req);
             return ESP_OK;
         } else {
@@ -569,8 +564,7 @@ esp_err_t imu_debug_socket_handler(httpd_req_t *req) {
                 memcpy(tx_buffer, ws_pkt.payload, ws_pkt.len);
                 tx_buffer[ws_pkt.len] = '\r';
                 tx_buffer[ws_pkt.len + 1] = '\n';
-                uart_write_bytes_with_break(g_imu.port, (const char *) tx_buffer, ws_pkt.len + 2, 0xF);
-                uart_wait_tx_done(g_imu.port, portMAX_DELAY);
+                g_imu.write_bytes(g_imu.p_imu, (void *) tx_buffer, ws_pkt.len + 2);
             }
         } else {
             ESP_LOGW(TAG, "packet(len=%d) is too long, max length is %d", ws_pkt.len, CONFIG_WEBSOCKET_FRAM_MAX_LEN);
@@ -710,13 +704,13 @@ esp_err_t operation_mode_handler(httpd_req_t *req) {
         case HTTP_GET:
             cJSON_AddBoolToObject(root, "active", g_mcu.state.active);
             //cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
-            cJSON_AddStringToObject(root, "imu_status", g_imu.status == IMU_STATUS_FAIL ? "fail" :
-                    g_imu.status == IMU_STATUS_READY ? "ready" : "unknown");
+            cJSON_AddStringToObject(root, "imu_status", g_imu.p_imu->status == IMU_STATUS_FAIL ? "fail" :
+                                                        g_imu.p_imu->status == IMU_STATUS_READY ? "ready" : "unknown");
             break;
         case HTTP_POST:
             parse_url_kv_pair(req->uri, "action", action_state);
             cJSON_AddStringToObject(root, "action", action_state);
-            cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
+            cJSON_AddNumberToObject(root, "imu_status", g_imu.p_imu->status);
             if (strcmp(action_state, "start") == 0) {
                 sys_set_operation_mode(true);
                 cJSON_AddStringToObject(root, "status", "ok");

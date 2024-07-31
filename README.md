@@ -42,6 +42,13 @@ The project is organized as follows:
 - `scripts` helper scripts
 - `tests` function tests
 
+If you are using different IMU, you can add your library in `lib` directory and modify `CMakelists.txt` to use it. The interface is defined in `components/imu/imu.h`.
+
+```cmake
+# Select IMU module
+set(IMU_MODULE hi229) # hi229 or bno08x
+add_definitions(-DCONFIG_IMU_TYPE=IMU_TYPE_HI229) # IMU_TYPE_HI229 or IMU_TYPE_BNO08X, depending on the selected module
+```
 ## Operators' Guide
 
 The detailed guide can be found in [docs/manual.md](docs/manual.md)

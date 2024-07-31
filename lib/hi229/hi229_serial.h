@@ -1,5 +1,5 @@
-#ifndef _HI229_SERIAL_H_
-#define    _HI229_SERIAL_H_
+#ifndef _HI229_SERIAL_H
+#define _HI229_SERIAL_H
 
 #include <stdint.h>
 #include <string.h>

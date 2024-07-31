@@ -28,7 +28,7 @@ static void wifi_event_handler(void *arg, const char *event_base,
                                __int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
-        s_wifi_retry_num = CONFIG_ESP_MAXIMUM_RETRY;
+        s_wifi_retry_num = CONFIG_WIFI_MAX_RETRY;
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         if (s_wifi_retry_num > 0) {
             esp_wifi_connect();
@@ -43,6 +43,8 @@ static void wifi_event_handler(void *arg, const char *event_base,
         ESP_LOGI(TAG_HANDLER, "got ip:"
             IPSTR, IP2STR(&event->ip_info.ip));
         xEventGroupSetBits(g_mcu.wifi_event_group, EV_WIFI_CONNECTED_BIT);
+        /** Configure the ip_info used for BLE service **/
+        g_mcu.ip_info = event->ip_info;
     }
 }
 

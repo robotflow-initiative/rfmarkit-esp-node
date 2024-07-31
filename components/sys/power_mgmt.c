@@ -11,11 +11,12 @@
 #include "apps.h"
 #include "settings.h"
 #include "sys.h"
-#include "hi229.h"
+#include "imu.h"
 #include "blink.h"
 #include "ble_srv.h"
 #include "rest_controller.h"
 #include "spatial.h"
+#include "battery.h"
 
 static SemaphoreHandle_t sync_mutex = NULL;
 RTC_DATA_ATTR power_mgmt_ctx_t g_power_mgmt_ctx;
@@ -25,6 +26,10 @@ static const char *TAG = "sys.pm          ";
 
 static void power_mgmt_handle_transition(__attribute__((unused)) TimerHandle_t xTimer);
 
+/**
+ * @brief Arm power save timer, the device will shutdown after timeout
+ * @return
+**/
 static esp_err_t arm_power_save_timer() {
     if (power_save_timer == NULL) {
         power_save_timer = xTimerCreate("power_save_timer", pdMS_TO_TICKS(CONFIG_POWER_SAVE_TIMEOUT_S * 1000), pdFALSE, NULL, power_mgmt_handle_transition);
@@ -42,6 +47,10 @@ static esp_err_t arm_power_save_timer() {
     return ESP_FAIL;
 }
 
+/**
+ * @brief Arm power save timer, the device will not shutdown
+ * @return
+**/
 static void disarm_power_save_timer() {
     if (power_save_timer != NULL) {
         xTimerStop(power_save_timer, 0);
@@ -51,6 +60,10 @@ static void disarm_power_save_timer() {
     }
 }
 
+/**
+ * @brief Reset power save timer, delay the shutdown
+ * @return
+**/
 void reset_power_save_timer() {
     if (power_save_timer != NULL) {
         xTimerReset(power_save_timer, 0);
@@ -58,9 +71,15 @@ void reset_power_save_timer() {
     }
 }
 
+/**
+ * @brief Initialize power management, run ONCE at boot
+ * @return
+ */
 esp_err_t power_mgmt_init() {
     /** Cancel hold **/
-    gpio_hold_dis(CONFIG_IMU_CTRL_PIN);
+#ifdef CONFIG_IMU_EN_PIN
+     gpio_hold_dis(CONFIG_IMU_EN_PIN);
+#endif
     gpio_hold_dis(CONFIG_BLINK_PIN);
     gpio_deep_sleep_hold_dis();
     /** Enable gpio hold in deep sleep **/
@@ -69,8 +88,11 @@ esp_err_t power_mgmt_init() {
     ++g_power_mgmt_ctx.boot_count;
     ESP_LOGI(TAG, "system booted %d times", g_power_mgmt_ctx.boot_count);
 
+    /** Check if the system is waken from deep sleep **/
     if (g_power_mgmt_ctx.initialized) {
+        /** Yes **/
         if (g_power_mgmt_ctx.state == POWER_DEEP_SLEEP) {
+            /** Normal Wake Up **/
             g_power_mgmt_ctx.state = POWER_WAKEN;
             // Do not change power mode
             g_power_mgmt_ctx.next_mode = g_power_mgmt_ctx.mode;
@@ -78,12 +100,14 @@ esp_err_t power_mgmt_init() {
             memset(&g_power_mgmt_ctx.peripheral_state, 0, sizeof(power_peripheral_state_t));
             return ESP_OK;
         } else {
+            /** Error **/
             g_power_mgmt_ctx.state = POWER_UNKNOWN;
             g_power_mgmt_ctx.mutex = NULL;
             memset(&g_power_mgmt_ctx.peripheral_state, 0, sizeof(power_peripheral_state_t));
             return ESP_FAIL;
         }
     } else {
+        /** No **/
         g_power_mgmt_ctx.initialized = true;
         g_power_mgmt_ctx.state = POWER_NORMAL_BOOT;
         g_power_mgmt_ctx.mode = POWER_MODE_NORMAL;
@@ -94,34 +118,43 @@ esp_err_t power_mgmt_init() {
     }
 }
 
+/**
+ * @brief Check the wake up reason
+ * @return
+**/
 power_mgmt_state_t power_mgmt_wake_up_handler() {
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
     if (cause == ESP_SLEEP_WAKEUP_EXT0) {
         ESP_LOGI(TAG, "wakeup from button");
         return POWER_NORMAL_BOOT;
     } else {
-        // TODO: update this logic after PCB fix
+        // TODO: update this logic after PCB fix, detect movement
         ESP_LOGI(TAG, "wakeup from timer");
-        imu_init(g_imu);
+        imu_config_t cfg = { .target_fps = g_mcu.target_fps};
+        imu_interface_init_external(&g_imu, &cfg);
         imu_dgram_t imu_status;
         for (esp_err_t err = ESP_FAIL; err != ESP_OK; taskYIELD()) {
-            err = imu_read(&g_imu, &imu_status, true);
+            err = g_imu.read(g_imu.p_imu, &imu_status, true);
             ESP_LOGD(TAG, "imu_read err=%d", err);
         }
         Vector3 ref = {0, 0, -1};
         Vector3 acc_diff;
-        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu[0].acc, &ref, -1, &acc_diff);
+        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu.acc, &ref, -1, &acc_diff);
         float acc_diff_norm = spatial_vector_norm(&acc_diff);
         ESP_LOGI(
             TAG,
             "acc=[%f, %f, %f], norm=%f, diff=[%f, %f, %f],",
-            imu_status.imu[0].acc[0], imu_status.imu[0].acc[1], imu_status.imu[0].acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
+            imu_status.imu.acc[0], imu_status.imu.acc[1], imu_status.imu.acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
         );
 
         return POWER_DEEP_SLEEP;
     }
 }
 
+/**
+ * Handle the power management event [standby]
+ * @return
+**/
 esp_err_t power_mgmt_on_enter_standby() {
     /** Setup Button **/
     if (!g_power_mgmt_ctx.peripheral_state.button_initialized) {
@@ -137,11 +170,12 @@ esp_err_t power_mgmt_on_enter_standby() {
 
     /** Init global imu struct g_imu **/
     if (!g_power_mgmt_ctx.peripheral_state.imu_initialized) {
-        imu_init(g_imu);
+        imu_config_t cfg = { .target_fps = g_mcu.target_fps};
+        imu_interface_init_external(&g_imu, &cfg);
         g_power_mgmt_ctx.peripheral_state.imu_initialized = true;
     } else {
-        if (!g_imu.enabled) {
-            imu_enable(&g_imu);
+        if (!g_imu.p_imu->enabled) {
+            g_imu.toggle(g_imu.p_imu, true);
         }
     }
 
@@ -176,10 +210,17 @@ esp_err_t power_mgmt_on_enter_standby() {
         disarm_power_save_timer();
     }
 
+    /** Init Baterry Measurement **/
+    battery_msp_init();
+
     g_power_mgmt_ctx.state = POWER_STANDBY;
     return ESP_OK;
 }
 
+/**
+ * Handle the power management event [active]
+ * @return
+**/
 esp_err_t power_mgmt_on_enter_active() {
     ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
@@ -188,6 +229,10 @@ esp_err_t power_mgmt_on_enter_active() {
     return ESP_OK;
 }
 
+/**
+ * Handle the power management event [power_save]
+ * @return
+**/
 esp_err_t power_mgmt_on_enter_power_save() {
     /** De-initialize BLE **/
     if (g_power_mgmt_ctx.peripheral_state.ble_enabled) {
@@ -218,10 +263,14 @@ esp_err_t power_mgmt_on_enter_power_save() {
     return ESP_OK;
 }
 
+/**
+ * Handle the power management event [deep_sleep]
+ * @return
+**/
 _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     ESP_LOGI(TAG, "disabling IMU and led");
 
-    imu_disable(&g_imu);
+    g_imu.toggle(g_imu.p_imu, false);
     g_mcu.state.led_manual = true;
     os_delay_ms(100);
 
@@ -233,7 +282,9 @@ _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     }
 
     /** Hold pins in deep sleep **/
-    gpio_hold_en(CONFIG_IMU_CTRL_PIN);
+#ifdef CONFIG_IMU_EN_PIN
+     gpio_hold_en(CONFIG_IMU_EN_PIN);
+#endif
     gpio_hold_en(CONFIG_BLINK_PIN);
 
     if (wakeup) {
@@ -249,6 +300,10 @@ _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
     esp_deep_sleep_start();
 }
 
+/**
+ * @brief Power save application, the only application that can be run in power save mode
+ * @param pvParameter
+**/
 __attribute__((unused)) static void app_power_save(__attribute__((unused)) void *pvParameter) {
     sys_stop_tasks();
     sys_stop_timers();
@@ -259,32 +314,32 @@ __attribute__((unused)) static void app_power_save(__attribute__((unused)) void 
     imu_dgram_t imu_status;
     float old_acc[3] = {0, 0, 0};
 
-    uart_flush(g_imu.port);
+    g_imu.buffer_reset(g_imu.p_imu);
     for (esp_err_t err = ESP_FAIL; err != ESP_OK; taskYIELD(), os_delay_ms(100)) {
-        err = imu_read(&g_imu, &imu_status, true);
+        err = g_imu.read(g_imu.p_imu, &imu_status, true);
         ESP_LOGD(TAG, "imu_read_init err=%d", err);
     }
-    memcpy(old_acc, imu_status.imu[0].acc, sizeof(old_acc));
+    memcpy(old_acc, imu_status.imu.acc, sizeof(old_acc));
 
     int cycle_count = 0;
 
     while (1) {
         ESP_LOGI(TAG, "light sleep for 10 seconds");
         esp_sleep_enable_timer_wakeup(10 * 1000000UL); // 3 seconds
-        imu_disable(&g_imu);
+        g_imu.toggle(g_imu.p_imu, false);
         os_delay_ms(10);
         esp_light_sleep_start();
         ESP_LOGI(TAG, "Returned from light sleep, reason:%s\n", esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0 ? "pin" : "timer");
 
-        imu_enable(&g_imu);
-        imu_buffer_reset(&g_imu);
+        g_imu.toggle(g_imu.p_imu, true);
+        g_imu.buffer_reset(g_imu.p_imu);
         for (esp_err_t err = ESP_FAIL; err != ESP_OK; taskYIELD(), os_delay_ms(100)) {
-            err = imu_read(&g_imu, &imu_status, true);
+            err = g_imu.read(g_imu.p_imu, &imu_status, true);
             ESP_LOGD(TAG, "imu_read err=%d", err);
         }
 
         Vector3 acc_diff;
-        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu[0].acc, (const Vector3 *) &old_acc, -1, &acc_diff);
+        spatial_vector_multiply_plus((const Vector3 *) &imu_status.imu.acc, (const Vector3 *) &old_acc, -1, &acc_diff);
         float acc_diff_norm = spatial_vector_norm(&acc_diff);
 
         if (acc_diff_norm > CONFIG_POWER_SAVE_MOTION_LIMIT) {
@@ -294,9 +349,9 @@ __attribute__((unused)) static void app_power_save(__attribute__((unused)) void 
             ESP_LOGI(
                 TAG,
                 "acc=[%f, %f, %f], norm=%f, diff=[%f, %f, %f],",
-                imu_status.imu[0].acc[0], imu_status.imu[0].acc[1], imu_status.imu[0].acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
+                imu_status.imu.acc[0], imu_status.imu.acc[1], imu_status.imu.acc[2], acc_diff_norm, acc_diff.x, acc_diff.y, acc_diff.z
             );
-            memcpy(old_acc, imu_status.imu[0].acc, sizeof(old_acc));
+            memcpy(old_acc, imu_status.imu.acc, sizeof(old_acc));
         }
 
         cycle_count++;
@@ -316,9 +371,14 @@ static void power_mgmt_handle_transition(__attribute__((unused)) TimerHandle_t x
     power_mgmt_on_enter_deep_sleep(false);
 }
 
-
+/**
+ * Handle Power Management Event
+ * @param handler_args
+ * @param base
+ * @param id
+ * @param event_data
+ */
 void sys_power_mgmt_handler(__attribute__((unused)) void *handler_args, __attribute__((unused)) esp_event_base_t base, int32_t id, __attribute__((unused)) void *event_data) {
-    /** TODO: Implement logic**/
     if (!sync_mutex) {
         sync_mutex = xSemaphoreCreateMutex();
     }

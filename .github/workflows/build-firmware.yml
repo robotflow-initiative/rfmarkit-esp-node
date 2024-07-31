@@ -3,45 +3,85 @@ name: Build Firmware
 on:
   workflow_dispatch:
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
-  build:
-
+  build_v1:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
-#      with:
-#        submodules: 'recursive'
-    
-    - name: esp-idf build
-      uses: espressif/esp-idf-ci-action@v1
-      with:
-        esp_idf_version: v4.4.2
-        target: esp32
-        path: '/'
-    
-    - name: Pack
-      run: |
-        tar -czf rfmarkit-esp-node.tar.gz ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node.elf
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      #      with:
+      #        submodules: 'recursive'
+      - name: Copy the correct sdkconfig
+        run: make set_hardware_v1
+      - name: esp-idf build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v4.4.2
+          target: esp32
+          path: '/'
 
-    - name: Upload
-      uses: actions/upload-artifact@v3.1.0
-      with:
-        name: rfmarkit-esp-node
-        path: rfmarkit-esp-node.tar.gz
+      - name: Pack
+        run: |
+          tar -czf rfmarkit-esp-node-v1.tar.gz ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node.elf
+          cp ./build/rfmarkit-esp-node.bin rfmarkit-esp-node-v1.bin
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        tag_name: ${{ github.ref }}
-        name: Release ${{ github.ref }}
-        body: TODO New Release.
-        draft: false
-        prerelease: false
-        files: |
-          ./build/rfmarkit-esp-node.bin
-          rfmarkit-esp-node.tar.gz
+      - name: Upload
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          name: rfmarkit-esp-node-v1
+          path: rfmarkit-esp-node-v1.tar.gz
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+          body: TODO New Release.
+          draft: true
+          prerelease: true
+          files: |
+            rfmarkit-esp-node-v1.bin
+            rfmarkit-esp-node-v1.tar.gz
+  build_v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      #      with:
+      #        submodules: 'recursive'
+      - name: Copy the correct sdkconfig
+        run: make set_hardware_v2
+
+      - name: esp-idf build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v4.4.2
+          target: esp32s3
+          path: '/'
+
+      - name: Pack
+        run: |
+          tar -czf rfmarkit-esp-node-v2.tar.gz ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node.elf
+          cp ./build/rfmarkit-esp-node.bin rfmarkit-esp-node-v2.bin
+
+      - name: Upload
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          name: rfmarkit-esp-node-v2
+          path: rfmarkit-esp-node-v2.tar.gz
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+          body: TODO New Release.
+          draft: true
+          prerelease: true
+          files: |
+            rfmarkit-esp-node-v2.bin
+            rfmarkit-esp-node-v2.tar.gz

@@ -1,0 +1,26 @@
+# Kconfig.projectbuild file
+
+menu "IMU Sensor Configuration"
+
+choice
+    prompt "IMU Sensor"
+    default IMU_SENSOR_HI229
+
+config IMU_SENSOR_HI229
+    bool "hi229"
+    help
+        Select the hi229 IMU sensor.
+
+config IMU_SENSOR_BNO08X
+    bool "bno08x"
+    help
+        Select the bno08x IMU sensor.
+
+endchoice
+
+config IMU_SENSOR_SELECT
+    string
+    default "hi229" if IMU_SENSOR_HI229
+    default "bno08x" if IMU_SENSOR_BNO08X
+
+endmenu

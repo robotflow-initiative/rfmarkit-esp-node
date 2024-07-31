@@ -3,6 +3,44 @@ info:
   title: RFMarkIt Restful API
   version: 1.0.0
 paths:
+  /v1/system/info:
+    get:
+      summary: Get system information
+      operationId: getSystemInfo
+      responses:
+        default:
+          description: Unexpected error
+        '200':
+          description: Successful response containing system information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Device ID
+                  ver:
+                    type: string
+                    description: Firmware version
+                  time:
+                    type: number
+                    format: double
+                    description: Current time in seconds since the Epoch
+                  tsf_time:
+                    type: number
+                    format: int64
+                    description: TSF time
+                  battery_level:
+                    type: number
+                    format: double
+                    description: Battery level
+                required:
+                  - id
+                  - ver
+                  - time
+                  - tsf_time
+                  - battery_level
   /v1/system/power:
     get:
       parameters:
@@ -23,11 +61,15 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid target_state value
   /v1/system/upgrade:
     get:
       responses:
+        default:
+          description: Unexpected error
         '200':
           description: OK
           content:
@@ -41,7 +83,7 @@ paths:
                     type: integer
     post:
       parameters:
-        - name: ota_host
+        - name: ota_url
           in: query
           required: true
           schema:
@@ -54,17 +96,19 @@ paths:
               schema:
                 type: object
                 properties:
-                  ota_host:
-                    type: string
                   status:
                     type: string
         '400':
-          description: Invalid name
+          description: Invalid method
+        default:
+          description: Unexpected error
         '500':
-          description: Cannot set ota_host
+          description: Empty ota_url
   /v1/system/selftest:
     get:
       responses:
+        default:
+          description: Unexpected error
         '200':
           description: OK
           content:
@@ -77,6 +121,8 @@ paths:
   /v1/system/power_mgmt:
     get:
       responses:
+        default:
+          description: Unexpected error
         '200':
           description: OK
           content:
@@ -107,6 +153,8 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid mode value
   /v1/nvs/variable/{name}:
@@ -129,6 +177,8 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid name
     post:
@@ -155,6 +205,8 @@ paths:
                     type: string
         '400':
           description: Invalid value or empty field
+        default:
+          description: Unexpected error
         '500':
           description: Cannot set value
   /v1/imu/calibrate:
@@ -193,6 +245,8 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid target_state value
   /v1/imu/status:
@@ -206,7 +260,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  level:
+                  power:
                     type: string
                   baud_rate:
                     type: integer
@@ -222,6 +276,10 @@ paths:
                         items:
                           type: number
                       rpy:
+                        type: array
+                        items:
+                          type: number
+                      quat:
                         type: array
                         items:
                           type: number
@@ -250,6 +308,8 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid target_state value
   /v1/imu/debug/socket:
@@ -258,6 +318,8 @@ paths:
       responses:
         '200':
           description: Socket retrieval successful
+        default:
+          description: Unexpected error
         '400':
           description: IMU is not in debug mode
     post:
@@ -265,6 +327,8 @@ paths:
       responses:
         '200':
           description: Post successful
+        default:
+            description: Unexpected error
         '400':
           description: Invalid packet
   /v1/blink/configure:
@@ -311,6 +375,8 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid mode or seq value
   /v1/blink/toggle:
@@ -348,6 +414,8 @@ paths:
                     type: string
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid target_state value
   /v1/operation/mode:
@@ -389,5 +457,7 @@ paths:
                     type: integer
                   status:
                     type: string
+        default:
+          description: Unexpected error
         '400':
           description: Invalid action value

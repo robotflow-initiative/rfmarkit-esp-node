@@ -52,12 +52,21 @@ void sys_time_sync_handler(
 
         /** Configure **/
         sntp_setoperatingmode(SNTP_OPMODE_POLL);
-        if (s_sntp_retry_num <= CONFIG_NTP_MAX_RETRY) {
-            sntp_setservername(0, g_mcu.ntp_host_ip_addr);
-            ESP_LOGI(TAG, "primary sntp server is set to %s", g_mcu.ntp_host_ip_addr);
+        if (s_sntp_retry_num <= CONFIG_NTP_PRIMARY_MAX_RETRY) {
+            if (strlen(g_mcu.ntp_host_ip_addr) > 0) {
+                /** use the primary NTP server **/
+                sntp_setservername(0, g_mcu.ntp_host_ip_addr);
+                ESP_LOGI(TAG, "sntp server is set to primary[%s]", g_mcu.ntp_host_ip_addr);
+            } else {
+                /** fallback to gw **/
+                char ip_str[16];
+                sprintf(ip_str, IPSTR, IP2STR(&(g_mcu.ip_info.gw)));
+                sntp_setservername(0, ip_str);
+                ESP_LOGI(TAG, "sntp server is set to gw[%s]", ip_str);
+            }
         } else {
             sntp_setservername(0, CONFIG_NTP_HOST_IP_ADDR_BACKUP);
-            ESP_LOGI(TAG, "backup sntp server is set to %s", CONFIG_NTP_HOST_IP_ADDR_BACKUP);
+            ESP_LOGI(TAG, "sntp server is set to backup[%s]", CONFIG_NTP_HOST_IP_ADDR_BACKUP);
         }
 
         sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);

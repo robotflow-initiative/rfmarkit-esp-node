@@ -187,22 +187,24 @@ static void sys_load_nvs_configuration() {
 
     char value_buffer[CONFIG_VAR_STR_MAX_LEN];
     char _protect = 0;
-    sys_load_int32_conf(CONFIG_NVS_TEST_NAME, _protect, 0); // FIXME: a workaround to protect the following variable from getting corrupted
+    sys_load_int32_conf(CONFIG_NVS_TEST_NAME, _protect, 0); // NOTE: a workaround to protect the following variable from getting corrupted
     sys_load_str_conf(CONFIG_NVS_WIFI_SSID_NAME, g_mcu.wifi_ssid, CONFIG_WIFI_SSID);
     sys_load_str_conf(CONFIG_NVS_WIFI_PSK_NAME, g_mcu.wifi_psk, CONFIG_WIFI_PSK);
     sys_load_str_conf(CONFIG_NVS_DATA_HOST_NAME, g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_IP_ADDR);
-    sys_load_str_conf(CONFIG_NVS_OTA_HOST_NAME, g_mcu.ota_host, CONFIG_OTA_HOST);
     sys_load_str_conf(CONFIG_NVS_NTP_HOST_NAME, g_mcu.ntp_host_ip_addr, CONFIG_NTP_HOST_IP_ADDR);
+#if CONFIG_IMU_SENSOR_HI229
     sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
+#endif
     sys_load_int32_conf(CONFIG_NVS_SEQ_NAME, g_mcu.seq, 0);
     sys_load_int32_conf(CONFIG_NVS_TARGET_FPS_NAME, g_mcu.target_fps, CONFIG_TARGET_FPS);
 
 
     /** Temporary Fix NVS invalid variable **/
     g_mcu.imu_baud = MIN(g_mcu.imu_baud, 921600);
+    g_mcu.imu_baud = MAX(g_mcu.imu_baud, 9600);
     g_mcu.seq = MIN(g_mcu.seq, 255);
     g_mcu.seq = MAX(g_mcu.seq, 0);
-    g_mcu.target_fps = MIN(g_mcu.target_fps, 200);
+    g_mcu.target_fps = MIN(g_mcu.target_fps, CONFIG_TARGET_FPS);
 
     /** Macro Expansion Reference, DO NOT REMOVE **/
     /**

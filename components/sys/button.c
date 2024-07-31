@@ -86,7 +86,7 @@ _Noreturn void button_daemon(void *params) {
                     if (xQueueReceive(button_event_queue, &ev, CONFIG_DOUBLE_CLICK_DURATION) == pdTRUE) {
                         if (ev == CLICK) {
                             ESP_LOGD(TAG, "button double clicked");
-                            //TODO: Implement IMU calibration
+                            //TODO: make use of this function
                         }
                     } else {
                         ESP_LOGD(TAG, "button clicked");

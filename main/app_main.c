@@ -16,7 +16,7 @@
 
 static const char *TAG = "app_main";
 
-static uint8_t s_serial_buf[CONFIG_SERIAL_QUEUE_LEN * sizeof(imu_dgram_t)];
+static uint8_t s_data_buf[CONFIG_DATA_BUF_LEN * sizeof(imu_dgram_t)];
 
 static void init() {
     sys_init_chip();
@@ -37,19 +37,21 @@ static void init() {
     power_mgmt_on_enter_standby(); // Enter standby mode
 
     /** Init ring buffer **/
-    ring_buf_init(&g_mcu.imu_ring_buf, CONFIG_SERIAL_QUEUE_LEN, sizeof(imu_dgram_t), s_serial_buf, true);
+    ring_buf_init(&g_mcu.imu_ring_buf, CONFIG_DATA_BUF_LEN, sizeof(imu_dgram_t), s_data_buf, true);
 
     /** Test IMU availability, must run at the end of init() **/
-    imu_self_test(&g_imu);
+    g_imu.self_test(g_imu.p_imu);
 }
 
 
 void app_main(void) {
     init();
+    ESP_LOGI(TAG, "main application started");
 
     /** Launch tasks **/
     sys_start_tasks();
 
     sys_ota_guard();
+    ESP_LOGI(TAG, "main application finished");
     vTaskDelete(NULL);
 }
