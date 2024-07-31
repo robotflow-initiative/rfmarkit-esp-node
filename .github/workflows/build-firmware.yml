@@ -25,7 +25,7 @@ jobs:
       - name: Pack
         run: |
           tar -czf rfmarkit-esp-node-v1.tar.gz ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node.elf
-          mv ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node-v1.bin
+          cp ./build/rfmarkit-esp-node.bin rfmarkit-esp-node-v1.bin
 
       - name: Upload
         uses: actions/upload-artifact@v3.1.0
@@ -43,7 +43,7 @@ jobs:
           draft: true
           prerelease: true
           files: |
-            ./build/rfmarkit-esp-node-v1.bin
+            rfmarkit-esp-node-v1.bin
             rfmarkit-esp-node-v1.tar.gz
   build_v2:
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
       - name: Pack
         run: |
           tar -czf rfmarkit-esp-node-v2.tar.gz ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node.elf
-          mv ./build/rfmarkit-esp-node.bin ./build/rfmarkit-esp-node-v2.bin
+          cp ./build/rfmarkit-esp-node.bin rfmarkit-esp-node-v2.bin
 
       - name: Upload
         uses: actions/upload-artifact@v3.1.0
@@ -83,5 +83,5 @@ jobs:
           draft: true
           prerelease: true
           files: |
-            ./build/rfmarkit-esp-node-v2.bin
+            rfmarkit-esp-node-v2.bin
             rfmarkit-esp-node-v2.tar.gz
