@@ -45,7 +45,7 @@
 #define CONFIG_IMU_BAUD                     115200
 #elif CONFIG_IMU_SENSOR_BNO08X
 /** If SPI is used **/
-#define CONFIG_IMU_WAKE_PIN                 GPIO_NUM_14    // Need RTC GPIO, OUTPUT
+#define CONFIG_IMU_WAKE_PIN                 GPIO_NUM_3    // Need RTC GPIO, OUTPUT
 #define CONFIG_IMU_MOSI_PIN                 GPIO_NUM_13
 #define CONFIG_IMU_MISO_PIN                 GPIO_NUM_11
 #define CONFIG_IMU_SCLK_PIN                 GPIO_NUM_12

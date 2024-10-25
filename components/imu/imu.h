@@ -107,12 +107,7 @@ void imu_interface_init(imu_interface_t *p_interface, imu_config_t *p_config);
 
 #include "hi229.h"
 
-#elif CONFIG_IMU_SENSOR_GY95
-
-#include "gy95.h"
-
 #endif
 
 // TODO: fix hi229 broken interface, make it align with bno08x
-// TODO: fix gy95 broken interface, make it align with bno08x
 #endif
