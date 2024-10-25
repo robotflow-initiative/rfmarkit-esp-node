@@ -200,8 +200,10 @@ static void sys_load_nvs_configuration() {
 
 
     /** Temporary Fix NVS invalid variable **/
+#if CONFIG_IMU_SENSOR_HI229
     g_mcu.imu_baud = MIN(g_mcu.imu_baud, 921600);
     g_mcu.imu_baud = MAX(g_mcu.imu_baud, 9600);
+#endif
     g_mcu.seq = MIN(g_mcu.seq, 255);
     g_mcu.seq = MAX(g_mcu.seq, 0);
     g_mcu.target_fps = MIN(g_mcu.target_fps, CONFIG_TARGET_FPS);
