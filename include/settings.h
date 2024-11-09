@@ -23,7 +23,7 @@
 #define CONFIG_NORMAL_TX_POWER              (34)
 #define CONFIG_MAX_TX_POWER                 (68)
 #define CONFIG_WIFI_SSID                    "markit"
-#define CONFIG_WIFI_PSK                     "markit"
+#define CONFIG_WIFI_PSK                     "12345678"
 #define CONFIG_DATA_HOST_IP_ADDR            "255.255.255.255"   // broadcast address by default
 #define CONFIG_DATA_HOST_PORT               18891
 #define CONFIG_DISCOVERY_PORT               18889

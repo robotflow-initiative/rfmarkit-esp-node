@@ -55,6 +55,7 @@ void sys_wifi_netif_init(void) {
     ESP_ERROR_CHECK(esp_netif_init());
     esp_netif_t *interface = esp_netif_create_default_wifi_sta();
     /** Set the hostname **/
+    // FIXME: some wifi says hostname is too long
     ESP_ERROR_CHECK(esp_netif_set_hostname(interface, g_mcu.ble_local_name));
 }
 
