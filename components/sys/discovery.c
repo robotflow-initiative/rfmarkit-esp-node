@@ -27,6 +27,21 @@
 #define CONFIG_DISCOVERY_BROADCAST_REPLY_CONTROL_OFFSET 6
 #define CONFIG_DISCOVERY_BROADCAST_DEVICE_ID_OFFSET     7
 
+/**
+
+ Device Discovery
+
+Similar to mDNS, the Device Discovery Function helps discover and configure MarkIt markers. The Device Discovery mechanism listens at UDP port `18889`. A valid UDP broadcast datagram for device discovery should in the following format
+
+```
+#         |        Header        |  Flag  | Reply  |   DeviceID   |
+message = '\xe5\xe5\xe5\xe5\xe5' + '\x01' + '\x01' + "e28ed3902f50"
+```
+
+- `Flag`: `0x01` for discovery request from marker, `0x00` for discovery response from controller
+- `Repley`: `0x01` means the marker need reply from controller (so that it can obtain extra information such as OTA_HOST), `0x00` means the marker is sending keepalive message
+- `DeviceID`: The unique ID of the marker, it is a 12-digit hex string
+**/
 typedef struct {
     char ntp_host[32];
     char ota_host[32];

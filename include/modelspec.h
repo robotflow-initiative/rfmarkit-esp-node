@@ -6,7 +6,7 @@
 
 #define CONFIG_BUTTON_FN_GPIO_PIN           GPIO_NUM_0
 #define CONFIG_BUTTON_FN_ACTIVE_LEVEL       0
-#define CONFIG_BLINK_PIN                    GPIO_NUM_2
+#define CONFIG_BLINK_PIN                    GPIO_NUM_7
 
 #define TIMER_DIVIDER                       16                                //  Hardware timer clock divider
 #define TIMER_SCALE                         (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
@@ -60,8 +60,8 @@
 #define CONFIG_BATTERY_EN_PIN               GPIO_NUM_25
 #define CONFIG_BATTERY_READ_ADC_CHANNEL     ADC1_CHANNEL_6  // GPIO_NUM_34
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-#define CONFIG_BATTERY_EN_PIN               GPIO_NUM_4
-#define CONFIG_BATTERY_READ_ADC_CHANNEL     ADC1_CHANNEL_5  //  GPIO_NUM_6
+#define CONFIG_BATTERY_EN_PIN               GPIO_NUM_2
+#define CONFIG_BATTERY_READ_ADC_CHANNEL     ADC1_CHANNEL_0  //  GPIO_NUM_1
 #endif
 
 #endif

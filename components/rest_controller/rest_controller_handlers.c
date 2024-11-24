@@ -705,6 +705,7 @@ esp_err_t operation_mode_handler(httpd_req_t *req) {
             cJSON_AddBoolToObject(root, "active", g_mcu.state.active);
             //cJSON_AddNumberToObject(root, "imu_status", g_imu.status);
             cJSON_AddStringToObject(root, "imu_status", g_imu.p_imu->status == IMU_STATUS_FAIL ? "fail" :
+                                                        sys_get_operation_mode() ? "running":
                                                         g_imu.p_imu->status == IMU_STATUS_READY ? "ready" : "unknown");
             break;
         case HTTP_POST:

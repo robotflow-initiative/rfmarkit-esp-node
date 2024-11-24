@@ -275,6 +275,16 @@ void sys_stop_timers(void) {
     xTimerStop(g_mcu.timers.power_mgmt_timer, 0);
 }
 
+
+/**
+ * Set system operation mode
+ * @param active
+ * @return
+**/
+bool sys_get_operation_mode() {
+    return g_mcu.state.active;
+}
+
 /**
  * Set system operation mode
  * @param active

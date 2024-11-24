@@ -262,6 +262,8 @@ void sys_stop_tasks(void);
 
 void sys_stop_timers(void);
 
+bool sys_get_operation_mode(void);
+
 esp_err_t sys_set_operation_mode(bool active);
 
 void sys_mode_change_handler(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);
