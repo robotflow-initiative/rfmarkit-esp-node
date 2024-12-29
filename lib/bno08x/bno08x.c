@@ -111,7 +111,12 @@ esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, __attribute__((unused)) bo
     if (BNO08x_data_available(p_driver)) {
         BNO08x_get_quat(p_driver, &out->imu.quat[1], &out->imu.quat[2], &out->imu.quat[3], &out->imu.quat[0], &rad_acc, &acc);
         spatial_quaternion_to_euler_deg((Quaternion *) &(out->imu.quat), (Euler *) &out->imu.eul);
+
+#if CONFIG_USE_LINEAR_ACCELERATION
+        BNO08x_get_linear_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
+#else
         BNO08x_get_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
+#endif
 
         // tsf timestamp
         out->tsf_time_us = esp_mesh_get_tsf_time();
@@ -227,7 +232,11 @@ size_t bno08x_read_bytes(imu_t *p_imu, uint8_t *out, size_t len) {
     if (BNO08x_data_available(p_driver)) {
         BNO08x_get_quat(p_driver, &out_dgram.imu.quat[1], &out_dgram.imu.quat[2], &out_dgram.imu.quat[3], &out_dgram.imu.quat[0], &rad_acc, &acc);
         spatial_quaternion_to_euler_deg((Quaternion *) &(out_dgram.imu.quat), (Euler *) &out_dgram.imu.eul);
+#if CONFIG_USE_LINEAR_ACCELERATION
+        BNO08x_get_linear_accel(p_driver, &out_dgram.imu.acc[0], &out_dgram.imu.acc[1], &out_dgram.imu.acc[2], &acc);
+#else
         BNO08x_get_accel(p_driver, &out_dgram.imu.acc[0], &out_dgram.imu.acc[1], &out_dgram.imu.acc[2], &acc);
+#endif
     }
 
     snprintf(
