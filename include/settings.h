@@ -3,6 +3,7 @@
 
 /** System settings **/
 #define CONFIG_TARGET_FPS                   100
+#define CONFIG_MAX_FPS                      400
 #define CONFIG_EN_MULTI_CORE                1
 #define CONFIG_EN_PROFILING                 0
 #define CONFIG_EN_FPS_PROFILING             1

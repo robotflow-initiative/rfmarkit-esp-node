@@ -64,7 +64,7 @@ void ch_dump_imu_data(raw_t* raw) {
         CH_TRACE("%-16s%.3f %.3f %.3f\r\n", "eul(deg):", raw->imu[0].eul[0], raw->imu[0].eul[1], raw->imu[0].eul[2]);
         CH_TRACE("%-16s%.3f %.3f %.3f %.3f\r\n", "quat:", raw->imu[0].quat[0], raw->imu[0].quat[1], raw->imu[0].quat[2], raw->imu[0].quat[3]);
         CH_TRACE("%-16s%.3f\r\n", "presure(pa):", raw->imu[0].pressure);
-        CH_TRACE("%-16s%d\r\n", "timestamp(ms):", raw->imu[0].timestamp);
+        CH_TRACE("%-16s%d\r\n", "timestamp(ms):", raw->imu[0].imu_ts_ms);
 
         CH_TRACE("item: ");
         for (i = 0; i < raw->nitem_code; i++) {
@@ -81,7 +81,7 @@ void ch_dump_imu_data(raw_t* raw) {
             CH_TRACE("%-16s%.3f %.3f %.3f\r\n", "eul(deg):", raw->imu[i].eul[0], raw->imu[i].eul[1], raw->imu[i].eul[2]);
             CH_TRACE("%-16s%.3f %.3f %.3f %.3f\r\n", "quat:", raw->imu[i].quat[0], raw->imu[i].quat[1], raw->imu[i].quat[2], raw->imu[i].quat[3]);
             CH_TRACE("%-16s%.3f\r\n", "presure(pa):", raw->imu[i].pressure);
-            CH_TRACE("%-16s%d\r\n", "timestamp(ms):", raw->imu[i].timestamp);
+            CH_TRACE("%-16s%d\r\n", "timestamp(ms):", raw->imu[i].imu_ts_ms);
         }
     }
 }
@@ -154,7 +154,7 @@ static int parse_data(raw_t* raw) {
             raw->item_code[raw->nitem_code++] = KItemIMUSOL;
             raw->imu[0].id = U1(p + ofs + 1);
             raw->imu[0].pressure = R4(p + ofs + 4);
-            raw->imu[0].timestamp = U4(p + ofs + 8);
+            raw->imu[0].imu_ts_ms = U4(p + ofs + 8);
             raw->imu[0].acc[0] = R4(p + ofs + 12);
             raw->imu[0].acc[1] = R4(p + ofs + 16);
             raw->imu[0].acc[2] = R4(p + ofs + 20);
@@ -182,7 +182,7 @@ static int parse_data(raw_t* raw) {
             for (i = 0; i < raw->nimu; i++) {
                 raw->imu[i].id = U1(p + ofs + 1);
                 raw->imu[i].pressure = R4(p + ofs + 4);
-                raw->imu[i].timestamp = U4(p + ofs + 8);
+                raw->imu[i].imu_ts_ms = U4(p + ofs + 8);
                 raw->imu[i].acc[0] = R4(p + ofs + 12);
                 raw->imu[i].acc[1] = R4(p + ofs + 16);
                 raw->imu[i].acc[2] = R4(p + ofs + 20);

@@ -109,6 +109,7 @@ esp_err_t system_info_handler(httpd_req_t *req) {
     cJSON_AddNumberToObject(root, "tsf_time", tsf_time);
     int64_t battery_level = battery_read_level();
     cJSON_AddNumberToObject(root, "battery_level", (double) battery_level);
+    cJSON_AddNumberToObject(root, "target_fps", g_mcu.target_fps);
 
     const char *response = cJSON_Print(root);
     httpd_resp_sendstr(req, response);
@@ -220,40 +221,35 @@ esp_err_t system_power_mgmt_handler(httpd_req_t *req) {
     reset_power_save_timer();
     cJSON *root = cJSON_CreateObject();
 
-    char mode[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
+    cJSON_AddStringToObject(root, "mode", g_power_mgmt_ctx.mode == POWER_MODE_PERFORMANCE ? "performance" :
+                                          g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
+                                          g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
+    cJSON_AddBoolToObject(root, "no_sleep", g_power_mgmt_ctx.no_sleep);
 
+    const char *response = cJSON_Print(root);
+    httpd_resp_sendstr(req, response);
+    free((void *) response);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
 
-    switch (req->method) {
-        case HTTP_GET:
-            cJSON_AddStringToObject(root, "mode", g_power_mgmt_ctx.mode == POWER_MODE_PERFORMANCE ? "performance" :
-                                                  g_power_mgmt_ctx.mode == POWER_MODE_NORMAL ? "normal" :
-                                                  g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY ? "low_energy" : "unknown");
-            cJSON_AddBoolToObject(root, "no_sleep", g_power_mgmt_ctx.no_sleep);
-            break;
-        case HTTP_POST:
-            parse_url_kv_pair(req->uri, "mode", mode);
-            cJSON_AddStringToObject(root, "mode", mode);
-            if (strcmp(mode, "performance") == 0) {
-                cJSON_AddStringToObject(root, "status", "ok");
-                g_power_mgmt_ctx.next_mode = POWER_MODE_PERFORMANCE;
-                set_sys_event(EV_SYS_POWER_MGMT);
-            } else if (strcmp(mode, "normal") == 0) {
-                cJSON_AddStringToObject(root, "status", "ok");
-                g_power_mgmt_ctx.next_mode = POWER_MODE_NORMAL;
-                set_sys_event(EV_SYS_POWER_MGMT);
-            } else if (strcmp(mode, "low_energy") == 0) {
-                cJSON_AddStringToObject(root, "status", "ok");
-                g_power_mgmt_ctx.next_mode = POWER_MODE_LOW_ENERGY;
-                set_sys_event(EV_SYS_POWER_MGMT);
-            } else {
-                cJSON_AddStringToObject(root, "status", "invalid mode value");
-                httpd_resp_set_status(req, HTTPD_400);
-            }
-            break;
-        default:
-            cJSON_AddStringToObject(root, "status", "invalid method");
-            httpd_resp_set_status(req, HTTPD_400);
-    }
+// uri:/v1/nvs
+esp_err_t nvs_variable_list_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+    reset_power_save_timer();
+    cJSON *root = cJSON_CreateObject();
+    cJSON *list = cJSON_AddArrayToObject(root, "names");
+
+    // Add all the variable names to the list
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_WIFI_SSID_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_WIFI_PSK_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_DATA_HOST_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_OTA_HOST_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_NTP_HOST_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_TEST_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_IMU_BAUD_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_SEQ_NAME));
+    cJSON_AddItemToArray(list, cJSON_CreateString(CONFIG_NVS_TARGET_FPS_NAME));
 
     const char *response = cJSON_Print(root);
     httpd_resp_sendstr(req, response);

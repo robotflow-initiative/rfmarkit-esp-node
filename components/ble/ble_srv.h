@@ -20,8 +20,8 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 
 int gatt_svr_init(void);
 
-void sys_start_ble_srv(void);
+void blehr_start_srv(bool *status_out);
 
-void sys_stop_ble_srv(void);
+void blehr_stop_srv(bool *status_out);
 
 #endif

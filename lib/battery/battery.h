@@ -5,7 +5,7 @@
 #ifndef BATTERY_
 #define BATTERY_
 
-#define CONFIG_BATTERY_EN_VALUE             0
+#define CONFIG_BATTERY_EN_VALUE             1
 
 #define battery_delay_ms(x) vTaskDelay((x) / portTICK_PERIOD_MS)
 

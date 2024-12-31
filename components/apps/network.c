@@ -25,35 +25,18 @@ typedef struct {
     float acc[3];           /* acceleration          */
     float gyr[3];           /* angular velocity      */
     float mag[3];           /* magnetic field        */
-    float eul[3];           /* attitude: eular angle */
+    float eul[3];           /* attitude: eular angle */ // TODO: remmove the field
     float quat[4];          /* attitude: quaternion  */
     float pressure;         /* air pressure          */
-    uint32_t timestamp;
-    int64_t time_us;
-    int64_t tsf_time_us;
+    uint32_t imu_ts_ms;
+    int64_t dev_ts_us;
+    int64_t tsf_ts_us;
     uint32_t seq;
-    int32_t buffer_delay_us;
-    char device_id[12];
-    uint8_t checksum;
+    int32_t dev_delay_us;
+    char device_id[12]; // TODO: remove the field
+    uint8_t checksum;   // TODO: removfe the field
 } marker_packet_t;
 
-//static marker_packet_t dummy_packet = {
-//    .addr = 100,
-//    .id = 101,
-//    .acc = {1, 1, 1},
-//    .gyr = {2, 2, 2},
-//    .mag = {3, 3, 3},
-//    .eul = {4, 4, 4},
-//    .quat = {5, 5, 5, 5},
-//    .pressure = 6,
-//    .timestamp = 7,
-//    .time_us = 8,
-//    .tsf_time_us = 9,
-//    .seq = 10,
-//    .uart_buffer_len = 11,
-//    .device_id = "abcdabcdabcd",
-//    .checksum = 12
-//};
 
 static const char *TAG = "app.data_client ";
 
@@ -76,17 +59,20 @@ __attribute__((unused)) static uint8_t compute_checksum(const uint8_t *data, siz
 **/
 static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
     pkt->id = imu_data->imu.id;
-    memcpy(pkt->acc, imu_data->imu.acc, sizeof(pkt->acc));
+    memcpy(pkt->acc, imu_data->imu.acc, sizeof(pkt->acc)); // TODO: optimize the memcpy
     memcpy(pkt->gyr, imu_data->imu.gyr, sizeof(pkt->gyr));
     memcpy(pkt->mag, imu_data->imu.mag, sizeof(pkt->mag));
-    memcpy(pkt->eul, imu_data->imu.eul, sizeof(pkt->eul));
+    memcpy(pkt->eul, imu_data->imu.eul, sizeof(pkt->eul)); // TODO: remove this field
     memcpy(pkt->quat, imu_data->imu.quat, sizeof(pkt->quat));
     pkt->pressure = imu_data->imu.pressure;
-    pkt->timestamp = imu_data->imu.timestamp;
-    pkt->time_us = imu_data->time_us;
-    pkt->tsf_time_us = imu_data->tsf_time_us;
+    pkt->imu_ts_ms = imu_data->imu.imu_ts_ms;
+    pkt->dev_ts_us = imu_data->dev_ts_us;
+    pkt->tsf_ts_us = imu_data->tsf_ts_us;
     pkt->seq = imu_data->seq;
-    pkt->buffer_delay_us = imu_data->buffer_delay_us;
+    struct timeval tv_now = { 0, 0 };
+    gettimeofday(&tv_now, NULL);
+    int64_t now_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
+    pkt->dev_delay_us =(int32_t)(now_us - imu_data->dev_ts_us);
     pkt->checksum = 0;
 
 }
@@ -156,7 +142,7 @@ _Noreturn void app_data_client(void *pvParameters) {
         char signal = 0;
         while (g_mcu.state.active) {
             /** If the queue is empty, sleep for a while **/
-            err = ring_buf_peek(serial_buf, &imu_reading, curr_index, &confirm_index);
+            err = ring_buf_peek(serial_buf, &imu_reading, curr_index, &confirm_index); // TODO: add a curr_index=-1 mode for fast response
 
             /** The ring buffer is empty or not ready **/
             if (err != ESP_OK) {

@@ -10,8 +10,8 @@ typedef struct {
     float mag[3];           /* magnetic field                   */
     float eul[3];           /* attitude: eular angle [r,p,y]    */
     float quat[4];          /* attitude: quaternion  [w,x,y,z]  */
-    float pressure;         /* air pressure                         */
-    uint32_t timestamp;
+    float pressure;         /* air pressure                     */
+    uint32_t imu_ts_ms;     /* device timestamp in milliseconds */
 } imu_data_t;
 
 typedef struct {
@@ -23,8 +23,8 @@ typedef struct {
 
 typedef struct {
     imu_data_t imu;
-    int64_t time_us;
-    int64_t tsf_time_us;
+    int64_t dev_ts_us;
+    int64_t tsf_ts_us;
     uint32_t seq;
     int32_t buffer_delay_us;
 } imu_dgram_t;

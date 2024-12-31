@@ -181,11 +181,10 @@ esp_err_t power_mgmt_on_enter_standby() {
 
     /** Init nimble BLE **/
     if (!g_power_mgmt_ctx.peripheral_state.ble_enabled && g_power_mgmt_ctx.mode != POWER_MODE_LOW_ENERGY) {
-        sys_start_ble_srv();
-        g_power_mgmt_ctx.peripheral_state.ble_enabled = true;
+        esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
+        blehr_start_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
     } else if (g_power_mgmt_ctx.mode == POWER_MODE_LOW_ENERGY) {
-        sys_stop_ble_srv();
-        g_power_mgmt_ctx.peripheral_state.ble_enabled = false;
+        blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
     }
 
     /** Initialize Wi-Fi **/
@@ -224,6 +223,11 @@ esp_err_t power_mgmt_on_enter_standby() {
 esp_err_t power_mgmt_on_enter_active() {
     ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
+    // detect if bluetooth is enabled
+    if (g_power_mgmt_ctx.peripheral_state.ble_enabled) {
+        blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
+        esp_wifi_set_ps(WIFI_PS_NONE); // DISABLE WiFi PowerSaving
+    }
 
     g_power_mgmt_ctx.state = POWER_ACTIVE;
     return ESP_OK;
@@ -237,8 +241,7 @@ esp_err_t power_mgmt_on_enter_power_save() {
     /** De-initialize BLE **/
     if (g_power_mgmt_ctx.peripheral_state.ble_enabled) {
         ESP_LOGI(TAG, "disabling BLE");
-        sys_stop_ble_srv();
-        g_power_mgmt_ctx.peripheral_state.ble_enabled = false;
+        blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
     }
 
     /** De-initialize Wi-Fi **/
@@ -403,8 +406,7 @@ void sys_power_mgmt_handler(__attribute__((unused)) void *handler_args, __attrib
                             ESP_LOGI(TAG, "switch to low energy mode");
                             g_power_mgmt_ctx.mode = POWER_MODE_LOW_ENERGY;
                             if (g_power_mgmt_ctx.peripheral_state.ble_enabled) {
-                                sys_stop_ble_srv();
-                                g_power_mgmt_ctx.peripheral_state.ble_enabled = false;
+                                blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
                             }
                             arm_power_save_timer();
                             break;

@@ -106,7 +106,7 @@ int battery_read_level() {
     GND
      **/
 
-    voltage *= 2; // the voltage divider ratio is 2
+    voltage = voltage / 2 * 5; // the voltage divider ratio is 2
 #endif
     return (int) voltage;
 }

@@ -160,15 +160,11 @@ esp_err_t sys_get_nvs_var(mcu_var_t *p_var, mcu_var_data_t *out, char *value_buf
         p_var = NULL; \
         bzero(value_buffer, CONFIG_VAR_STR_MAX_LEN)
 
-#define sys_load_int32_conf(name, target, default_value) \
+#define sys_load_int32_conf(name, target) \
         p_var = sys_find_var((name), strlen(name));\
         if (p_var != NULL) {\
             sys_get_nvs_var(p_var, &data, value_buffer);\
-            if (data.int32 > 0) {\
-                (target) = data.int32;\
-            } else {\
-                (target) = default_value;\
-            }  \
+            (target) = data.int32; \
             ESP_LOGW(TAG, "Variable "name"=%d; value_stored=%d", (target), data.int32); \
         } else { \
             ESP_LOGW(TAG, "Variable "name"=%d is not found", (target)); \
@@ -187,7 +183,7 @@ static void sys_load_nvs_configuration() {
 
     char value_buffer[CONFIG_VAR_STR_MAX_LEN];
     char _protect = 0;
-    sys_load_int32_conf(CONFIG_NVS_TEST_NAME, _protect, 0); // NOTE: a workaround to protect the following variable from getting corrupted
+    sys_load_int32_conf(CONFIG_NVS_TEST_NAME, _protect); // NOTE: a workaround to protect the following variable from getting corrupted
     sys_load_str_conf(CONFIG_NVS_WIFI_SSID_NAME, g_mcu.wifi_ssid, CONFIG_WIFI_SSID);
     sys_load_str_conf(CONFIG_NVS_WIFI_PSK_NAME, g_mcu.wifi_psk, CONFIG_WIFI_PSK);
     sys_load_str_conf(CONFIG_NVS_DATA_HOST_NAME, g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_IP_ADDR);
@@ -195,8 +191,8 @@ static void sys_load_nvs_configuration() {
 #if CONFIG_IMU_SENSOR_HI229
     sys_load_int32_conf(CONFIG_NVS_IMU_BAUD_NAME, g_mcu.imu_baud, CONFIG_IMU_BAUD);
 #endif
-    sys_load_int32_conf(CONFIG_NVS_SEQ_NAME, g_mcu.seq, 0);
-    sys_load_int32_conf(CONFIG_NVS_TARGET_FPS_NAME, g_mcu.target_fps, CONFIG_TARGET_FPS);
+    sys_load_int32_conf(CONFIG_NVS_SEQ_NAME, g_mcu.seq);
+    sys_load_int32_conf(CONFIG_NVS_TARGET_FPS_NAME, g_mcu.target_fps);
 
 
     /** Temporary Fix NVS invalid variable **/
@@ -206,7 +202,12 @@ static void sys_load_nvs_configuration() {
 #endif
     g_mcu.seq = MIN(g_mcu.seq, 255);
     g_mcu.seq = MAX(g_mcu.seq, 0);
-    g_mcu.target_fps = MIN(g_mcu.target_fps, CONFIG_TARGET_FPS);
+
+    g_mcu.target_fps = MAX(g_mcu.target_fps, 0);
+    if (g_mcu.target_fps > CONFIG_MAX_FPS || g_mcu.target_fps <= 0) {
+        g_mcu.target_fps = CONFIG_TARGET_FPS;
+    }
+    g_mcu.target_fps = MIN(g_mcu.target_fps, CONFIG_MAX_FPS);
 
     /** Macro Expansion Reference, DO NOT REMOVE **/
     /**
