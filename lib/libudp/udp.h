@@ -39,6 +39,5 @@ esp_err_t udp_socket_send(udp_socket_t* object, uint8_t * data_ptr, size_t size)
 
 esp_err_t udp_socket_recv(udp_socket_t* object, uint8_t * data_ptr, size_t size, size_t * len);
 
-// TODO: add docs
 #endif //#_UDP_H
 

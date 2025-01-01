@@ -23,7 +23,7 @@
 #define CONFIG_MAGIC_REPLY_FLAG_INDEX                   6
 #define CONFIG_MAGIC_REPLY_FLAG_LENGTH                  1
 
-#define CONFIG_DISCOVERY_BROADCAST_ADDR                 "255.255.255.255"
+#define CONFIG_DISCOVERY_BROADCAST_ADDR                 "255.255.255.255" // TODO: use multicast address
 #define CONFIG_DISCOVERY_BROADCAST_REPLY_CONTROL_OFFSET 6
 #define CONFIG_DISCOVERY_BROADCAST_DEVICE_ID_OFFSET     7
 
@@ -141,19 +141,17 @@ void sys_discovery_handler(void *handler_args, esp_event_base_t base, int32_t id
         } else {
             /** discovery is not done, broadcasting and receiving **/
             sys_set_discovery_msg_reply_control(true);
-            err = udp_socket_send(&client, (uint8_t *) discovery_msg_buffer, sizeof(discovery_msg_buffer) - 1);
-
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "error occurred during sending (register): errno %d", errno);
-                goto exit;
-            }
-
             static uint8_t discovery_reply_buffer[128];
             int64_t time_start = esp_timer_get_time();
             bool reply_received = false;
 
             /** wait for reply **/
-            while ((esp_timer_get_time() - time_start) < CONFIG_DISCOVERY_REPLY_TIMEOUT_S * 1000000L) {
+            while ((esp_timer_get_time() - time_start) < CONFIG_DISCOVERY_INTERVAL_S * 1000000L) {
+                err = udp_socket_send(&client, (uint8_t *) discovery_msg_buffer, sizeof(discovery_msg_buffer) - 1);
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "error occurred during sending (register): errno %d", errno);
+                    goto exit;
+                }
                 size_t len;
                 err = udp_socket_recv(&client, discovery_reply_buffer, sizeof(discovery_reply_buffer) - 1, &len);
                 if (err != ESP_OK) {

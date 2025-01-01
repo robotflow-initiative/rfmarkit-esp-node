@@ -43,6 +43,10 @@ static bool adc_calibration_init(void) {
     return cali_enable;
 }
 
+/**
+ * @brief Initialize battery management
+ * @return ESP_OK on success, ESP_FAIL on error
+**/
 esp_err_t battery_msp_init() {
 
     /** Init ADC_EN GPIO **/
@@ -70,6 +74,10 @@ esp_err_t battery_msp_init() {
     return ESP_OK;
 }
 
+/**
+ * @brief Read battery level
+ * @return mV
+**/
 int battery_read_level() {
 #ifdef CONFIG_BATTERY_EN_PIN
     gpio_set_level(CONFIG_BATTERY_EN_PIN, CONFIG_BATTERY_EN_VALUE);
@@ -92,7 +100,7 @@ int battery_read_level() {
     +
     |
     |
-    [R1] 10kΩ
+    [R1] 15kΩ
     |
     |---- ADC_CHANNEL
     |

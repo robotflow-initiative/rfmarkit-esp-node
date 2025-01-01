@@ -61,7 +61,7 @@ void BNO08x_init(BNO08x *device, BNO08x_config_t *imu_config)
 #if ESP_IDF_VERSION_MAJOR == 5
     device->imu_spi_config.clock_source = SPI_CLK_SRC_DEFAULT;
 #endif
-    // device->bus_config.data5_io_num = -1;                           // octal mode not used
+    device->bus_config.data5_io_num = -1;                           // octal mode not used
     // SPI non-driver-controlled GPIO config
     // configure outputs
     gpio_config_t outputs_config;

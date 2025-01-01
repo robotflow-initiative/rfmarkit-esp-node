@@ -49,11 +49,11 @@
 #define CONFIG_NTP_HOST_IP_ADDR_BACKUP      "202.120.2.101"     // ntp.sjtu.edu.cn
 #define CONFIG_NTP_PRIMARY_MAX_RETRY        2
 #define CONFIG_NTP_TIMEOUT_S                5
-#define CONFIG_NTP_UPDATE_INTERVAL_S        1200
+#define CONFIG_NTP_UPDATE_INTERVAL_S        300
 
 /** Discovery Related **/
 #define CONFIG_DISCOVERY_INTERVAL_S         15
-#define CONFIG_DISCOVERY_REPLY_TIMEOUT_S    5
+#define CONFIG_DISCOVERY_REPLY_TIMEOUT_S    3
 
 /** Power Management Related **/
 #define CONFIG_POWER_MGMT_DURATION_S        20

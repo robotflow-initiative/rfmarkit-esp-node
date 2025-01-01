@@ -13,5 +13,4 @@ esp_err_t battery_msp_init(void);
 
 int battery_read_level(void);
 
-// TODO: add docs
 #endif

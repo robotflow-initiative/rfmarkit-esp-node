@@ -20,21 +20,15 @@
 #define CONFIG_UDP_RETRY 3
 
 typedef struct {
-    uint8_t addr;
-    uint32_t id;            /* user defined ID       */
     float acc[3];           /* acceleration          */
     float gyr[3];           /* angular velocity      */
     float mag[3];           /* magnetic field        */
-    float eul[3];           /* attitude: eular angle */ // TODO: remmove the field
     float quat[4];          /* attitude: quaternion  */
-    float pressure;         /* air pressure          */
     uint32_t imu_ts_ms;
     int64_t dev_ts_us;
     int64_t tsf_ts_us;
     uint32_t seq;
     int32_t dev_delay_us;
-    char device_id[12]; // TODO: remove the field
-    uint8_t checksum;   // TODO: removfe the field
 } marker_packet_t;
 
 
@@ -58,13 +52,10 @@ __attribute__((unused)) static uint8_t compute_checksum(const uint8_t *data, siz
  * @param imu_data
 **/
 static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
-    pkt->id = imu_data->imu.id;
-    memcpy(pkt->acc, imu_data->imu.acc, sizeof(pkt->acc)); // TODO: optimize the memcpy
+    memcpy(pkt->acc, imu_data->imu.acc, sizeof(pkt->acc));
     memcpy(pkt->gyr, imu_data->imu.gyr, sizeof(pkt->gyr));
     memcpy(pkt->mag, imu_data->imu.mag, sizeof(pkt->mag));
-    memcpy(pkt->eul, imu_data->imu.eul, sizeof(pkt->eul)); // TODO: remove this field
     memcpy(pkt->quat, imu_data->imu.quat, sizeof(pkt->quat));
-    pkt->pressure = imu_data->imu.pressure;
     pkt->imu_ts_ms = imu_data->imu.imu_ts_ms;
     pkt->dev_ts_us = imu_data->dev_ts_us;
     pkt->tsf_ts_us = imu_data->tsf_ts_us;
@@ -73,8 +64,6 @@ static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
     gettimeofday(&tv_now, NULL);
     int64_t now_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
     pkt->dev_delay_us =(int32_t)(now_us - imu_data->dev_ts_us);
-    pkt->checksum = 0;
-
 }
 
 /**
@@ -97,9 +86,6 @@ _Noreturn void app_data_client(void *pvParameters) {
 
     /** Initialize a packet **/
     marker_packet_t pkt = {0};
-    pkt.addr = g_imu.p_imu->addr; // this part is fixed
-    memcpy(pkt.device_id, g_mcu.device_id, sizeof(g_mcu.device_id));  // this part is fixed
-
     udp_socket_t client = {0};
     esp_err_t err;
 
@@ -136,13 +122,18 @@ _Noreturn void app_data_client(void *pvParameters) {
         int64_t confirm_index = -1;
 
         xQueueReset(read_signal_queue);
-        esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps);
+        esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps); // 2x the target fps
 
         imu_dgram_t imu_reading = {0};
         char signal = 0;
         while (g_mcu.state.active) {
+            /** get the signal from the queue **/
+            if (confirm_index >= serial_buf->head) {
+                xQueueReceive(read_signal_queue, &signal, portMAX_DELAY);
+            }
+
             /** If the queue is empty, sleep for a while **/
-            err = ring_buf_peek(serial_buf, &imu_reading, curr_index, &confirm_index); // TODO: add a curr_index=-1 mode for fast response
+            err = ring_buf_peek(serial_buf, &imu_reading, curr_index, &confirm_index);
 
             /** The ring buffer is empty or not ready **/
             if (err != ESP_OK) {
@@ -153,7 +144,6 @@ _Noreturn void app_data_client(void *pvParameters) {
 
             /** imu_reading is available **/
             tag_packet(&pkt, &imu_reading);
-            pkt.checksum = 0;
 
             /** According to the document, udp send may fail because of memory issue, this is normal **/
             for (int i = 0; i < CONFIG_UDP_RETRY; ++i) {
@@ -172,9 +162,6 @@ _Noreturn void app_data_client(void *pvParameters) {
 
             /** If the packet is not sent, abort **/
             if (err != ESP_OK) goto handle_error;
-
-            /** get the signal from the queue **/
-            xQueueReceive(read_signal_queue, &signal, portMAX_DELAY);
         }
 
 handle_error:

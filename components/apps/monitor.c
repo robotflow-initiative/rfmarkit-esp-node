@@ -76,9 +76,12 @@ _Noreturn void app_monitor(void *pvParameters) {
         esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps);
 #endif
         while (g_imu.p_imu->enabled && g_imu.p_imu->mux == IMU_MUX_STREAM) {
+#if CONFIG_EN_READ_FPS_LIM
+            /** get the signal from the queue **/
+            xQueueReceive(read_signal_queue, &signal, portMAX_DELAY);
+#endif
             /** Read IMU data **/
             esp_err_t err = g_imu.read(g_imu.p_imu, &imu_data, true);
-
             /** If the err occurs(most likely due to the empty uart buffer), wait **/
             if (err != ESP_OK) {
                 ESP_LOGD(TAG, "IMU read error: %d", err);
@@ -86,17 +89,12 @@ _Noreturn void app_monitor(void *pvParameters) {
                 os_delay_ms(5);
                 continue;
             }
-
             /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
             imu_data.seq = seq++;
 
             /** Add the imu data to the ring buffer **/
             ring_buf_push(serial_buf, (uint8_t *) &imu_data);
 
-#if CONFIG_EN_READ_FPS_LIM
-            /** get the signal from the queue **/
-            xQueueReceive(read_signal_queue, &signal, portMAX_DELAY);
-#endif
 #if CONFIG_EN_FPS_PROFILING
             int64_t now;
             get_time_usec(now);

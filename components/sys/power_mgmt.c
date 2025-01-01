@@ -307,7 +307,8 @@ _Noreturn esp_err_t power_mgmt_on_enter_deep_sleep(bool wakeup) {
  * @brief Power save application, the only application that can be run in power save mode
  * @param pvParameter
 **/
-__attribute__((unused)) static void app_power_save(__attribute__((unused)) void *pvParameter) {
+static void app_power_save(__attribute__((unused)) void *pvParameter) {
+    // FIXME: fix the power save mode
     sys_stop_tasks();
     sys_stop_timers();
 
@@ -369,8 +370,7 @@ __attribute__((unused)) static void app_power_save(__attribute__((unused)) void 
 }
 
 static void power_mgmt_handle_transition(__attribute__((unused)) TimerHandle_t xTimer) {
-    // TODO: due to PCE failure, the ESP32 module's SPI CSC is connected to IMU's SYNC_IN by mistake, thus power_save function cannot work properly
-    // xTaskCreate(app_power_save, "app_power_save", 4096, NULL, 12, NULL);
+    xTaskCreate(app_power_save, "app_power_save", 4096, NULL, 12, NULL);
     power_mgmt_on_enter_deep_sleep(false);
 }
 

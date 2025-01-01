@@ -10,14 +10,14 @@ EXECUTE_PROCESS(COMMAND git describe --tags --abbrev=0
 )
 # Check if GIT_VERSION is empty, if so set it to default value
 if ("${GIT_VERSION}" STREQUAL "")
-    set(GIT_VERSION "3.2.2")
+    set(GIT_VERSION "3.3.0")
 endif ()
 
 MESSAGE(STATUS "building from git tag ${GIT_VERSION}")
 add_definitions(-DCONFIG_FIRMWARE_VERSION=\"${GIT_VERSION}\")
 
 # choose imu module
-set(IMU_MODULE bno08x) # TODO: find a better way to switch IMU_MODULE
+set(IMU_MODULE bno08x)
 set(ENV{IMU_MODULE} ${IMU_MODULE})
 
 # Introduce esp-iot-solution
