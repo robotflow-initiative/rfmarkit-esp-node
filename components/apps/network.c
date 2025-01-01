@@ -136,7 +136,7 @@ _Noreturn void app_data_client(void *pvParameters) {
         int64_t confirm_index = -1;
 
         xQueueReset(read_signal_queue);
-        esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps);
+        esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps / 2);
 
         imu_dgram_t imu_reading = {0};
         char signal = 0;
