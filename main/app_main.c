@@ -14,9 +14,46 @@
 #include "sys.h"
 #include "ring_buf.h"
 
+#if CONFIG_EN_IMU_CB
+#include "bno08x.h"
+#include "bno08x_driver.h"
+#endif
+
 static const char *TAG = "app_main";
 
 static uint8_t s_data_buf[CONFIG_DATA_BUF_LEN * sizeof(imu_dgram_t)];
+
+#if CONFIG_EN_IMU_CB
+typedef struct {
+    imu_t base;
+    BNO08x driver;
+} bno08x_t;
+
+/** Get a ring buffer pointer **/
+ring_buf_t *serial_buf = &g_mcu.imu_ring_buf;
+
+/** Create a imu data structure **/
+imu_dgram_t imu_data = {0};
+uint32_t seq = 0;
+
+void imu_data_cb(void *arg)
+{
+    /** Read IMU data **/
+    esp_err_t err = g_imu.read(g_imu.p_imu, &imu_data, true);
+
+    /** If the err occurs(most likely due to the empty uart buffer), wait **/
+    /** but it should be impossible */
+    if (err != ESP_OK) {
+        ESP_LOGD(TAG, "IMU read error: %d", err);
+    }
+
+    /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
+    imu_data.seq = seq++;
+
+    /** Add the imu data to the ring buffer **/
+    ring_buf_push(serial_buf, (uint8_t *) &imu_data);
+}
+#endif
 
 static void init() {
     sys_init_chip();
@@ -41,6 +78,13 @@ static void init() {
 
     /** Test IMU availability, must run at the end of init() **/
     g_imu.self_test(g_imu.p_imu);
+
+#if CONFIG_EN_IMU_CB
+    bno08x_t *p_bno08x = (bno08x_t *) g_imu.p_imu;
+    BNO08x *p_driver = &p_bno08x->driver;
+    /** register the IMU callback */
+    BNO08x_register_cb(p_driver, imu_data_cb);
+#endif
 }
 
 

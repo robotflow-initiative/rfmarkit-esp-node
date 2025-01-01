@@ -6,8 +6,9 @@
 #define CONFIG_MAX_FPS                      400
 #define CONFIG_EN_MULTI_CORE                1
 #define CONFIG_EN_PROFILING                 0
-#define CONFIG_EN_FPS_PROFILING             1
+#define CONFIG_EN_FPS_PROFILING             0
 #define CONFIG_EN_READ_FPS_LIM              1
+#define CONFIG_EN_IMU_CB                    0
 
 /** Hardware related settings **/
 #define CONFIG_DATA_BUF_LEN                 128

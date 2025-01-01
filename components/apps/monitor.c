@@ -80,10 +80,11 @@ _Noreturn void app_monitor(void *pvParameters) {
             esp_err_t err = g_imu.read(g_imu.p_imu, &imu_data, true);
 
             /** If the err occurs(most likely due to the empty uart buffer), wait **/
+            /** This is theoretically impossible */
             if (err != ESP_OK) {
                 ESP_LOGD(TAG, "IMU read error: %d", err);
                 taskYIELD();
-                os_delay_ms(5);
+                os_delay_ms(1000 / g_mcu.target_fps / 2);
                 continue;
             }
 
