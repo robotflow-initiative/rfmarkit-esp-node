@@ -42,11 +42,11 @@ static esp_err_t bno08x_config(imu_t *p_imu) {
     }
 
 #if CONFIG_USE_LINEAR_ACCELERATION
-    BNO08x_enable_linear_accelerometer(p_driver, 1000 / p_imu->target_fps); // 100Hz
+    BNO08x_enable_linear_accelerometer(p_driver, 1000000 / p_imu->target_fps); // 100Hz
 #else
-    BNO08x_enable_accelerometer(p_driver, 1000 / p_imu->target_fps); // 100Hz
+    BNO08x_enable_accelerometer(p_driver, 1000000 / p_imu->target_fps); // 100Hz
 #endif
-    BNO08x_enable_rotation_vector(p_driver, 1000 / p_imu->target_fps); // 100Hz
+    BNO08x_enable_rotation_vector(p_driver, 1000000 / p_imu->target_fps); // 100Hz
     BNO08x_enable_step_counter(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
     BNO08x_enable_stability_classifier(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
 
