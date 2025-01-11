@@ -10,7 +10,7 @@
 
 bool bno08x_isr_service_installed = false;
 
-static const char *TAG = "imu[bno08x]";
+static const char *TAG = "imu[bno08x]     ";
 /**
  * @brief BNO08x imu constructor.
  *

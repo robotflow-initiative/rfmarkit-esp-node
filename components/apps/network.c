@@ -66,16 +66,6 @@ static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
     pkt->dev_delay_us =(int32_t)(now_us - imu_data->dev_ts_us);
 }
 
-/**
- * @brief Timer callback handler， send a signal to the queue so that the data client read latest reading
- * @param arg
- */
-static void IRAM_ATTR read_timer_cb_handler(void *arg) {
-    ESP_LOGD(TAG, "timer_cb_handler called");
-    const char signal = 0;
-    xQueueSendFromISR((QueueHandle_t) arg, &signal, NULL);
-}
-
 static QueueHandle_t read_signal_queue = NULL;
 
 _Noreturn void app_data_client(void *pvParameters) {
@@ -89,22 +79,10 @@ _Noreturn void app_data_client(void *pvParameters) {
     udp_socket_t client = {0};
     esp_err_t err;
 
-    /** Limit the read FPS **/
-    if (read_signal_queue == NULL) read_signal_queue = xQueueCreate(128, sizeof(char));
-    esp_timer_handle_t read_timer;
-    const esp_timer_create_args_t blink_timer_args = {
-        .callback = &read_timer_cb_handler,
-        /** name is optional, but may help identify the timer when debugging */
-        .name = "timeout",
-        .skip_unhandled_events = true,
-        .arg = read_signal_queue
-    };
-    ESP_ERROR_CHECK(esp_timer_create(&blink_timer_args, &read_timer));
-
     while (1) {
         /** Wait for the system to be active **/
         if (!g_mcu.state.active || !g_mcu.state.ntp_synced || !g_mcu.state.discovery_completed) {
-            os_delay_ms(500);
+            os_delay_ms(100);
             continue;
         }
 
@@ -116,20 +94,16 @@ _Noreturn void app_data_client(void *pvParameters) {
                 goto handle_error;
             }
         }
-        os_delay_ms(100); // wait for monitor to start
 
         int64_t curr_index = 1;
         int64_t confirm_index = -1;
 
-        xQueueReset(read_signal_queue);
-        esp_timer_start_periodic(read_timer, 1000000 / g_mcu.target_fps); // 2x the target fps
-
         imu_dgram_t imu_reading = {0};
-        char signal = 0;
         while (g_mcu.state.active) {
-            /** get the signal from the queue **/
+            /** rate limit **/
             if (confirm_index >= serial_buf->head) {
-                xQueueReceive(read_signal_queue, &signal, portMAX_DELAY);
+                taskYIELD();
+                continue;
             }
 
             /** If the queue is empty, sleep for a while **/
@@ -149,15 +123,15 @@ _Noreturn void app_data_client(void *pvParameters) {
             for (int i = 0; i < CONFIG_UDP_RETRY; ++i) {
                 err = udp_socket_send(&client, (uint8_t *) &pkt, sizeof(pkt));
                 if (err == ESP_OK) {
+                    taskYIELD();
                     break;
                 } else if (err == ESP_ERR_NO_MEM) {
                     ESP_LOGW(TAG, "failed transmitting packets to %s:%d, retry", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT);
-                    os_delay_ms(100);
+                    os_delay_ms(1);
                 } else {
                     ESP_LOGE(TAG, "failed transmitting packets to %s:%d", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT);
                     break;
                 }
-                taskYIELD();
             }
 
             /** If the packet is not sent, abort **/
@@ -165,7 +139,6 @@ _Noreturn void app_data_client(void *pvParameters) {
         }
 
 handle_error:
-        esp_timer_stop(read_timer);
         ESP_LOGE(TAG, "data_client aborted, setting operation_mode=inactive");
         if (g_mcu.state.active) sys_set_operation_mode(false);
         os_delay_ms(5000);

@@ -86,7 +86,6 @@ _Noreturn void app_monitor(void *pvParameters) {
             if (err != ESP_OK) {
                 ESP_LOGD(TAG, "IMU read error: %d", err);
                 taskYIELD();
-                os_delay_ms(5);
                 continue;
             }
             /** Tag seq number, timestamp, buffer_len(how many bits are left in the buffer) **/
@@ -105,6 +104,7 @@ _Noreturn void app_monitor(void *pvParameters) {
                 old_seq = seq;
             }
 #endif
+            taskYIELD();
         }
     }
 }

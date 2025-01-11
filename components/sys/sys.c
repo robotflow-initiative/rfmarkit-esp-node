@@ -221,7 +221,7 @@ void sys_log_trace() {
 #if CONFIG_EN_PROFILING
 static _Noreturn void app_log_trace(void * pvParameters) {
     while (1) {
-        os_delay_ms(CONFIG_MAIN_LOOP_DUTY_PERIOD_S * 1000);
+        os_delay_ms(10 * 1000);
         sys_log_heap_size();
         sys_log_trace();
     }
@@ -233,9 +233,9 @@ static _Noreturn void app_log_trace(void * pvParameters) {
 **/
 void sys_start_tasks(void) {
 #if CONFIG_EN_MULTI_CORE
-    launch_task_multicore(app_data_client, "app_data_client", 4096, NULL, 10, g_mcu.tasks.app_data_client_task, 0x1);
-    launch_task_multicore(app_monitor, "app_monitor", 4096, NULL, 13, g_mcu.tasks.app_monitor_task, 0x0);
-    launch_task_multicore(app_system_loop, "app_system_loop", 4096, NULL, 8, g_mcu.tasks.app_system_loop_task, 0x0);
+    launch_task_multicore(app_data_client, "app_data_client", 4096, NULL, 5, g_mcu.tasks.app_data_client_task, 0x0);
+    launch_task_multicore(app_monitor, "app_monitor", 4096, NULL, 6, g_mcu.tasks.app_monitor_task, 0x1);
+    launch_task_multicore(app_system_loop, "app_system_loop", 4096, NULL, 4, g_mcu.tasks.app_system_loop_task, 0x0);
 #if CONFIG_EN_PROFILING
     launch_task_multicore(app_log_trace, "app_log_trace", 4096, NULL, 5, g_mcu.tasks.app_log_trace_task, 0x0);
 #endif
