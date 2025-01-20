@@ -228,6 +228,7 @@ typedef struct {
     int32_t imu_baud;
     int32_t seq;
     int32_t target_fps;
+    int32_t missed_frames;
 } mcu_t;
 
 typedef enum {

@@ -39,7 +39,7 @@ static const char *TAG = "sys.rest        ";
 NEW API                 PATH                    Type        Function
 ----------------------------------------------------------------------------------
 system_info             /v1/system/info         [get]       ping,id,ver,time
-system_power            /v1/system/power        [post]      restart, shutdown, #version_shutdown
+system_power            /v1/system/power        [post]      reboot, shutdown, #version_shutdown
 system_upgrade          /v1/system/upgrade      [get|post]  update
 system_selftest         /v1/system/selftest     [post]      self_test
 system_power_mgmt       /v1/system/power_mgmt   [post]      always_on, cancel_always_on

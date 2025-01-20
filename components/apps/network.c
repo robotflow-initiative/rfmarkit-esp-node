@@ -66,8 +66,6 @@ static void tag_packet(marker_packet_t *pkt, imu_dgram_t *imu_data) {
     pkt->dev_delay_us =(int32_t)(now_us - imu_data->dev_ts_us);
 }
 
-static QueueHandle_t read_signal_queue = NULL;
-
 _Noreturn void app_data_client(void *pvParameters) {
     ESP_LOGI(TAG, "app_data_client started");
 
@@ -83,6 +81,7 @@ _Noreturn void app_data_client(void *pvParameters) {
         /** Wait for the system to be active **/
         if (!g_mcu.state.active || !g_mcu.state.ntp_synced || !g_mcu.state.discovery_completed) {
             os_delay_ms(100);
+            ESP_LOGD(TAG, "waiting for system to be active");
             continue;
         }
 
@@ -97,11 +96,12 @@ _Noreturn void app_data_client(void *pvParameters) {
 
         int64_t curr_index = 1;
         int64_t confirm_index = -1;
+        g_mcu.missed_frames = 0;
 
         imu_dgram_t imu_reading = {0};
         while (g_mcu.state.active) {
             /** rate limit **/
-            if (confirm_index >= serial_buf->head) {
+            if (curr_index >= serial_buf->head) {
                 taskYIELD();
                 continue;
             }
@@ -120,18 +120,14 @@ _Noreturn void app_data_client(void *pvParameters) {
             tag_packet(&pkt, &imu_reading);
 
             /** According to the document, udp send may fail because of memory issue, this is normal **/
-            for (int i = 0; i < CONFIG_UDP_RETRY; ++i) {
-                err = udp_socket_send(&client, (uint8_t *) &pkt, sizeof(pkt));
-                if (err == ESP_OK) {
-                    taskYIELD();
-                    break;
-                } else if (err == ESP_ERR_NO_MEM) {
-                    ESP_LOGW(TAG, "failed transmitting packets to %s:%d, retry", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT);
-                    os_delay_ms(1);
-                } else {
-                    ESP_LOGE(TAG, "failed transmitting packets to %s:%d", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT);
-                    break;
-                }
+            err = udp_socket_send(&client, (uint8_t *) &pkt, sizeof(pkt));
+            if (err == ESP_OK) {
+                taskYIELD();
+            } else if (err == ESP_ERR_NO_MEM) {
+                ESP_LOGW(TAG, "failed transmitting packets to %s:%d, retry", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT);
+                g_mcu.missed_frames++;
+            } else {
+                ESP_LOGE(TAG, "failed transmitting packets to %s:%d", g_mcu.data_host_ip_addr, CONFIG_DATA_HOST_PORT);
             }
 
             /** If the packet is not sent, abort **/
