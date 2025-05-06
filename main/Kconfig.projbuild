@@ -28,4 +28,11 @@ config USE_LINEAR_ACCELERATION
     default n
     help
         Use linear acceleration instead of raw acceleration.
+
+config USE_GYRO
+    bool "Use Gyroscope"
+    default n
+    help
+        Use gyroscope for rotation.
+
 endmenu

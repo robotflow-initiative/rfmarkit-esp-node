@@ -407,6 +407,10 @@ esp_err_t imu_status_handler(httpd_req_t *req) {
         cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu.acc[0]));
         cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu.acc[1]));
         cJSON_AddItemToArray(acc, cJSON_CreateNumber(imu_data.imu.acc[2]));
+        cJSON *gyr = cJSON_AddArrayToObject(imm, "gyr");
+        cJSON_AddItemToArray(gyr, cJSON_CreateNumber(imu_data.imu.gyr[0]));
+        cJSON_AddItemToArray(gyr, cJSON_CreateNumber(imu_data.imu.gyr[1]));
+        cJSON_AddItemToArray(gyr, cJSON_CreateNumber(imu_data.imu.gyr[2]));
         cJSON *rpy = cJSON_AddArrayToObject(imm, "rpy");
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[0]));
         cJSON_AddItemToArray(rpy, cJSON_CreateNumber(imu_data.imu.eul[1]));
@@ -433,7 +437,10 @@ esp_err_t imu_debug_toggle_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
 
     char mode[CONFIG_PARAM_VALUE_MAX_LEN + 1] = {0};
-    parse_url_kv_pair(req->uri, "target_state", mode);
+    parse_url_kv_pair(req->uri, ""
+                                ""
+                                ""
+                                "", mode);
     cJSON_AddStringToObject(root, "target_state", mode);
     if (strcmp(mode, "enable") == 0) {
         g_imu.p_imu->mux = IMU_MUX_DEBUG;

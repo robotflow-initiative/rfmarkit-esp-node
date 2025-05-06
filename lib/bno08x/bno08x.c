@@ -46,6 +46,11 @@ static esp_err_t bno08x_config(imu_t *p_imu) {
 #else
     BNO08x_enable_accelerometer(p_driver, 1000000 / p_imu->target_fps); // 100Hz
 #endif
+
+#if CONFIG_USE_GYRO
+    BNO08x_enable_gyro(p_driver, 1000000 / p_imu->target_fps); // 100Hz
+#endif
+
     BNO08x_enable_rotation_vector(p_driver, 1000000 / p_imu->target_fps); // 100Hz
     BNO08x_enable_step_counter(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
     BNO08x_enable_stability_classifier(p_driver, CONFIG_BNO08X_SLOW_INTERVAL_MS); // 2Hz
@@ -118,6 +123,9 @@ esp_err_t bno08x_read(imu_t *p_imu, imu_dgram_t *out, __attribute__((unused)) bo
         BNO08x_get_accel(p_driver, &out->imu.acc[0], &out->imu.acc[1], &out->imu.acc[2], &acc);
 #endif
 
+#if CONFIG_USE_GYRO
+        BNO08x_get_gyro_calibrated_velocity(p_driver, &out->imu.gyr[0], &out->imu.gyr[1], &out->imu.gyr[2], &acc);
+#endif
         // tsf timestamp
         out->tsf_ts_us = esp_mesh_get_tsf_time();
 
@@ -236,6 +244,10 @@ size_t bno08x_read_bytes(imu_t *p_imu, uint8_t *out, size_t len) {
         BNO08x_get_linear_accel(p_driver, &out_dgram.imu.acc[0], &out_dgram.imu.acc[1], &out_dgram.imu.acc[2], &acc);
 #else
         BNO08x_get_accel(p_driver, &out_dgram.imu.acc[0], &out_dgram.imu.acc[1], &out_dgram.imu.acc[2], &acc);
+#endif
+
+#if CONFIG_USE_GYRO
+        BNO08x_get_gyro_calibrated_velocity(p_driver, &out_dgram.imu.gyr[0], &out_dgram.imu.gyr[1], &out_dgram.imu.gyr[2], &acc);
 #endif
     }
 
