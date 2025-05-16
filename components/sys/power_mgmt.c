@@ -187,21 +187,6 @@ esp_err_t power_mgmt_on_enter_standby() {
         blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
     }
 
-    /** Initialize Wi-Fi **/
-    if (!g_power_mgmt_ctx.peripheral_state.wifi_initialized) {
-        sys_wifi_msp_init();
-        g_power_mgmt_ctx.peripheral_state.wifi_initialized = true;
-    }
-    /** Configure Wi-Fi tx power **/
-    ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
-    esp_wifi_set_max_tx_power(CONFIG_NORMAL_TX_POWER);
-
-    /** Launch RESTful controller **/
-    if (!g_power_mgmt_ctx.peripheral_state.controller_initialized) {
-        g_mcu.rest_controller = rest_controller_start(CONFIG_CONTROLLER_BASE_PATH);
-        g_power_mgmt_ctx.peripheral_state.controller_initialized = true;
-    }
-
     /** Turn the power save timer on **/
     if (g_power_mgmt_ctx.mode != POWER_MODE_PERFORMANCE) {
         arm_power_save_timer();
@@ -223,12 +208,6 @@ esp_err_t power_mgmt_on_enter_standby() {
 esp_err_t power_mgmt_on_enter_active() {
     ESP_LOGI(TAG, "set wifi tx power level: %d", CONFIG_MAX_TX_POWER);
     esp_wifi_set_max_tx_power(CONFIG_MAX_TX_POWER);
-    // detect if bluetooth is enabled
-    if (g_power_mgmt_ctx.peripheral_state.ble_enabled) {
-        blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
-        esp_wifi_set_ps(WIFI_PS_NONE); // DISABLE WiFi PowerSaving
-    }
-
     g_power_mgmt_ctx.state = POWER_ACTIVE;
     return ESP_OK;
 }
@@ -242,13 +221,6 @@ esp_err_t power_mgmt_on_enter_power_save() {
     if (g_power_mgmt_ctx.peripheral_state.ble_enabled) {
         ESP_LOGI(TAG, "disabling BLE");
         blehr_stop_srv(&g_power_mgmt_ctx.peripheral_state.ble_enabled);
-    }
-
-    /** De-initialize Wi-Fi **/
-    if (g_power_mgmt_ctx.peripheral_state.wifi_initialized) {
-        ESP_LOGI(TAG, "disabling Wi-Fi");
-        sys_wifi_msp_deinit();
-        g_power_mgmt_ctx.peripheral_state.wifi_initialized = false;
     }
 
     /** Turn led off **/

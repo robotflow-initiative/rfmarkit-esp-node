@@ -92,6 +92,8 @@
 #define EV_SYS_MODE_CHANGE
 #define EV_SYS_POWER_MGMT_BIT           BIT9
 #define EV_SYS_POWER_MGMT
+#define EV_SYS_BLE_CONN_UPDATE_BIT        BIT10
+#define EV_SYS_BLE_CONN_UPDATE
 
 #define set_sys_event(ev) \
         xEventGroupSetBits(g_mcu.sys_event_group, ev##_BIT)
@@ -204,6 +206,7 @@ typedef struct {
     char ble_local_name[CONFIG_BLE_LOCAL_NAME_LEN];
 
     /** Volatile Variables **/
+    QueueHandle_t imu_queue;
     ring_buf_t imu_ring_buf;
     mcu_state_t state;
     mcu_tasks_t tasks;
@@ -216,7 +219,10 @@ typedef struct {
     esp_event_loop_handle_t system_loop;
     httpd_handle_t rest_controller;
 
-    /** Task Handles **/
+    /** BLE Handles **/
+    uint16_t arhs_conn_handle;
+    uint16_t arhs_val_handle;
+    bool arhs_subscribed;
 
     /** Non Volatile Variables **/
     char wifi_ssid[CONFIG_VAR_STR_MAX_LEN];

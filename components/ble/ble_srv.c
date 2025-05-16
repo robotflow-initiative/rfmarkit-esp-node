@@ -90,6 +90,10 @@ static int blehr_gap_event(struct ble_gap_event *event, void *arg) {
         case BLE_GAP_EVENT_DISCONNECT:
             ESP_LOGI(TAG, "disconnect; reason=%d", event->disconnect.reason);
 
+            /** notify the system **/
+            g_mcu.state.active = false;
+            set_sys_event(EV_SYS_BLE_CONN_UPDATE);
+
             /** Connection terminated; resume advertising **/
             blehr_advertise();
             break;
@@ -100,7 +104,20 @@ static int blehr_gap_event(struct ble_gap_event *event, void *arg) {
             break;
 
         case BLE_GAP_EVENT_SUBSCRIBE:
-            ESP_LOGI(TAG, "conn_handle from subscribe=%d", conn_handle);
+            ESP_LOGI(TAG,
+                     "subscribe event; conn_handle=%d attr_handle=%d "
+                     "reason=%d prevn=%d curn=%d previ=%d curi=%d",
+                     event->subscribe.conn_handle, event->subscribe.attr_handle,
+                     event->subscribe.reason, event->subscribe.prev_notify,
+                     event->subscribe.cur_notify, event->subscribe.prev_indicate,
+                     event->subscribe.cur_indicate);
+
+            /** handle the subscribe event **/
+            gatt_svr_subscribe_cb(event);
+
+            /** notify the system **/
+            g_mcu.state.active = true;
+            set_sys_event(EV_SYS_BLE_CONN_UPDATE);
             break;
 
         case BLE_GAP_EVENT_MTU:

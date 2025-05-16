@@ -23,7 +23,6 @@ static void init() {
     sys_init_chip();
     sys_init_nvs(); // Initialize NVS
     sys_init_events(); // Create system event group
-    sys_wifi_netif_init(); // Initialize Wi-Fi netif
 
     /** If the device is waken up, decide whether to go to deep sleep again or not **/
     power_mgmt_init(); // Initialize power management
@@ -37,11 +36,12 @@ static void init() {
     }
     power_mgmt_on_enter_standby(); // Enter standby mode
 
-    /** Init ring buffer **/
-    ring_buf_init(&g_mcu.imu_ring_buf, CONFIG_DATA_BUF_LEN, sizeof(imu_dgram_t), s_data_buf, true);
+    /** Init Queue **/
+    g_mcu.imu_queue = xQueueCreate(sizeof(imu_dgram_t), 128);
 
     /** Test IMU availability, must run at the end of init() **/
     g_imu.self_test(g_imu.p_imu);
+    sys_set_led_status(LED_SLOW_BREATH); // Set LED status to fast breath
 
 }
 

@@ -3,6 +3,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <esp_mesh.h>
+#include <host/ble_gatt.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -33,9 +34,6 @@ static QueueHandle_t read_signal_queue = NULL;
 _Noreturn void app_monitor(void *pvParameters) {
     ESP_LOGI(TAG, "app_monitor started");
 
-    /** Get a ring buffer pointer **/
-    ring_buf_t *serial_buf = &g_mcu.imu_ring_buf;
-
     /** Create a imu data structure **/
     imu_dgram_t imu_data = {0};
 
@@ -63,7 +61,7 @@ _Noreturn void app_monitor(void *pvParameters) {
         /** Flush the uart buffer and prepare ring_buffer **/
         g_imu.buffer_reset(g_imu.p_imu);
         uint32_t seq = 0;
-        ring_buf_reset(serial_buf);
+        xQueueReset(g_mcu.imu_queue);
 
 #if CONFIG_EN_FPS_PROFILING
         int64_t start_time;
@@ -92,7 +90,11 @@ _Noreturn void app_monitor(void *pvParameters) {
             imu_data.seq = seq++;
 
             /** Add the imu data to the ring buffer **/
-            ring_buf_push(serial_buf, (uint8_t *) &imu_data);
+            if (g_mcu.arhs_subscribed) {
+                xQueueSend(g_mcu.imu_queue, &imu_data, 0);
+                ESP_LOGD(TAG, "Notification/Indication scheduled for all subscribed peers.\n");
+                ble_gatts_chr_updated(g_mcu.arhs_val_handle);
+            }
 
 #if CONFIG_EN_FPS_PROFILING
             int64_t now;

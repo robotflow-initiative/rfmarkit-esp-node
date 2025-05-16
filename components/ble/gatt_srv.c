@@ -28,6 +28,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "ble_srv.h"
 #include "sys.h"
+#include "imu.h"
 
 static const char *TAG = "ble.gatt_srv    ";
 
@@ -96,6 +97,60 @@ static int gatt_svr_chr_wifi_info(
     }
 }
 
+typedef struct {
+    float acc[3];           /* acceleration                     */
+    float gyr[3];           /* angular velocity                 */
+    float quat[4];          /* attitude: quaternion  [w,x,y,z]  */
+    uint32_t imu_ts_ms;     /* device timestamp in milliseconds */
+} imu_ble_dgram_t;
+
+static int gatt_svr_chr_imu(
+        uint16_t conn_handle,
+        uint16_t attr_handle,
+        struct ble_gatt_access_ctxt *ctxt,
+        void *arg
+) {
+    int rc;
+    imu_dgram_t imu_data;
+    rc = xQueueReceive(g_mcu.imu_queue, &imu_data, 0);
+    if (rc != pdTRUE) {
+        ESP_LOGD(TAG, "imu data not available");
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
+    /** Copy the data **/
+    imu_ble_dgram_t imu_ble_data;
+    memcpy(imu_ble_data.acc, imu_data.imu.acc, sizeof(imu_ble_data.acc));
+    memcpy(imu_ble_data.gyr, imu_data.imu.gyr, sizeof(imu_ble_data.gyr));
+    memcpy(imu_ble_data.quat, imu_data.imu.quat, sizeof(imu_ble_data.quat));
+    imu_ble_data.imu_ts_ms = imu_data.imu.imu_ts_ms;
+
+    switch (ctxt->op) {
+        case BLE_GATT_ACCESS_OP_READ_CHR:
+            // read op indicates that the client is reading imu
+            if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+                ESP_LOGD(TAG, "characteristic read; conn_handle=%d attr_handle=%d\n",
+                         conn_handle, attr_handle);
+            } else {
+                ESP_LOGD(TAG, "characteristic read by NimBLE stack; attr_handle=%d\n",
+                         attr_handle);
+            }
+            if (attr_handle == g_mcu.arhs_val_handle) {
+                rc = os_mbuf_append(ctxt->om,
+                                    &imu_ble_data,
+                                    sizeof(imu_ble_data));
+                return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+            }
+            goto unknown;
+    }
+    unknown:
+    /**
+     * unknown characteristic/descriptor;
+     * The NimBLE host should not have called this function;
+    **/
+    return BLE_ATT_ERR_UNLIKELY;
+}
+
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     {
         /** Service: Device Information **/
@@ -115,6 +170,12 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                  .flags = BLE_GATT_CHR_F_READ,
              },
              {
+                .uuid = BLE_UUID16_DECLARE(GATT_IMU_NOTIFY_UUID),
+                .access_cb = gatt_svr_chr_imu,
+                .flags = BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_mcu.arhs_val_handle,
+             },
+             {
                  0, /** No more characteristics in this service **/
              },
             }
@@ -124,6 +185,24 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
         0, /** No more services **/
     },
 };
+
+
+void gatt_svr_subscribe_cb(struct ble_gap_event *event) {
+    /** check attribute handle **/
+    if (event->subscribe.attr_handle == g_mcu.arhs_val_handle) {
+        if (event->subscribe.cur_notify) {
+            ESP_LOGI(TAG, "subscribe to arhs");
+            /** update arhs data subscription status **/
+            g_mcu.arhs_conn_handle = event->subscribe.conn_handle;
+            g_mcu.arhs_subscribed = true;
+        } else {
+            ESP_LOGI(TAG, "unsubscribe from arhs");
+            /** update arhs data subscription status **/
+            g_mcu.arhs_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+            g_mcu.arhs_subscribed = false;
+        }
+    }
+}
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg) {
     char buf[BLE_UUID_STR_LEN];

@@ -22,20 +22,11 @@ static const char *TAG = "sys.led_status  ";
  * 4. LED on when is enabled
 **/
 static led_status_enum get_target_led_status() {
-    if (!(g_mcu.state.wifi_connected)) {
-        return LED_FAST_FLASH;
+    if (g_mcu.state.active) {
+        return LED_ON;
     } else {
-        if (!(g_mcu.state.ntp_synced) || !(g_mcu.state.discovery_completed)) {
-            return LED_FAST_BREATH;
-        } else {
-            if (g_mcu.state.active) {
-                return LED_ON;
-            } else {
-                return LED_SLOW_BREATH;
-            }
-        }
+        return LED_SLOW_BREATH;
     }
-
 }
 
 /**

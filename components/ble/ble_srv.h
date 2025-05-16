@@ -12,9 +12,12 @@
 #define GATT_WIFI_CONFIGURATION_UUID            0x1829
 #define GATT_WIFI_WRITE_UUID                    0x2B1F
 #define GATT_WIFI_READ_UUID                     0x2B20
+#define GATT_IMU_NOTIFY_UUID                    0x2B21
 
 struct ble_hs_cfg;
 struct ble_gatt_register_ctxt;
+
+void gatt_svr_subscribe_cb(struct ble_gap_event *event);
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 

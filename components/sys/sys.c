@@ -181,9 +181,6 @@ void sys_init_events() {
     g_mcu.sys_event_group = xEventGroupCreate();
     g_mcu.wifi_event_group = xEventGroupCreate();
     g_mcu.task_event_group = xEventGroupCreate();
-
-    // Initially, the system is in idle mode, Wi-Fi is disconnected
-    set_sys_event(EV_SYS_WIFI_DISCONNECTED);
 }
 
 /**
@@ -233,20 +230,16 @@ static _Noreturn void app_log_trace(void * pvParameters) {
 **/
 void sys_start_tasks(void) {
 #if CONFIG_EN_MULTI_CORE
-    launch_task_multicore(app_data_client, "app_data_client", 4096, NULL, 5, g_mcu.tasks.app_data_client_task, 0x1);
     launch_task_multicore(app_monitor, "app_monitor", 4096, NULL, 6, g_mcu.tasks.app_monitor_task, 0x0);
     launch_task_multicore(app_system_loop, "app_system_loop", 4096, NULL, 4, g_mcu.tasks.app_system_loop_task, 0x0);
 #if CONFIG_EN_PROFILING
     launch_task_multicore(app_log_trace, "app_log_trace", 4096, NULL, 5, g_mcu.tasks.app_log_trace_task, 0x0);
 #endif
 #else
-    launch_task(app_data_client, "app_data_client", 4096, NULL, 12, g_mcu.tasks.app_data_client_task);
-    launch_task(app_uart_monitor, "app_monitor", 4096, NULL, 12, g_mcu.tasks.app_monitor_task);
+    launch_task(app_monitor, "app_monitor", 4096, NULL, 12, g_mcu.tasks.app_monitor_task);
     launch_task(app_system_loop, "app_system_loop", 4096, NULL, 8, g_mcu.tasks.app_system_loop_task);
 #if CONFIG_PROFILING_ENABLED
-    if (g_mcu.tasks.app_log_trace_task == NULL){
-        launch_task(app_log_trace, "app_log_trace", 2048, NULL, 5, g_mcu.tasks.app_log_trace_task);
-    }
+    launch_task(app_log_trace, "app_log_trace", 4096, NULL, 5, g_mcu.tasks.app_log_trace_task);
 #endif
 #endif
 }

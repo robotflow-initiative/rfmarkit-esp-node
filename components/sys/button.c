@@ -90,7 +90,7 @@ _Noreturn void button_daemon(void *params) {
                         }
                     } else {
                         ESP_LOGD(TAG, "button clicked");
-                        sys_set_operation_mode(!g_mcu.state.active);
+                        //TODO: make use of this function
                     }
                     break;
                 case LONG_PRESS:

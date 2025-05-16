@@ -54,22 +54,12 @@ _Noreturn void app_system_loop(void *pvParameters) {
 
     /** Register events **/
     ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &g_mcu.system_loop));
-    ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_TIME_SYNC_EVENT, sys_time_sync_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_DISCOVERY_EVENT, sys_discovery_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_LED_STATUS_EVENT, sys_led_status_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_WIFI_RECONNECT_EVENT, sys_wifi_reconnect_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_MODE_CHANGE_EVENT, sys_mode_change_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_POWER_MGMT_EVENT, sys_power_mgmt_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_OTA_EVENT, sys_power_mgmt_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register_with(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_MODE_CHANGE_EVENT, sys_power_mgmt_handler, NULL));
 
     /** Launch timers **/
-    g_mcu.timers.discovery_timer = xTimerCreate("discovery_timer", pdMS_TO_TICKS(CONFIG_DISCOVERY_INTERVAL_S * 1000), pdTRUE, NULL, discovery_timer_cb);
-    if (xTimerStart(g_mcu.timers.discovery_timer, 0) == pdPASS) ESP_LOGI(TAG, "discovery timer started");
-
-    g_mcu.timers.time_sync_timer = xTimerCreate("time_sync_timer", pdMS_TO_TICKS(CONFIG_NTP_UPDATE_INTERVAL_S * 1000), pdTRUE, NULL, time_sync_timer_cb);
-    if (xTimerStart(g_mcu.timers.time_sync_timer, 0) == pdPASS) ESP_LOGI(TAG, "time sync timer started");
-
     g_mcu.timers.power_mgmt_timer = xTimerCreate("power_mgmt_timer", pdMS_TO_TICKS(CONFIG_POWER_MGMT_DURATION_S * 1000), pdTRUE, NULL, power_mgmt_timer_cb);
     if (xTimerStart(g_mcu.timers.power_mgmt_timer, 0) == pdPASS) ESP_LOGI(TAG, "power mgmt timer started");
 
@@ -84,30 +74,6 @@ _Noreturn void app_system_loop(void *pvParameters) {
         );
         ESP_LOGI(TAG, "bits=%x", bits);
 
-        /** Start-Up **/
-        if (bits & EV_SYS_WIFI_CONNECTED_BIT) {
-            ESP_LOGI(TAG, "Wi-Fi connected");
-            esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_TIME_SYNC_EVENT, NULL, 0, portMAX_DELAY);
-            esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_DISCOVERY_EVENT, NULL, 0, portMAX_DELAY);
-        }
-
-        /** Wi-Fi Management **/
-        if (bits & (EV_SYS_WIFI_DISCONNECTED_BIT | EV_SYS_WIFI_FAIL_BIT | EV_SYS_WIFI_CONFIG_UPDATED_BIT)) {
-            ESP_LOGI(TAG, "Wi-Fi disconnected / config updated, bits=%x", bits);
-            if (!get_task_event(EV_TASK_WIFI_RECONNECT)) {
-                set_task_event(EV_TASK_WIFI_RECONNECT);
-                esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_WIFI_RECONNECT_EVENT, NULL, 0, portMAX_DELAY);
-            }
-        }
-
-        /** OTA **/
-        if (bits & EV_SYS_OTA_TRIGGERED_BIT) {
-            ESP_LOGI(TAG, "OTA triggered");
-            esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_OTA_EVENT, NULL, 0, portMAX_DELAY);
-            sys_set_operation_mode(false);
-            sys_ota_perform();
-        }
-
         /** Power Management **/
         if (bits & EV_SYS_POWER_MGMT_BIT) {
             ESP_LOGI(TAG, "power management event");
@@ -117,6 +83,12 @@ _Noreturn void app_system_loop(void *pvParameters) {
         /** Mode Change **/
         if (bits & EV_SYS_MODE_CHANGE_BIT) {
             ESP_LOGI(TAG, "mode change event");
+            esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_MODE_CHANGE_EVENT, NULL, 0, portMAX_DELAY);
+        }
+
+        /** BLE Connection **/
+        if (bits & EV_SYS_BLE_CONN_UPDATE_BIT) {
+            ESP_LOGI(TAG, "BLE connection update event");
             esp_event_post_to(g_mcu.system_loop, SYSTEM_EVENTS, SYSTEM_MODE_CHANGE_EVENT, NULL, 0, portMAX_DELAY);
         }
 
